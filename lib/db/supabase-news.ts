@@ -60,13 +60,8 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
 export async function getNewsByCategory(category: NewsCategory, limit: number = 10): Promise<News[]> {
   try {
     console.log(`[getNewsByCategory] 카테고리: ${category}, 제한: ${limit}`);
-    
-    const { data, error } = await supabaseServer
-      .from("news")
-      .select("*")
-      .eq("category", category)
-      .order("created_at", { ascending: false })
-      .limit(limit);
+
+    const { data, error } = await supabaseServer.from("news").select("*").eq("category", category).order("created_at", { ascending: false }).limit(limit);
 
     if (error) {
       console.error("[getNewsByCategory] Supabase 에러 발생:", {
@@ -86,18 +81,18 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
     }
 
     console.log(`[getNewsByCategory] 성공: ${data.length}개의 뉴스 조회됨. 카테고리: ${category}`);
-    
+
     // 데이터 타입 변환 및 검증
     const newsItems: News[] = data.map((item: any) => ({
-      id: String(item.id || ''),
-      published_date: item.published_date || '',
-      source_country: item.source_country || '',
-      source_media: item.source_media || '',
-      title: item.title || '',
-      content: item.content || '',
+      id: String(item.id || ""),
+      published_date: item.published_date || "",
+      source_country: item.source_country || "",
+      source_media: item.source_media || "",
+      title: item.title || "",
+      content: item.content || "",
       content_translated: item.content_translated || null,
       category: item.category as NewsCategory,
-      original_link: item.original_link || '',
+      original_link: item.original_link || "",
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));
 
@@ -119,12 +114,8 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
 export async function getAllNews(limit: number = 30): Promise<News[]> {
   try {
     console.log(`[getAllNews] 제한: ${limit}`);
-    
-    const { data, error } = await supabaseServer
-      .from("news")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(limit);
+
+    const { data, error } = await supabaseServer.from("news").select("*").order("created_at", { ascending: false }).limit(limit);
 
     if (error) {
       console.error("[getAllNews] Supabase 에러 발생:", {
@@ -143,18 +134,18 @@ export async function getAllNews(limit: number = 30): Promise<News[]> {
     }
 
     console.log(`[getAllNews] 성공: ${data.length}개의 뉴스 조회됨.`);
-    
+
     // 데이터 타입 변환 및 검증
     const newsItems: News[] = data.map((item: any) => ({
-      id: String(item.id || ''),
-      published_date: item.published_date || '',
-      source_country: item.source_country || '',
-      source_media: item.source_media || '',
-      title: item.title || '',
-      content: item.content || '',
+      id: String(item.id || ""),
+      published_date: item.published_date || "",
+      source_country: item.source_country || "",
+      source_media: item.source_media || "",
+      title: item.title || "",
+      content: item.content || "",
       content_translated: item.content_translated || null,
       category: item.category as NewsCategory,
-      original_link: item.original_link || '',
+      original_link: item.original_link || "",
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));
 
@@ -199,15 +190,15 @@ export async function searchNews(query: string, searchType: "title" | "content" 
       }
 
       return data.map((item: any) => ({
-        id: String(item.id || ''),
-        published_date: item.published_date || '',
-        source_country: item.source_country || '',
-        source_media: item.source_media || '',
-        title: item.title || '',
-        content: item.content || '',
+        id: String(item.id || ""),
+        published_date: item.published_date || "",
+        source_country: item.source_country || "",
+        source_media: item.source_media || "",
+        title: item.title || "",
+        content: item.content || "",
         content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
-        original_link: item.original_link || '',
+        original_link: item.original_link || "",
         created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
       }));
     }
@@ -238,15 +229,15 @@ export async function searchNews(query: string, searchType: "title" | "content" 
       }
 
       return data.map((item: any) => ({
-        id: String(item.id || ''),
-        published_date: item.published_date || '',
-        source_country: item.source_country || '',
-        source_media: item.source_media || '',
-        title: item.title || '',
-        content: item.content || '',
+        id: String(item.id || ""),
+        published_date: item.published_date || "",
+        source_country: item.source_country || "",
+        source_media: item.source_media || "",
+        title: item.title || "",
+        content: item.content || "",
         content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
-        original_link: item.original_link || '',
+        original_link: item.original_link || "",
         created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
       }));
     }
@@ -278,15 +269,15 @@ export async function searchNews(query: string, searchType: "title" | "content" 
       }
 
       return data.map((item: any) => ({
-        id: String(item.id || ''),
-        published_date: item.published_date || '',
-        source_country: item.source_country || '',
-        source_media: item.source_media || '',
-        title: item.title || '',
-        content: item.content || '',
+        id: String(item.id || ""),
+        published_date: item.published_date || "",
+        source_country: item.source_country || "",
+        source_media: item.source_media || "",
+        title: item.title || "",
+        content: item.content || "",
         content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
-        original_link: item.original_link || '',
+        original_link: item.original_link || "",
         created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
       }));
     }

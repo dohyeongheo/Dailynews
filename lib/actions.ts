@@ -42,7 +42,7 @@ export async function getNewsByCategoryAction(
   try {
     console.log(`[getNewsByCategoryAction] 시작 - 카테고리: ${category}, 제한: ${limit}`);
     const data = await newsDB.getNewsByCategory(category, limit);
-    
+
     if (!data || !Array.isArray(data)) {
       console.warn(`[getNewsByCategoryAction] 유효하지 않은 데이터 반환 - 카테고리: ${category}`);
       return {
@@ -53,7 +53,7 @@ export async function getNewsByCategoryAction(
     }
 
     console.log(`[getNewsByCategoryAction] 성공 - ${data.length}개의 뉴스 조회됨. 카테고리: ${category}`);
-    
+
     return {
       success: true,
       data,
