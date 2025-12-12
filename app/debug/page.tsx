@@ -2,8 +2,7 @@ import { getNewsByCategoryAction, getAllNewsAction } from '@/lib/actions';
 import Header from '@/components/Header';
 
 export default async function DebugPage() {
-  const DB_TYPE = process.env.DB_TYPE || 'sqlite';
-  const useSupabase = DB_TYPE === 'supabase' && process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const useSupabase = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
 
   // 모든 카테고리별 데이터 조회
   const [thailandNews, relatedNews, koreaNews, allNews] = await Promise.all([
@@ -15,7 +14,6 @@ export default async function DebugPage() {
 
   // 환경 변수 확인 (민감한 정보는 일부만 표시)
   const envInfo = {
-    DB_TYPE,
     useSupabase,
     hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
     hasSupabaseAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
@@ -37,9 +35,6 @@ export default async function DebugPage() {
         <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
           <h2 className="text-xl font-semibold mb-4">환경 변수 상태</h2>
           <div className="space-y-2 text-sm">
-            <p>
-              <span className="font-medium">DB_TYPE:</span> {envInfo.DB_TYPE}
-            </p>
             <p>
               <span className="font-medium">Supabase 사용:</span>{' '}
               {envInfo.useSupabase ? '✅ 예' : '❌ 아니오'}

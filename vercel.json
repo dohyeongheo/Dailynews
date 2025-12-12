@@ -3,9 +3,6 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "regions": ["icn1"],
-  "env": {
-    "DB_TYPE": "supabase"
-  }
+  "regions": ["icn1"]
 }
 

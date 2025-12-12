@@ -6,7 +6,7 @@
 
 - **Framework**: Next.js 14+ (App Router)
 - **Styling**: Tailwind CSS
-- **Database**: SQLite (로컬 개발) / Supabase (배포 시)
+- **Database**: Supabase (PostgreSQL)
 - **AI API**: Google Gemini API (Search Grounding 기능 활용)
 - **Language**: TypeScript
 
@@ -24,16 +24,14 @@ Dailynews/
 │   ├── NewsCard.tsx       # 개별 뉴스 카드
 │   └── FetchNewsButton.tsx # 뉴스 수집 버튼 (로컬 테스트용)
 ├── lib/                   # 유틸리티 및 로직
-│   ├── db/               # 로컬 데이터베이스 (SQLite)
-│   │   ├── database.ts   # 데이터베이스 초기화
-│   │   └── news.ts       # 뉴스 데이터베이스 함수
-│   ├── supabase/         # Supabase 클라이언트 (배포 시 사용)
+│   ├── db/               # 데이터베이스 함수
+│   │   ├── news.ts       # 뉴스 데이터베이스 함수
+│   │   └── supabase-news.ts # Supabase 뉴스 함수
+│   ├── supabase/         # Supabase 클라이언트
 │   ├── news-fetcher.ts   # Google Gemini API 뉴스 수집 로직
 │   └── actions.ts        # Server Actions
 ├── supabase/             # Supabase 관련 파일
-│   └── schema.sql        # PostgreSQL 스키마 (배포 시 사용)
-├── data/                 # 로컬 데이터베이스 파일 (자동 생성)
-│   └── news.db           # SQLite 데이터베이스
+│   └── schema.sql        # PostgreSQL 스키마
 └── types/                # TypeScript 타입 정의
     └── news.ts           # 뉴스 관련 타입
 ```
@@ -54,21 +52,11 @@ npm install
 # Google Gemini API (필수)
 GOOGLE_GEMINI_API_KEY=your_google_gemini_api_key
 
-# Supabase Configuration (배포 시 필수)
+# Supabase Configuration (필수)
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-
-# 데이터베이스 타입 선택 (sqlite 또는 supabase)
-# 로컬 개발 시: sqlite (기본값)
-# 배포 시: supabase
-DB_TYPE=supabase
 ```
-
-**참고**:
-- 로컬 개발 환경에서는 기본적으로 SQLite 데이터베이스를 사용합니다 (`DB_TYPE=sqlite` 또는 미설정 시)
-- 배포 시에는 `DB_TYPE=supabase`로 설정하고 Supabase 환경 변수를 설정하세요
-- 데이터베이스 파일은 `data/news.db`에 자동으로 생성됩니다
 
 ### 4. 개발 서버 실행
 
@@ -80,13 +68,11 @@ npm run dev
 
 ## 사용 방법
 
-### 로컬 테스트
+### 뉴스 수집
 
 1. 웹 페이지 상단의 **"뉴스 수집"** 버튼을 클릭
-2. Google Gemini API를 통해 뉴스가 수집되고 로컬 SQLite 데이터베이스(`data/news.db`)에 저장됩니다
+2. Google Gemini API를 통해 뉴스가 수집되고 Supabase 데이터베이스에 저장됩니다
 3. 수집이 완료되면 페이지가 자동으로 새로고침되어 뉴스가 표시됩니다
-
-**참고**: 데이터베이스 파일은 프로젝트 루트의 `data/` 디렉토리에 자동으로 생성됩니다.
 
 ### 뉴스 카테고리
 
@@ -97,13 +83,14 @@ npm run dev
 ## 주요 기능
 
 - ✅ Google Gemini API를 통한 뉴스 수집 (Search Grounding 기능 활용)
-- ✅ 로컬 SQLite 데이터베이스를 통한 뉴스 데이터 저장 (로컬 개발)
-- ✅ Supabase PostgreSQL 데이터베이스 지원 (배포 시)
-- ✅ 환경 변수로 DB 타입 선택 가능 (SQLite ↔ Supabase)
+- ✅ Supabase PostgreSQL 데이터베이스를 통한 뉴스 데이터 저장
 - ✅ 카테고리별 뉴스 조회 및 표시
+- ✅ 무한 스크롤을 통한 효율적인 뉴스 표시
 - ✅ 뉴스 검색 기능 (헤더 검색창)
+- ✅ 중복 뉴스 방지 로직
 - ✅ AWS 스타일의 모던한 UI
 - ✅ 태국 뉴스 영어 원문 자동 한국어 번역
+- ✅ 에러 핸들링 및 성능 최적화
 
 ## 배포
 

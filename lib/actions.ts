@@ -3,6 +3,7 @@
 import { fetchAndSaveNews } from './news-fetcher';
 import * as newsDB from './db/news';
 import type { News, NewsCategory } from '@/types/news';
+import { toAppError, getErrorMessage, ErrorType } from './errors';
 
 /**
  * 뉴스를 수집하고 데이터베이스에 저장하는 Server Action
@@ -23,7 +24,8 @@ export async function fetchAndSaveNewsAction(date?: string) {
     };
   } catch (error) {
     console.error('Error in fetchAndSaveNewsAction:', error);
-    const errorMessage = error instanceof Error ? error.message : '뉴스 수집 중 오류가 발생했습니다.';
+    const appError = toAppError(error, ErrorType.API_ERROR);
+    const errorMessage = getErrorMessage(appError);
     return {
       success: false,
       message: errorMessage,
@@ -37,11 +39,12 @@ export async function fetchAndSaveNewsAction(date?: string) {
  */
 export async function getNewsByCategoryAction(
   category: NewsCategory,
-  limit: number = 10
+  limit: number = 10,
+  offset: number = 0
 ): Promise<{ success: boolean; data: News[] | null; error?: string }> {
   try {
-    console.log(`[getNewsByCategoryAction] 시작 - 카테고리: ${category}, 제한: ${limit}`);
-    const data = await newsDB.getNewsByCategory(category, limit);
+    console.log(`[getNewsByCategoryAction] 시작 - 카테고리: ${category}, 제한: ${limit}, 오프셋: ${offset}`);
+    const data = await newsDB.getNewsByCategory(category, limit, offset);
 
     if (!data || !Array.isArray(data)) {
       console.warn(`[getNewsByCategoryAction] 유효하지 않은 데이터 반환 - 카테고리: ${category}`);
@@ -59,7 +62,8 @@ export async function getNewsByCategoryAction(
       data,
     };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : '뉴스 조회 중 오류가 발생했습니다.';
+    const appError = toAppError(error, ErrorType.DATABASE_ERROR);
+    const errorMessage = getErrorMessage(appError);
     console.error('[getNewsByCategoryAction] 에러 발생:', {
       error: errorMessage,
       stack: error instanceof Error ? error.stack : undefined,
@@ -86,10 +90,67 @@ export async function getAllNewsAction(limit: number = 30): Promise<{ success: b
     };
   } catch (error) {
     console.error('Error in getAllNews:', error);
+    const appError = toAppError(error, ErrorType.DATABASE_ERROR);
+    const errorMessage = getErrorMessage(appError);
     return {
       success: false,
       data: null,
-      error: error instanceof Error ? error.message : '뉴스 조회 중 오류가 발생했습니다.',
+      error: errorMessage,
+    };
+  }
+}
+
+/**
+ * 카테고리별로 뉴스를 페이지네이션으로 조회하는 Server Action
+ */
+export async function getNewsByCategoryPaginatedAction(
+  category: NewsCategory,
+  page: number = 1,
+  pageSize: number = 12
+): Promise<{ success: boolean; data: News[] | null; error?: string; hasMore: boolean }> {
+  try {
+    const offset = (page - 1) * pageSize;
+    const limit = pageSize + 1; // 한 개 더 가져와서 hasMore 판단
+
+    console.log(`[getNewsByCategoryPaginatedAction] 시작 - 카테고리: ${category}, 페이지: ${page}, 페이지 크기: ${pageSize}`);
+    const data = await newsDB.getNewsByCategory(category, limit, offset);
+
+    if (!data || !Array.isArray(data)) {
+      console.warn(`[getNewsByCategoryPaginatedAction] 유효하지 않은 데이터 반환 - 카테고리: ${category}`);
+      return {
+        success: false,
+        data: null,
+        hasMore: false,
+        error: '뉴스 데이터 형식이 올바르지 않습니다.',
+      };
+    }
+
+    // 한 개 더 가져왔으므로 hasMore 판단
+    const hasMore = data.length > pageSize;
+    const newsData = hasMore ? data.slice(0, pageSize) : data;
+
+    console.log(`[getNewsByCategoryPaginatedAction] 성공 - ${newsData.length}개의 뉴스 조회됨. 카테고리: ${category}, 더 있음: ${hasMore}`);
+
+    return {
+      success: true,
+      data: newsData,
+      hasMore,
+    };
+  } catch (error) {
+    const appError = toAppError(error, ErrorType.DATABASE_ERROR);
+    const errorMessage = getErrorMessage(appError);
+    console.error('[getNewsByCategoryPaginatedAction] 에러 발생:', {
+      error: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+      category,
+      page,
+      pageSize,
+    });
+    return {
+      success: false,
+      data: null,
+      hasMore: false,
+      error: errorMessage,
     };
   }
 }
@@ -110,10 +171,12 @@ export async function searchNewsAction(
     };
   } catch (error) {
     console.error('Error in searchNews:', error);
+    const appError = toAppError(error, ErrorType.DATABASE_ERROR);
+    const errorMessage = getErrorMessage(appError);
     return {
       success: false,
       data: null,
-      error: error instanceof Error ? error.message : '뉴스 검색 중 오류가 발생했습니다.',
+      error: errorMessage,
     };
   }
 }

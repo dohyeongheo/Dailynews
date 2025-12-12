@@ -2,10 +2,43 @@ import { supabaseServer } from "../supabase/server";
 import type { News, NewsInput, NewsCategory } from "@/types/news";
 
 /**
+ * original_link로 중복 뉴스 확인
+ */
+async function checkDuplicateNews(originalLink: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabaseServer
+      .from("news")
+      .select("id")
+      .eq("original_link", originalLink)
+      .limit(1);
+
+    if (error) {
+      console.error("Error checking duplicate news:", error);
+      return false; // 에러 발생 시 중복이 아닌 것으로 간주하고 진행
+    }
+
+    return (data && data.length > 0) || false;
+  } catch (error) {
+    console.error("Error checking duplicate news:", error);
+    return false;
+  }
+}
+
+/**
  * 뉴스를 Supabase 데이터베이스에 저장
  */
 export async function insertNews(news: NewsInput): Promise<{ success: boolean; error?: string }> {
   try {
+    // 중복 체크
+    const isDuplicate = await checkDuplicateNews(news.original_link);
+    if (isDuplicate) {
+      console.log(`중복 뉴스 건너뜀: ${news.original_link}`);
+      return {
+        success: false,
+        error: "이미 존재하는 뉴스입니다.",
+      };
+    }
+
     const { error } = await supabaseServer.from("news").insert({
       published_date: news.published_date,
       source_country: news.source_country,
@@ -18,6 +51,15 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
     });
 
     if (error) {
+      // 유니크 제약 조건 위반인 경우 중복으로 처리
+      if (error.code === '23505' || error.message.includes('duplicate') || error.message.includes('unique')) {
+        console.log(`중복 뉴스 건너뜀 (DB 제약 조건): ${news.original_link}`);
+        return {
+          success: false,
+          error: "이미 존재하는 뉴스입니다.",
+        };
+      }
+
       console.error("Error inserting news:", error);
       return {
         success: false,
@@ -57,11 +99,16 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
 /**
  * 카테고리별로 뉴스 조회
  */
-export async function getNewsByCategory(category: NewsCategory, limit: number = 10): Promise<News[]> {
+export async function getNewsByCategory(category: NewsCategory, limit: number = 10, offset: number = 0): Promise<News[]> {
   try {
-    console.log(`[getNewsByCategory] 카테고리: ${category}, 제한: ${limit}`);
+    console.log(`[getNewsByCategory] 카테고리: ${category}, 제한: ${limit}, 오프셋: ${offset}`);
 
-    const { data, error } = await supabaseServer.from("news").select("*").eq("category", category).order("created_at", { ascending: false }).limit(limit);
+    const { data, error } = await supabaseServer
+      .from("news")
+      .select("*")
+      .eq("category", category)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       console.error("[getNewsByCategory] Supabase 에러 발생:", {
