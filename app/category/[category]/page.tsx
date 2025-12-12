@@ -28,8 +28,8 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
     notFound();
   }
 
-  // 카테고리별 모든 뉴스 조회 (제한 없이 또는 큰 수)
-  const result = await getNewsByCategoryAction(categoryInfo.category, 100);
+  // 카테고리별 모든 뉴스 조회 (제한 없이 - 충분히 큰 값으로 설정)
+  const result = await getNewsByCategoryAction(categoryInfo.category, 1000);
 
   return (
     <div className="min-h-screen bg-gray-50">

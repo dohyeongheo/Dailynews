@@ -34,7 +34,7 @@ export default function NewsCard({ news, showOriginalLink = true }: NewsCardProp
         </div>
       </div>
 
-      <p className="text-sm text-gray-600 mb-3 sm:mb-4 line-clamp-3 sm:line-clamp-none">
+      <p className="text-sm text-gray-600 mb-3 sm:mb-4 whitespace-pre-wrap break-words">
         {news.content_translated || news.content}
       </p>
 

@@ -15,7 +15,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
 
   let searchResults = null;
   if (query) {
-    searchResults = await searchNewsAction(query, searchType, 100);
+    searchResults = await searchNewsAction(query, searchType, 1000);
   }
 
   return (
