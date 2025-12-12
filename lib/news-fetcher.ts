@@ -269,19 +269,47 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
  * 수집한 뉴스를 로컬 데이터베이스에 저장합니다.
  */
 export async function saveNewsToDatabase(newsItems: NewsInput[]): Promise<{ success: number; failed: number }> {
-  const result = await insertNewsBatch(newsItems);
-  return result;
+  try {
+    const result = await insertNewsBatch(newsItems);
+    
+    // result가 유효한지 확인
+    if (!result || typeof result !== 'object' || typeof result.success !== 'number' || typeof result.failed !== 'number') {
+      console.error('Invalid result from insertNewsBatch:', result);
+      return { success: 0, failed: newsItems.length };
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error in saveNewsToDatabase:', error);
+    return { success: 0, failed: newsItems.length };
+  }
 }
 
 /**
  * 뉴스 수집 및 저장을 한 번에 수행합니다.
  */
 export async function fetchAndSaveNews(date?: string): Promise<{ success: number; failed: number; total: number }> {
-  const newsItems = await fetchNewsFromGemini(date);
-  const result = await saveNewsToDatabase(newsItems);
+  try {
+    const newsItems = await fetchNewsFromGemini(date);
+    const result = await saveNewsToDatabase(newsItems);
 
-  return {
-    ...result,
-    total: newsItems.length,
-  };
+    // result가 유효한지 확인
+    if (!result || typeof result !== 'object') {
+      console.error('Invalid result from saveNewsToDatabase:', result);
+      return {
+        success: 0,
+        failed: newsItems.length,
+        total: newsItems.length,
+      };
+    }
+
+    return {
+      success: result.success || 0,
+      failed: result.failed || 0,
+      total: newsItems.length,
+    };
+  } catch (error) {
+    console.error('Error in fetchAndSaveNews:', error);
+    throw error;
+  }
 }

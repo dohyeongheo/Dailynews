@@ -65,6 +65,8 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
   `);
 
   const insertMany = db.transaction((items: NewsInput[]) => {
+    const counts = { success: 0, failed: 0 };
+    
     for (const news of items) {
       try {
         const id = randomUUID();
@@ -79,16 +81,28 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
           news.category,
           news.original_link
         );
-        successCount++;
+        counts.success++;
       } catch (error) {
         console.error('Error inserting news:', error);
-        failedCount++;
+        counts.failed++;
       }
     }
+    
+    return counts;
   });
 
-  insertMany(newsItems);
+  try {
+    const result = insertMany(newsItems);
+    
+    // transaction이 반환값을 제공하는 경우 사용
+    if (result && typeof result === 'object' && 'success' in result && 'failed' in result) {
+      return { success: result.success, failed: result.failed };
+    }
+  } catch (error) {
+    console.error('Error in insertNewsBatch transaction:', error);
+  }
 
+  // fallback: 직접 계산 (transaction이 실패한 경우)
   return { success: successCount, failed: failedCount };
 }
 
