@@ -1,6 +1,6 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { insertNewsBatch } from './db/news';
-import type { NewsInput, GeminiNewsResponse, NewsCategory } from '@/types/news';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { insertNewsBatch } from "./db/news";
+import type { NewsInput, GeminiNewsResponse, NewsCategory } from "@/types/news";
 
 /**
  * Gemini AI 클라이언트를 지연 초기화합니다.
@@ -8,11 +8,11 @@ import type { NewsInput, GeminiNewsResponse, NewsCategory } from '@/types/news';
  */
 function getGenAI(): GoogleGenerativeAI {
   const API_KEY = process.env.GOOGLE_GEMINI_API_KEY;
-  
+
   if (!API_KEY) {
-    throw new Error('GOOGLE_GEMINI_API_KEY is not set');
+    throw new Error("GOOGLE_GEMINI_API_KEY is not set");
   }
-  
+
   return new GoogleGenerativeAI(API_KEY);
 }
 
@@ -28,7 +28,7 @@ function isKorean(text: string): boolean {
 
   // 전체 텍스트 중 한국어 문자가 차지하는 비율 계산
   const koreanChars = (text.match(/[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/g) || []).length;
-  const totalChars = text.replace(/\s/g, '').length;
+  const totalChars = text.replace(/\s/g, "").length;
 
   // 한국어 문자가 전체의 30% 이상이면 한국어로 간주
   if (totalChars === 0) return true;
@@ -43,7 +43,7 @@ async function translateToKorean(text: string): Promise<string> {
 
   try {
     const genAI = getGenAI();
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `다음 텍스트를 자연스러운 한국어로 번역해주세요. 원문의 의미와 뉘앙스를 정확히 전달해야 합니다. 번역만 출력하고 다른 설명은 하지 마세요.
 
@@ -56,7 +56,7 @@ ${text}`;
 
     return translatedText;
   } catch (error) {
-    console.error('번역 오류:', error);
+    console.error("번역 오류:", error);
     // 번역 실패 시 원본 반환
     return text;
   }
@@ -77,7 +77,7 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<NewsInput> {
   }
 
   // 태국 뉴스인 경우 특별 처리
-  if (newsItem.category === '태국뉴스') {
+  if (newsItem.category === "태국뉴스") {
     // content가 영어이고, content_translated가 없거나 영어인 경우 번역
     if (!isKorean(content)) {
       // content_translated가 없거나, 있더라도 한국어가 아니면 번역
@@ -91,10 +91,10 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<NewsInput> {
     }
   } else {
     // 다른 카테고리: content_translated가 없거나 비어있고, content가 한국어가 아니면 번역
-    if ((!contentTranslated || contentTranslated.trim() === '') && !isKorean(content)) {
+    if ((!contentTranslated || contentTranslated.trim() === "") && !isKorean(content)) {
       console.log(`📝 내용 번역 중: ${content.substring(0, 50)}...`);
       contentTranslated = await translateToKorean(content);
-    } else if (!contentTranslated || contentTranslated.trim() === '') {
+    } else if (!contentTranslated || contentTranslated.trim() === "") {
       // 한국어인 경우 content_translated를 null로 유지
       contentTranslated = null;
     } else if (contentTranslated && !isKorean(contentTranslated)) {
@@ -116,23 +116,17 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<NewsInput> {
  * Google Gemini API를 사용하여 뉴스를 수집합니다.
  * Search Grounding 기능을 활용하여 최신 뉴스를 가져옵니다.
  */
-export async function fetchNewsFromGemini(date: string = new Date().toISOString().split('T')[0]): Promise<NewsInput[]> {
+export async function fetchNewsFromGemini(date: string = new Date().toISOString().split("T")[0]): Promise<NewsInput[]> {
   // 사용 가능한 모델 목록 시도 (우선순위 순)
   // 최신 모델: gemini-2.5-flash, gemini-2.5-pro, gemini-2.0-flash 등
-  const modelsToTry = [
-    'gemini-2.5-flash',
-    'gemini-2.5-pro',
-    'gemini-2.0-flash',
-    'gemini-flash-latest',
-    'gemini-pro-latest',
-  ];
+  const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-flash-latest", "gemini-pro-latest"];
 
   let model = null;
   let lastError: Error | null = null;
 
   // Gemini AI 클라이언트 초기화 (런타임에 실행)
   const genAI = getGenAI();
-  
+
   // 기본 모델 사용 (gemini-2.5-flash가 가장 빠르고 안정적)
   // 모델 객체 생성은 항상 성공하므로, 실제 요청 시 오류가 발생하면 다른 모델 시도
   model = genAI.getGenerativeModel({ model: modelsToTry[0] });
@@ -175,32 +169,34 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 
     // 먼저 Search Grounding을 사용하여 시도
     try {
-      console.log('🔄 Search Grounding을 사용하여 뉴스 수집 시도...');
+      console.log("🔄 Search Grounding을 사용하여 뉴스 수집 시도...");
       result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        tools: [{
-          googleSearchRetrieval: {}
-        }]
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        tools: [
+          {
+            googleSearchRetrieval: {},
+          },
+        ],
       });
       response = await result.response;
       text = response.text();
-      console.log('✅ Search Grounding 사용 성공');
+      console.log("✅ Search Grounding 사용 성공");
     } catch (groundingError) {
       // Search Grounding이 지원되지 않거나 실패한 경우, 기본 모드로 시도
-      console.log('⚠️  Search Grounding 사용 실패, 기본 모드로 시도...');
+      console.log("⚠️  Search Grounding 사용 실패, 기본 모드로 시도...");
       console.log(`오류: ${groundingError instanceof Error ? groundingError.message : String(groundingError)}`);
 
       result = await model.generateContent(prompt);
       response = await result.response;
       text = response.text();
-      console.log('✅ 기본 모드로 뉴스 수집 성공');
+      console.log("✅ 기본 모드로 뉴스 수집 성공");
     }
 
     // JSON 응답 파싱
     let jsonText = text.trim();
 
     // 마크다운 코드 블록 제거 (```json ... ```)
-    if (jsonText.includes('```')) {
+    if (jsonText.includes("```")) {
       const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
       if (jsonMatch) {
         jsonText = jsonMatch[1].trim();
@@ -210,23 +206,23 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     const parsedData: GeminiNewsResponse = JSON.parse(jsonText);
 
     if (!parsedData.news || !Array.isArray(parsedData.news)) {
-      throw new Error('Invalid response format from Gemini API');
+      throw new Error("Invalid response format from Gemini API");
     }
 
     // 데이터 정규화 및 변환
     const newsItems: NewsInput[] = parsedData.news.map((item) => {
       // original_link 유효성 검사 및 정규화
-      let originalLink = item.original_link || '';
+      let originalLink = item.original_link || "";
 
       // 빈 문자열이거나 유효하지 않은 경우 처리
-      if (!originalLink || originalLink.trim() === '') {
-        originalLink = '#'; // 기본값으로 # 설정
+      if (!originalLink || originalLink.trim() === "") {
+        originalLink = "#"; // 기본값으로 # 설정
       } else {
         // URL 형식 검증 및 정규화
         originalLink = originalLink.trim();
 
         // http:// 또는 https://로 시작하지 않으면 추가
-        if (!originalLink.startsWith('http://') && !originalLink.startsWith('https://')) {
+        if (!originalLink.startsWith("http://") && !originalLink.startsWith("https://")) {
           originalLink = `https://${originalLink}`;
         }
 
@@ -236,7 +232,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
         } catch {
           // 유효하지 않은 URL인 경우 기본값으로 설정
           console.warn(`Invalid URL detected: ${originalLink}, setting to #`);
-          originalLink = '#';
+          originalLink = "#";
         }
       }
 
@@ -253,7 +249,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     });
 
     // 한국어가 아닌 뉴스 항목들을 번역 처리
-    console.log('🔄 한국어 번역이 필요한 뉴스 확인 중...');
+    console.log("🔄 한국어 번역이 필요한 뉴스 확인 중...");
     const translatedNewsItems: NewsInput[] = [];
 
     for (const newsItem of newsItems) {
@@ -264,8 +260,8 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     console.log(`✅ 번역 완료: ${translatedNewsItems.length}개 뉴스 처리됨`);
     return translatedNewsItems;
   } catch (error) {
-    console.error('Error fetching news from Gemini:', error);
-    throw new Error(`Failed to fetch news: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error("Error fetching news from Gemini:", error);
+    throw new Error(`Failed to fetch news: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
 
@@ -273,7 +269,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
  * 수집한 뉴스를 로컬 데이터베이스에 저장합니다.
  */
 export async function saveNewsToDatabase(newsItems: NewsInput[]): Promise<{ success: number; failed: number }> {
-  const result = insertNewsBatch(newsItems);
+  const result = await insertNewsBatch(newsItems);
   return result;
 }
 
@@ -289,4 +285,3 @@ export async function fetchAndSaveNews(date?: string): Promise<{ success: number
     total: newsItems.length,
   };
 }
-

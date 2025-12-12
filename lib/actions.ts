@@ -10,16 +10,23 @@ import type { News, NewsCategory } from '@/types/news';
 export async function fetchAndSaveNewsAction(date?: string) {
   try {
     const result = await fetchAndSaveNews(date);
+    
+    // result가 유효한지 확인
+    if (!result || typeof result !== 'object') {
+      throw new Error('뉴스 수집 결과가 올바르지 않습니다.');
+    }
+    
     return {
       success: true,
-      message: `${result.total}개의 뉴스 중 ${result.success}개가 성공적으로 저장되었습니다.`,
+      message: `${result.total || 0}개의 뉴스 중 ${result.success || 0}개가 성공적으로 저장되었습니다.`,
       data: result,
     };
   } catch (error) {
     console.error('Error in fetchAndSaveNewsAction:', error);
+    const errorMessage = error instanceof Error ? error.message : '뉴스 수집 중 오류가 발생했습니다.';
     return {
       success: false,
-      message: error instanceof Error ? error.message : '뉴스 수집 중 오류가 발생했습니다.',
+      message: errorMessage,
       data: null,
     };
   }

@@ -75,7 +75,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 DB_TYPE=supabase
 ```
 
-**중요**: 
+**중요**:
 - Production, Preview, Development 환경 모두에 설정
 - `SUPABASE_SERVICE_ROLE_KEY`는 절대 공개하지 마세요
 

@@ -58,6 +58,12 @@ export default function FetchNewsButton() {
       toastIds.forEach((id) => removeToast(id));
       setToasts([]);
 
+      // result가 undefined이거나 null인 경우 처리
+      if (!result) {
+        addToast('error', '❌ 오류: 뉴스 수집 결과를 받을 수 없습니다.', 5000);
+        return;
+      }
+
       if (result.success) {
         // 완료 메시지
         addToast('success', `✅ ${result.data?.total || 0}개의 뉴스 중 ${result.data?.success || 0}개가 성공적으로 저장되었습니다.`, 4000);
@@ -67,7 +73,7 @@ export default function FetchNewsButton() {
           window.location.reload();
         }, 4000);
       } else {
-        addToast('error', `❌ 오류: ${result.message}`, 5000);
+        addToast('error', `❌ 오류: ${result.message || '알 수 없는 오류가 발생했습니다.'}`, 5000);
       }
     } catch (error) {
       // 모든 진행 중 토스트 제거
