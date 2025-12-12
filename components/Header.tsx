@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import FetchNewsButton from './FetchNewsButton';
 
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,16 +82,11 @@ export default function Header() {
                 한국 뉴스
               </Link>
             </nav>
-
-            {/* 오른쪽: 뉴스 수집 버튼 */}
-            <div className="flex items-center flex-shrink-0">
-              <FetchNewsButton />
-            </div>
           </div>
 
           {/* 모바일 레이아웃 */}
           <div className="md:hidden">
-            {/* 모바일 첫 번째 줄: 로고와 뉴스 수집 버튼 */}
+            {/* 모바일 첫 번째 줄: 로고 */}
             <div className="flex items-center justify-between h-14 py-2">
               <Link
                 href="/"
@@ -105,9 +99,6 @@ export default function Header() {
                 </div>
                 <span className="text-base font-semibold">Daily News</span>
               </Link>
-              <div className="flex items-center gap-2">
-                <FetchNewsButton />
-              </div>
             </div>
 
             {/* 모바일 두 번째 줄: 카테고리 드롭다운 */}
