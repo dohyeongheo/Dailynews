@@ -22,7 +22,11 @@ Dailynews/
 │   ├── Header.tsx         # 헤더 (검색창, 뉴스 수집 버튼)
 │   ├── NewsSection.tsx    # 카테고리별 뉴스 섹션
 │   ├── NewsCard.tsx       # 개별 뉴스 카드
-│   └── FetchNewsButton.tsx # 뉴스 수집 버튼 (로컬 테스트용)
+│   └── NewsListInfinite.tsx # 무한 스크롤 뉴스 리스트
+├── app/                   # Next.js App Router
+│   ├── api/              # API Routes
+│   │   ├── cron/         # Cron Job 엔드포인트
+│   │   └── manual/       # 수동 뉴스 수집 엔드포인트
 ├── lib/                   # 유틸리티 및 로직
 │   ├── db/               # 데이터베이스 함수
 │   │   ├── news.ts       # 뉴스 데이터베이스 함수
@@ -70,7 +74,26 @@ npm run dev
 
 ### 뉴스 수집
 
-뉴스는 **매일 오전 6시 (태국 시간)**에 자동으로 수집됩니다. Vercel Cron Jobs를 통해 자동 실행되며, 수동 수집은 필요하지 않습니다.
+뉴스는 **매일 오전 6시 (태국 시간)**에 자동으로 수집됩니다. Vercel Cron Jobs를 통해 자동 실행됩니다.
+
+#### 수동 뉴스 수집 (배포 서버)
+
+필요한 경우 배포 서버에서 수동으로 뉴스 수집을 실행할 수 있습니다. 비밀번호 인증이 필요합니다.
+
+**GET 요청:**
+```bash
+curl "https://your-domain.com/api/manual/fetch-news?password=YOUR_PASSWORD"
+```
+
+**POST 요청:**
+```bash
+curl -X POST "https://your-domain.com/api/manual/fetch-news" \
+  -H "Content-Type: application/json" \
+  -d '{"password": "YOUR_PASSWORD"}'
+```
+
+**환경 변수 설정:**
+Vercel 환경 변수에 `MANUAL_FETCH_PASSWORD`를 설정하세요.
 
 ### 뉴스 카테고리
 
@@ -111,7 +134,8 @@ npm run dev
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `SUPABASE_SERVICE_ROLE_KEY`
-   - `DB_TYPE=supabase`
+   - `MANUAL_FETCH_PASSWORD` (수동 뉴스 수집용 비밀번호, 선택사항)
+   - `CRON_SECRET` (Cron Job 인증용, 선택사항)
 4. 배포 완료!
 
 ## 향후 계획
