@@ -271,16 +271,16 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 export async function saveNewsToDatabase(newsItems: NewsInput[]): Promise<{ success: number; failed: number }> {
   try {
     const result = await insertNewsBatch(newsItems);
-    
+
     // result가 유효한지 확인
-    if (!result || typeof result !== 'object' || typeof result.success !== 'number' || typeof result.failed !== 'number') {
-      console.error('Invalid result from insertNewsBatch:', result);
+    if (!result || typeof result !== "object" || typeof result.success !== "number" || typeof result.failed !== "number") {
+      console.error("Invalid result from insertNewsBatch:", result);
       return { success: 0, failed: newsItems.length };
     }
-    
+
     return result;
   } catch (error) {
-    console.error('Error in saveNewsToDatabase:', error);
+    console.error("Error in saveNewsToDatabase:", error);
     return { success: 0, failed: newsItems.length };
   }
 }
@@ -294,8 +294,8 @@ export async function fetchAndSaveNews(date?: string): Promise<{ success: number
     const result = await saveNewsToDatabase(newsItems);
 
     // result가 유효한지 확인
-    if (!result || typeof result !== 'object') {
-      console.error('Invalid result from saveNewsToDatabase:', result);
+    if (!result || typeof result !== "object") {
+      console.error("Invalid result from saveNewsToDatabase:", result);
       return {
         success: 0,
         failed: newsItems.length,
@@ -309,7 +309,7 @@ export async function fetchAndSaveNews(date?: string): Promise<{ success: number
       total: newsItems.length,
     };
   } catch (error) {
-    console.error('Error in fetchAndSaveNews:', error);
+    console.error("Error in fetchAndSaveNews:", error);
     throw error;
   }
 }

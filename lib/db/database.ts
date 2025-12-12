@@ -64,11 +64,18 @@ export function closeDatabase() {
 
 // 서버 사이드에서만 데이터베이스 초기화
 // Next.js는 서버 사이드에서 실행되므로 window는 undefined입니다
+// Supabase를 사용하는 경우 SQLite 초기화를 건너뜀
 if (typeof window === 'undefined') {
-  try {
-    initializeDatabase();
-  } catch (error) {
-    console.error('Failed to initialize database:', error);
+  const DB_TYPE = process.env.DB_TYPE || 'sqlite';
+  const useSupabase = DB_TYPE === 'supabase' && process.env.NEXT_PUBLIC_SUPABASE_URL;
+  
+  // Supabase를 사용하지 않는 경우에만 SQLite 초기화
+  if (!useSupabase) {
+    try {
+      initializeDatabase();
+    } catch (error) {
+      console.error('Failed to initialize database:', error);
+    }
   }
 }
 

@@ -1,6 +1,4 @@
-import db from './database';
 import type { News, NewsInput, NewsCategory } from '@/types/news';
-import { randomUUID } from 'crypto';
 
 // 환경 변수로 DB 타입 선택 (기본값: sqlite)
 const DB_TYPE = process.env.DB_TYPE || 'sqlite';
@@ -11,8 +9,18 @@ const useSupabase = DB_TYPE === 'supabase' && process.env.NEXT_PUBLIC_SUPABASE_U
 /**
  * 뉴스를 데이터베이스에 저장
  */
-export function insertNews(news: NewsInput): { success: boolean; error?: string } {
+export async function insertNews(news: NewsInput): Promise<{ success: boolean; error?: string }> {
+  // Supabase를 사용하는 경우
+  if (useSupabase) {
+    const supabaseNews = await import('./supabase-news');
+    return await supabaseNews.insertNews(news);
+  }
+
+  // SQLite 사용 (로컬 개발용)
   try {
+    const db = (await import('./database')).default;
+    const { randomUUID } = await import('crypto');
+    
     const id = randomUUID();
     const stmt = db.prepare(`
       INSERT INTO news (
@@ -53,7 +61,10 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
     return await supabaseNews.insertNewsBatch(newsItems);
   }
 
-  // SQLite 사용
+  // SQLite 사용 (로컬 개발용)
+  const db = (await import('./database')).default;
+  const { randomUUID } = await import('crypto');
+  
   let successCount = 0;
   let failedCount = 0;
 
@@ -66,7 +77,7 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
 
   const insertMany = db.transaction((items: NewsInput[]) => {
     const counts = { success: 0, failed: 0 };
-    
+
     for (const news of items) {
       try {
         const id = randomUUID();
@@ -87,13 +98,13 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
         counts.failed++;
       }
     }
-    
+
     return counts;
   });
 
   try {
     const result = insertMany(newsItems);
-    
+
     // transaction이 반환값을 제공하는 경우 사용
     if (result && typeof result === 'object' && 'success' in result && 'failed' in result) {
       return { success: result.success, failed: result.failed };
@@ -119,7 +130,8 @@ export async function getNewsByCategory(
     return await supabaseNews.getNewsByCategory(category, limit);
   }
 
-  // SQLite 사용
+  // SQLite 사용 (로컬 개발용)
+  const db = (await import('./database')).default;
   const stmt = db.prepare(`
     SELECT * FROM news
     WHERE category = ?
@@ -141,7 +153,8 @@ export async function getAllNews(limit: number = 30): Promise<News[]> {
     return await supabaseNews.getAllNews(limit);
   }
 
-  // SQLite 사용
+  // SQLite 사용 (로컬 개발용)
+  const db = (await import('./database')).default;
   const stmt = db.prepare(`
     SELECT * FROM news
     ORDER BY created_at DESC
@@ -165,7 +178,8 @@ export async function searchNews(query: string, searchType: 'title' | 'content' 
     return await supabaseNews.searchNews(query, searchType, limit);
   }
 
-  // SQLite 사용
+  // SQLite 사용 (로컬 개발용)
+  const db = (await import('./database')).default;
   const searchTerm = `%${query}%`;
   let stmt;
 
@@ -213,7 +227,8 @@ export async function getNewsCount(category?: NewsCategory): Promise<number> {
     return await supabaseNews.getNewsCount(category);
   }
 
-  // SQLite 사용
+  // SQLite 사용 (로컬 개발용)
+  const db = (await import('./database')).default;
   if (category) {
     const stmt = db.prepare('SELECT COUNT(*) as count FROM news WHERE category = ?');
     const result = stmt.get(category) as { count: number };
