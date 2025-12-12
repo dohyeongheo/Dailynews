@@ -65,7 +65,7 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 DB_TYPE=supabase
 ```
 
-**참고**: 
+**참고**:
 - 로컬 개발 환경에서는 기본적으로 SQLite 데이터베이스를 사용합니다 (`DB_TYPE=sqlite` 또는 미설정 시)
 - 배포 시에는 `DB_TYPE=supabase`로 설정하고 Supabase 환경 변수를 설정하세요
 - 데이터베이스 파일은 `data/news.db`에 자동으로 생성됩니다

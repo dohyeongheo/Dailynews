@@ -2,13 +2,19 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { insertNewsBatch } from './db/news';
 import type { NewsInput, GeminiNewsResponse, NewsCategory } from '@/types/news';
 
-const API_KEY = process.env.GOOGLE_GEMINI_API_KEY;
-
-if (!API_KEY) {
-  throw new Error('GOOGLE_GEMINI_API_KEY is not set');
+/**
+ * Gemini AI 클라이언트를 지연 초기화합니다.
+ * 빌드 타임에 API 키가 없어도 오류가 발생하지 않도록 합니다.
+ */
+function getGenAI(): GoogleGenerativeAI {
+  const API_KEY = process.env.GOOGLE_GEMINI_API_KEY;
+  
+  if (!API_KEY) {
+    throw new Error('GOOGLE_GEMINI_API_KEY is not set');
+  }
+  
+  return new GoogleGenerativeAI(API_KEY);
 }
-
-const genAI = new GoogleGenerativeAI(API_KEY);
 
 /**
  * 텍스트가 한국어인지 간단히 판단합니다.
@@ -36,6 +42,7 @@ async function translateToKorean(text: string): Promise<string> {
   if (!text || text.trim().length === 0) return text;
 
   try {
+    const genAI = getGenAI();
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const prompt = `다음 텍스트를 자연스러운 한국어로 번역해주세요. 원문의 의미와 뉘앙스를 정확히 전달해야 합니다. 번역만 출력하고 다른 설명은 하지 마세요.
@@ -123,6 +130,9 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
   let model = null;
   let lastError: Error | null = null;
 
+  // Gemini AI 클라이언트 초기화 (런타임에 실행)
+  const genAI = getGenAI();
+  
   // 기본 모델 사용 (gemini-2.5-flash가 가장 빠르고 안정적)
   // 모델 객체 생성은 항상 성공하므로, 실제 요청 시 오류가 발생하면 다른 모델 시도
   model = genAI.getGenerativeModel({ model: modelsToTry[0] });
