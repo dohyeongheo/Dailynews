@@ -3,15 +3,15 @@ import { fetchAndSaveNewsAction } from '@/lib/actions';
 
 /**
  * 수동 뉴스 수집 API
- * 
+ *
  * 비밀번호 인증이 필요합니다.
- * 
+ *
  * 사용법:
  * GET /api/manual/fetch-news?password=YOUR_PASSWORD
  * 또는
  * POST /api/manual/fetch-news
  * Body: { "password": "YOUR_PASSWORD" }
- * 
+ *
  * 환경 변수:
  * MANUAL_FETCH_PASSWORD: 수동 뉴스 수집에 사용할 비밀번호
  */
@@ -27,7 +27,7 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
   try {
     // 비밀번호 확인
     const expectedPassword = process.env.MANUAL_FETCH_PASSWORD;
-    
+
     if (!expectedPassword) {
       console.error('[Manual Fetch] MANUAL_FETCH_PASSWORD 환경 변수가 설정되지 않았습니다.');
       return NextResponse.json(

@@ -51,6 +51,14 @@ export default function Header() {
 
             {/* 가운데: 카테고리 버튼 */}
             <nav className="flex items-center gap-1 flex-1 justify-center px-4">
+              {/* 관리자 페이지 링크 (작은 버튼) */}
+              <Link
+                href="/admin"
+                className="px-2 py-1 text-xs text-gray-300 hover:text-white hover:bg-[#3a4553] rounded transition-colors"
+                title="뉴스 수동 수집"
+              >
+                ⚙️
+              </Link>
               <Link
                 href="/category/태국뉴스"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
@@ -98,6 +106,14 @@ export default function Header() {
                   <span className="text-white font-bold text-xs">DN</span>
                 </div>
                 <span className="text-base font-semibold">Daily News</span>
+              </Link>
+              {/* 모바일 관리자 페이지 링크 */}
+              <Link
+                href="/admin"
+                className="px-2 py-1 text-xs text-gray-300 hover:text-white hover:bg-[#3a4553] rounded transition-colors"
+                title="뉴스 수동 수집"
+              >
+                ⚙️
               </Link>
             </div>
 
