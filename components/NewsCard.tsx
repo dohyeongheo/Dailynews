@@ -9,11 +9,13 @@ interface NewsCardProps {
 function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("ko-KR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    
+    return `${year}년 ${month}월 ${day}일 ${hours}시 ${minutes}분`;
   };
 
   return (
@@ -32,7 +34,7 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
       <p className="text-sm text-gray-600 mb-3 sm:mb-4 whitespace-pre-wrap break-words">{news.content_translated || news.content}</p>
 
       <div className="flex items-center justify-between text-xs text-gray-500 gap-2">
-        <span className="truncate">{formatDate(news.published_date)}</span>
+        <span className="truncate">{formatDate(news.created_at)}</span>
         {showOriginalLink && news.original_link && news.original_link !== "#" ? (
           <a
             href={news.original_link}
