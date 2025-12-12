@@ -20,7 +20,7 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
   try {
     const db = (await import('./database')).default;
     const { randomUUID } = await import('crypto');
-    
+
     const id = randomUUID();
     const stmt = db.prepare(`
       INSERT INTO news (
@@ -64,7 +64,7 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
   // SQLite 사용 (로컬 개발용)
   const db = (await import('./database')).default;
   const { randomUUID } = await import('crypto');
-  
+
   let successCount = 0;
   let failedCount = 0;
 

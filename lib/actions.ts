@@ -40,17 +40,36 @@ export async function getNewsByCategoryAction(
   limit: number = 10
 ): Promise<{ success: boolean; data: News[] | null; error?: string }> {
   try {
+    console.log(`[getNewsByCategoryAction] 시작 - 카테고리: ${category}, 제한: ${limit}`);
     const data = await newsDB.getNewsByCategory(category, limit);
+    
+    if (!data || !Array.isArray(data)) {
+      console.warn(`[getNewsByCategoryAction] 유효하지 않은 데이터 반환 - 카테고리: ${category}`);
+      return {
+        success: false,
+        data: null,
+        error: '뉴스 데이터 형식이 올바르지 않습니다.',
+      };
+    }
+
+    console.log(`[getNewsByCategoryAction] 성공 - ${data.length}개의 뉴스 조회됨. 카테고리: ${category}`);
+    
     return {
       success: true,
       data,
     };
   } catch (error) {
-    console.error('Error in getNewsByCategory:', error);
+    const errorMessage = error instanceof Error ? error.message : '뉴스 조회 중 오류가 발생했습니다.';
+    console.error('[getNewsByCategoryAction] 에러 발생:', {
+      error: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+      category,
+      limit,
+    });
     return {
       success: false,
       data: null,
-      error: error instanceof Error ? error.message : '뉴스 조회 중 오류가 발생했습니다.',
+      error: errorMessage,
     };
   }
 }

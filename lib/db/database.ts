@@ -68,7 +68,7 @@ export function closeDatabase() {
 if (typeof window === 'undefined') {
   const DB_TYPE = process.env.DB_TYPE || 'sqlite';
   const useSupabase = DB_TYPE === 'supabase' && process.env.NEXT_PUBLIC_SUPABASE_URL;
-  
+
   // Supabase를 사용하지 않는 경우에만 SQLite 초기화
   if (!useSupabase) {
     try {
