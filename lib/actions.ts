@@ -10,12 +10,12 @@ import type { News, NewsCategory } from '@/types/news';
 export async function fetchAndSaveNewsAction(date?: string) {
   try {
     const result = await fetchAndSaveNews(date);
-    
+
     // result가 유효한지 확인
     if (!result || typeof result !== 'object') {
       throw new Error('뉴스 수집 결과가 올바르지 않습니다.');
     }
-    
+
     return {
       success: true,
       message: `${result.total || 0}개의 뉴스 중 ${result.success || 0}개가 성공적으로 저장되었습니다.`,
