@@ -8,12 +8,26 @@ interface NewsCardProps {
 
 function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
   const formatDate = (dateString: string) => {
+    // created_at은 UTC로 저장되어 있으므로, 태국 시간대(Asia/Bangkok, UTC+7)로 변환
     const date = new Date(dateString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+    
+    // Intl.DateTimeFormat을 사용하여 태국 시간대로 변환
+    const formatter = new Intl.DateTimeFormat('ko-KR', {
+      timeZone: 'Asia/Bangkok',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    
+    const parts = formatter.formatToParts(date);
+    const year = parts.find(p => p.type === 'year')?.value || '';
+    const month = parts.find(p => p.type === 'month')?.value || '';
+    const day = parts.find(p => p.type === 'day')?.value || '';
+    const hours = parts.find(p => p.type === 'hour')?.value || '';
+    const minutes = parts.find(p => p.type === 'minute')?.value || '';
     
     return `${year}년 ${month}월 ${day}일 ${hours}시 ${minutes}분`;
   };
