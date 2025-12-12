@@ -29,31 +29,32 @@ export default function Header() {
   const isHomeActive = pathname === '/';
 
   return (
-    <header className="bg-[#232f3e] text-white shadow-lg">
+    <header className="bg-[#232f3e] text-white shadow-lg sticky top-0 z-50">
       {/* 첫 번째 줄: 로고, 카테고리 버튼, 뉴스 수집 버튼 */}
       <div className="border-b border-[#3a4553]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          {/* 데스크톱 레이아웃 */}
+          <div className="hidden md:flex items-center justify-between h-16">
             {/* 왼쪽: 로고 및 텍스트 */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-shrink-0">
               <Link
                 href="/"
                 className={`flex items-center gap-2 transition-opacity ${
                   isHomeActive ? 'opacity-100' : 'hover:opacity-80'
                 }`}
               >
-                <div className="w-8 h-8 bg-[#ff9900] rounded flex items-center justify-center">
+                <div className="w-8 h-8 bg-[#ff9900] rounded flex items-center justify-center flex-shrink-0">
                   <span className="text-white font-bold text-sm">DN</span>
                 </div>
-                <span className="text-lg font-semibold">Daily News</span>
+                <span className="text-lg font-semibold whitespace-nowrap">Daily News</span>
               </Link>
             </div>
 
             {/* 가운데: 카테고리 버튼 */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="flex items-center gap-1 flex-1 justify-center px-4">
               <Link
                 href="/category/태국뉴스"
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   isCategoryActive('태국뉴스')
                     ? 'bg-[#ff9900] text-white'
                     : 'text-gray-300 hover:bg-[#3a4553] hover:text-white'
@@ -63,7 +64,7 @@ export default function Header() {
               </Link>
               <Link
                 href="/category/관련뉴스"
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   isCategoryActive('관련뉴스')
                     ? 'bg-[#ff9900] text-white'
                     : 'text-gray-300 hover:bg-[#3a4553] hover:text-white'
@@ -73,7 +74,7 @@ export default function Header() {
               </Link>
               <Link
                 href="/category/한국뉴스"
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   isCategoryActive('한국뉴스')
                     ? 'bg-[#ff9900] text-white'
                     : 'text-gray-300 hover:bg-[#3a4553] hover:text-white'
@@ -83,8 +84,34 @@ export default function Header() {
               </Link>
             </nav>
 
-            {/* 모바일: 카테고리 드롭다운 (작은 화면용) */}
-            <nav className="md:hidden flex items-center">
+            {/* 오른쪽: 뉴스 수집 버튼 */}
+            <div className="flex items-center flex-shrink-0">
+              <FetchNewsButton />
+            </div>
+          </div>
+
+          {/* 모바일 레이아웃 */}
+          <div className="md:hidden">
+            {/* 모바일 첫 번째 줄: 로고와 뉴스 수집 버튼 */}
+            <div className="flex items-center justify-between h-14 py-2">
+              <Link
+                href="/"
+                className={`flex items-center gap-2 transition-opacity flex-shrink-0 ${
+                  isHomeActive ? 'opacity-100' : 'hover:opacity-80'
+                }`}
+              >
+                <div className="w-7 h-7 bg-[#ff9900] rounded flex items-center justify-center">
+                  <span className="text-white font-bold text-xs">DN</span>
+                </div>
+                <span className="text-base font-semibold">Daily News</span>
+              </Link>
+              <div className="flex items-center gap-2">
+                <FetchNewsButton />
+              </div>
+            </div>
+
+            {/* 모바일 두 번째 줄: 카테고리 드롭다운 */}
+            <div className="pb-2">
               <select
                 onChange={(e) => {
                   if (e.target.value) {
@@ -92,18 +119,13 @@ export default function Header() {
                   }
                 }}
                 value={pathname.startsWith('/category/') ? pathname : ''}
-                className="px-3 py-2 bg-[#3a4553] text-white rounded-md text-sm border border-[#4a5568] focus:outline-none focus:ring-2 focus:ring-[#ff9900]"
+                className="w-full px-3 py-2 bg-[#3a4553] text-white rounded-md text-sm border border-[#4a5568] focus:outline-none focus:ring-2 focus:ring-[#ff9900] appearance-none"
               >
                 <option value="">카테고리 선택</option>
                 <option value="/category/태국뉴스">태국 뉴스</option>
                 <option value="/category/관련뉴스">한국 뉴스 (태국 관련)</option>
                 <option value="/category/한국뉴스">한국 뉴스</option>
               </select>
-            </nav>
-
-            {/* 오른쪽: 뉴스 수집 버튼 */}
-            <div className="flex items-center">
-              <FetchNewsButton />
             </div>
           </div>
         </div>
@@ -111,12 +133,12 @@ export default function Header() {
 
       {/* 두 번째 줄: 검색 기능 */}
       <div className="bg-[#232f3e] border-b border-[#3a4553]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-2.5 sm:py-3">
           <form onSubmit={handleSubmit} className="flex gap-2 max-w-2xl mx-auto">
             <select
               value={searchType}
               onChange={(e) => setSearchType(e.target.value as 'title' | 'content' | 'all')}
-              className="px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ff9900] focus:border-transparent text-gray-900 text-sm"
+              className="px-2 sm:px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ff9900] focus:border-transparent text-gray-900 text-xs sm:text-sm flex-shrink-0"
             >
               <option value="all">제목 + 내용</option>
               <option value="title">제목</option>
@@ -127,11 +149,11 @@ export default function Header() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="뉴스 검색..."
-              className="flex-1 px-4 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ff9900] focus:border-transparent text-gray-900 placeholder-gray-500"
+              className="flex-1 min-w-0 px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ff9900] focus:border-transparent text-gray-900 placeholder-gray-500 text-sm"
             />
             <button
               type="submit"
-              className="px-6 py-2 bg-[#ff9900] text-white rounded-md hover:bg-[#e68900] transition-colors font-medium text-sm"
+              className="px-4 sm:px-6 py-2 bg-[#ff9900] text-white rounded-md hover:bg-[#e68900] transition-colors font-medium text-xs sm:text-sm whitespace-nowrap flex-shrink-0"
             >
               검색
             </button>

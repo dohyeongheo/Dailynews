@@ -92,12 +92,12 @@ export default function FetchNewsButton() {
       <button
         onClick={handleFetchNews}
         disabled={isLoading}
-        className="px-4 py-2 bg-[#ff9900] text-white rounded-md hover:bg-[#e68900] disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm font-medium"
+        className="px-3 sm:px-4 py-1.5 sm:py-2 bg-[#ff9900] text-white rounded-md hover:bg-[#e68900] disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm font-medium whitespace-nowrap"
       >
         {isLoading ? (
           <>
             <svg
-              className="animate-spin h-4 w-4"
+              className="animate-spin h-3.5 w-3.5 sm:h-4 sm:w-4"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
@@ -116,12 +116,13 @@ export default function FetchNewsButton() {
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
               ></path>
             </svg>
-            수집 중...
+            <span className="hidden sm:inline">수집 중...</span>
+            <span className="sm:hidden">수집</span>
           </>
         ) : (
           <>
             <svg
-              className="w-4 h-4"
+              className="w-3.5 h-3.5 sm:w-4 sm:h-4"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -134,7 +135,8 @@ export default function FetchNewsButton() {
                 d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
               />
             </svg>
-            뉴스 수집
+            <span className="hidden sm:inline">뉴스 수집</span>
+            <span className="sm:hidden">수집</span>
           </>
         )}
       </button>
