@@ -110,7 +110,7 @@ export default function Header() {
       </div>
 
       {/* 두 번째 줄: 검색 기능 */}
-      <div className="bg-[#16191f] border-b border-[#3a4553]">
+      <div className="bg-[#232f3e] border-b border-[#3a4553]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <form onSubmit={handleSubmit} className="flex gap-2 max-w-2xl mx-auto">
             <select
