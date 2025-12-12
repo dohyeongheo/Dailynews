@@ -34,10 +34,10 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{categoryInfo.title}</h1>
-          <p className="text-gray-600">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{categoryInfo.title}</h1>
+          <p className="text-sm sm:text-base text-gray-600">
             {result.success && result.data
               ? `총 ${result.data.length}개의 뉴스`
               : '뉴스를 불러오는 중...'}
@@ -45,14 +45,14 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
         </div>
 
         {result.success && result.data && result.data.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {result.data.map((news) => (
-              <NewsCard key={news.id} news={news} />
+              <NewsCard key={news.id} news={news} showOriginalLink={false} />
             ))}
           </div>
         ) : (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-            <p className="text-gray-500">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 sm:p-8 text-center">
+            <p className="text-sm sm:text-base text-gray-500">
               아직 {categoryInfo.title}가 없습니다. 뉴스 수집 버튼을 클릭하여 뉴스를 가져오세요.
             </p>
           </div>

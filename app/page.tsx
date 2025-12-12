@@ -25,15 +25,15 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Daily News</h1>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Daily News</h1>
         </div>
 
         {/* 에러 메시지 표시 */}
         {(thailandNews.error || relatedNews.error || koreaNews.error) && (
-          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-yellow-800">
+          <div className="mb-4 p-3 sm:p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-xs sm:text-sm text-yellow-800">
               ⚠️ 일부 뉴스를 불러오는 중 오류가 발생했습니다. 콘솔을 확인해주세요.
             </p>
             {process.env.NODE_ENV === 'development' && (
