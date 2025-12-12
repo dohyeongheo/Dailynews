@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchAndSaveNewsAction } from '@/lib/actions';
 
 /**
- * Vercel Cron Job: 매일 오후 11시 42분 (태국 시간, UTC 16시 42분) 뉴스 수집
+ * Vercel Cron Job: 매일 오전 6시 (태국 시간, UTC 23시) 뉴스 수집
  *
  * Vercel Cron Jobs는 UTC 시간을 사용합니다.
- * 태국 시간 23:42 = UTC 16:42
+ * 태국 시간 오전 6시 = UTC 23시 (전날 밤 11시)
  */
 export async function GET(request: NextRequest) {
   try {

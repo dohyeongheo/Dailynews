@@ -160,7 +160,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 - "관련뉴스": 한국에서 태국과 관련된 뉴스
 - "한국뉴스": 한국의 주요 뉴스
 
-각 카테고리별로 최소 3개 이상의 뉴스를 포함해주세요.`;
+각 카테고리별로 최소 10개 이상의 뉴스를 포함해주세요.`;
 
   try {
     let result;
