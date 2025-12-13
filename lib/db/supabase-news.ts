@@ -84,19 +84,19 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
 export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success: number; failed: number }> {
   let successCount = 0;
   let failedCount = 0;
-  
+
   // 배치 크기: 한 번에 처리할 뉴스 개수
   const BATCH_SIZE = 10;
-  
+
   // 배치 단위로 처리
   for (let i = 0; i < newsItems.length; i += BATCH_SIZE) {
     const batch = newsItems.slice(i, i + BATCH_SIZE);
-    
+
     // 병렬 처리로 배치 저장
     const results = await Promise.allSettled(
       batch.map(news => insertNews(news))
     );
-    
+
     // 결과 집계
     for (const result of results) {
       if (result.status === 'fulfilled' && result.value.success) {
@@ -113,7 +113,7 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
         }
       }
     }
-    
+
     // 진행 상황 로깅
     if ((i + BATCH_SIZE) % 20 === 0 || i + BATCH_SIZE >= newsItems.length) {
       console.log(`💾 뉴스 저장 진행 중: ${Math.min(i + BATCH_SIZE, newsItems.length)}/${newsItems.length}개 처리됨`);

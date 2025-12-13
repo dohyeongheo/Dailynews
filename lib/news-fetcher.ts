@@ -62,7 +62,7 @@ ${text}`;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error(`번역 오류 (시도 ${retryCount + 1}/${MAX_RETRIES + 1}):`, errorMessage);
-    
+
     // 재시도 가능한 에러이고 최대 재시도 횟수 미만인 경우 재시도
     if (retryCount < MAX_RETRIES && (
       errorMessage.includes('timeout') ||
@@ -76,7 +76,7 @@ ${text}`;
       await new Promise(resolve => setTimeout(resolve, delay));
       return translateToKorean(text, retryCount + 1);
     }
-    
+
     // 재시도 불가능하거나 최대 재시도 횟수 초과 시 원본 반환
     console.warn(`번역 실패, 원본 텍스트 반환: ${text.substring(0, 50)}...`);
     return text;
@@ -219,16 +219,16 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
         const errorMessage = lastError.message;
-        
+
         console.log(`❌ 뉴스 수집 시도 ${attempt + 1}/${MAX_RETRIES + 1} 실패:`, errorMessage);
-        
+
         // 재시도 가능한 에러인지 확인
         const isRetryable = errorMessage.includes('timeout') ||
                            errorMessage.includes('network') ||
                            errorMessage.includes('rate limit') ||
                            errorMessage.includes('429') ||
                            errorMessage.includes('503');
-        
+
         if (attempt < MAX_RETRIES && isRetryable) {
           // 지수 백오프: 2초, 4초, 8초
           const delay = 2000 * Math.pow(2, attempt);
@@ -236,14 +236,14 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
-        
+
         // 마지막 시도이거나 재시도 불가능한 에러인 경우
         if (attempt === MAX_RETRIES) {
           throw lastError;
         }
       }
     }
-    
+
     if (!text) {
       throw lastError || new Error('뉴스 수집에 실패했습니다.');
     }
@@ -307,18 +307,18 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     // 한국어가 아닌 뉴스 항목들을 번역 처리
     // 성능 개선: 병렬 처리로 번역 시간 단축
     console.log("🔄 한국어 번역이 필요한 뉴스 확인 중...");
-    
+
     // 병렬 처리로 번역 시간 단축 (최대 5개씩 동시 처리)
     const BATCH_SIZE = 5;
     const translatedNewsItems: NewsInput[] = [];
-    
+
     for (let i = 0; i < newsItems.length; i += BATCH_SIZE) {
       const batch = newsItems.slice(i, i + BATCH_SIZE);
       const translatedBatch = await Promise.all(
         batch.map(newsItem => translateNewsIfNeeded(newsItem))
       );
       translatedNewsItems.push(...translatedBatch);
-      
+
       // 진행 상황 로깅
       if ((i + BATCH_SIZE) % 10 === 0 || i + BATCH_SIZE >= newsItems.length) {
         console.log(`🔄 번역 진행 중: ${Math.min(i + BATCH_SIZE, newsItems.length)}/${newsItems.length}개 처리됨`);

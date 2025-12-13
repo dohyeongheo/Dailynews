@@ -7,8 +7,7 @@
   "crons": [
     {
       "path": "/api/cron/fetch-news",
-      "schedule": "50 0 * * *"
+      "schedule": "5 1 * * *"
     }
   ]
 }
-

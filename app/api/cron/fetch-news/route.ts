@@ -18,7 +18,7 @@ export const maxDuration = 60; // Vercel Pro 플랜 최대 타임아웃 (초)
  */
 function verifyCronAuth(request: NextRequest): { authorized: boolean; reason?: string } {
   const cronSecret = process.env.CRON_SECRET;
-  
+
   // CRON_SECRET이 설정되지 않은 경우, Vercel의 기본 인증 헤더만 확인
   if (!cronSecret) {
     const authHeader = request.headers.get('authorization');
@@ -31,12 +31,12 @@ function verifyCronAuth(request: NextRequest): { authorized: boolean; reason?: s
   // CRON_SECRET이 설정된 경우 검증
   const authHeader = request.headers.get('authorization');
   const vercelSignature = request.headers.get('x-vercel-signature');
-  
+
   // Vercel의 기본 서명이 있으면 허용
   if (vercelSignature) {
     return { authorized: true };
   }
-  
+
   // Bearer 토큰으로 검증
   if (authHeader === `Bearer ${cronSecret}`) {
     return { authorized: true };
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest) {
         executionTimeMs: executionTime,
         timestamp: new Date().toISOString(),
       });
-      
+
       return NextResponse.json(
         {
           success: false,
