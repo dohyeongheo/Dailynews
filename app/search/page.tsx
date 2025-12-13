@@ -42,7 +42,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           searchResults.data.length > 0 ? (
             <>
               <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">총 {searchResults.data.length}개의 뉴스를 찾았습니다.</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 gap-4 sm:gap-6">
                 {searchResults.data.map((news) => (
                   <NewsCard key={news.id} news={news} showOriginalLink={false} />
                 ))}

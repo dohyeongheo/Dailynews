@@ -45,7 +45,7 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
         </div>
       </div>
 
-      <p className="text-sm text-gray-600 mb-3 sm:mb-4 whitespace-pre-wrap break-words">{news.content_translated || news.content}</p>
+      <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 whitespace-pre-wrap break-words leading-relaxed">{news.content_translated || news.content}</p>
 
       <div className="flex items-center justify-between text-xs text-gray-500 gap-2">
         <span className="truncate">{formatDate(news.created_at)}</span>
