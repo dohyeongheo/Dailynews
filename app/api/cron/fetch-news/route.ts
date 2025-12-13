@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchAndSaveNewsAction } from '@/lib/actions';
 
 /**
- * Vercel Cron Job: 매일 오전 7시 50분 (태국 시간, UTC 00시 50분) 뉴스 수집
+ * Vercel Cron Job: 매일 오전 6시 (태국 시간, UTC 23시) 뉴스 수집
  *
  * Vercel Cron Jobs는 UTC 시간을 사용합니다.
- * 태국 시간 오전 7시 50분 = UTC 00시 50분
+ * 태국 시간 오전 6시 = UTC 23시 (전날)
  *
  * 참고: Vercel Serverless Functions는 기본 타임아웃이 10초(Hobby) 또는 60초(Pro)입니다.
  * 뉴스 수집 작업이 오래 걸릴 수 있으므로 타임아웃 처리를 포함했습니다.
