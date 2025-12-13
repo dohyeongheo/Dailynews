@@ -29,7 +29,7 @@ export default function Header() {
 
   return (
     <header className="bg-[#232f3e] text-white shadow-lg sticky top-0 z-50">
-      {/* 첫 번째 줄: 로고, 카테고리 버튼, 뉴스 수집 버튼 */}
+      {/* 첫 번째 줄: 로고, 카테고리 버튼 */}
       <div className="border-b border-[#3a4553]">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           {/* 데스크톱 레이아웃 */}
@@ -71,17 +71,6 @@ export default function Header() {
                 한국 뉴스
               </Link>
             </nav>
-
-            {/* 오른쪽: 관리자 페이지 링크 (뉴스 수집 버튼) */}
-            <div className="flex-shrink-0">
-              <Link
-                href="/admin"
-                className="px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-[#3a4553] rounded transition-colors whitespace-nowrap"
-                title="뉴스 수동 수집"
-              >
-                ⚙️ 뉴스 수집
-              </Link>
-            </div>
           </div>
 
           {/* 모바일 레이아웃 */}
@@ -93,14 +82,6 @@ export default function Header() {
                   <span className="text-white font-bold text-xs">DN</span>
                 </div>
                 <span className="text-base font-semibold">Daily News</span>
-              </Link>
-              {/* 모바일 관리자 페이지 링크 */}
-              <Link
-                href="/admin"
-                className="px-2 py-1 text-xs text-gray-300 hover:text-white hover:bg-[#3a4553] rounded transition-colors"
-                title="뉴스 수동 수집"
-              >
-                ⚙️
               </Link>
             </div>
 
