@@ -7,6 +7,7 @@ export enum ErrorType {
   API_ERROR = 'API_ERROR',
   VALIDATION_ERROR = 'VALIDATION_ERROR',
   NETWORK_ERROR = 'NETWORK_ERROR',
+  QUOTA_EXCEEDED = 'QUOTA_EXCEEDED',
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
 
@@ -24,6 +25,25 @@ export interface AppError {
 export function getErrorMessage(error: AppError | Error | unknown): string {
   if (error instanceof Error) {
     // 일반 Error 객체인 경우
+    // 할당량 초과 에러 우선 확인
+    if (error.message.includes('429') ||
+        error.message.includes('quota exceeded') ||
+        error.message.includes('exceeded your current quota') ||
+        error.message.includes('Quota exceeded')) {
+      // 재시도 가능 시간 정보 추출 시도
+      const retryAfterMatch = error.message.match(/retry in ([\d.]+)s/i) ||
+                              error.message.match(/retryDelay["']?\s*:\s*["']?(\d+)/i);
+      if (retryAfterMatch) {
+        const retryAfter = Math.ceil(parseFloat(retryAfterMatch[1]));
+        const minutes = Math.floor(retryAfter / 60);
+        const seconds = retryAfter % 60;
+        if (minutes > 0) {
+          return `Gemini API 할당량을 초과했습니다. ${minutes}분 ${seconds}초 후 다시 시도해주세요.`;
+        }
+        return `Gemini API 할당량을 초과했습니다. ${retryAfter}초 후 다시 시도해주세요.`;
+      }
+      return 'Gemini API 일일 할당량을 초과했습니다. 내일 다시 시도해주세요.';
+    }
     if (error.message.includes('duplicate') || error.message.includes('UNIQUE')) {
       return '이미 존재하는 데이터입니다.';
     }
@@ -47,6 +67,8 @@ export function getErrorMessage(error: AppError | Error | unknown): string {
         return appError.message || '입력 데이터가 올바르지 않습니다.';
       case ErrorType.NETWORK_ERROR:
         return '네트워크 연결에 문제가 있습니다. 인터넷 연결을 확인해주세요.';
+      case ErrorType.QUOTA_EXCEEDED:
+        return appError.message || 'Gemini API 일일 할당량을 초과했습니다. 내일 다시 시도해주세요.';
       default:
         return appError.message || '알 수 없는 오류가 발생했습니다.';
     }
@@ -60,6 +82,19 @@ export function getErrorMessage(error: AppError | Error | unknown): string {
  */
 export function toAppError(error: unknown, type: ErrorType = ErrorType.UNKNOWN_ERROR): AppError {
   if (error instanceof Error) {
+    // 할당량 초과 에러 우선 판별
+    if (error.message.includes('429') ||
+        error.message.includes('quota exceeded') ||
+        error.message.includes('exceeded your current quota') ||
+        error.message.includes('Quota exceeded')) {
+      return {
+        type: ErrorType.QUOTA_EXCEEDED,
+        message: error.message,
+        originalError: error,
+        retryable: false, // 할당량 초과는 재시도 불가능
+      };
+    }
+
     // 데이터베이스 에러 판별
     if (error.message.includes('database') || error.message.includes('SQL') || error.message.includes('duplicate')) {
       return {

@@ -17,6 +17,77 @@ function getGenAI(): GoogleGenerativeAI {
 }
 
 /**
+ * 할당량 초과 에러인지 확인합니다.
+ */
+function isQuotaExceededError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const errorMessage = error.message.toLowerCase();
+  return (
+    errorMessage.includes('429') ||
+    errorMessage.includes('quota exceeded') ||
+    errorMessage.includes('exceeded your current quota') ||
+    errorMessage.includes('quotaexceeded')
+  );
+}
+
+/**
+ * 할당량 초과 에러에서 상세 정보를 파싱합니다.
+ */
+function parseQuotaError(error: unknown): { limit?: number; retryAfter?: number; message: string } {
+  const result: { limit?: number; retryAfter?: number; message: string } = {
+    message: 'Gemini API 일일 할당량을 초과했습니다.',
+  };
+
+  if (!(error instanceof Error)) {
+    return result;
+  }
+
+  const errorMessage = error.message;
+
+  // 할당량 한도 정보 추출
+  const limitMatch = errorMessage.match(/limit:\s*(\d+)/i) ||
+                    errorMessage.match(/quotaValue["']?\s*:\s*["']?(\d+)/i);
+  if (limitMatch) {
+    result.limit = parseInt(limitMatch[1], 10);
+  }
+
+  // 재시도 가능 시간 추출
+  const retryAfterMatch = errorMessage.match(/retry in ([\d.]+)s/i) ||
+                         errorMessage.match(/retryDelay["']?\s*:\s*["']?(\d+)/i) ||
+                         errorMessage.match(/retryDelay["']?\s*:\s*["']?([\d.]+)s/i);
+  if (retryAfterMatch) {
+    result.retryAfter = Math.ceil(parseFloat(retryAfterMatch[1]));
+  }
+
+  // 에러 객체에서 retryDelay 정보 추출 시도
+  if (typeof error === 'object' && error !== null) {
+    const errorObj = error as any;
+    if (errorObj.errorDetails) {
+      for (const detail of errorObj.errorDetails) {
+        if (detail['@type'] === 'type.googleapis.com/google.rpc.RetryInfo' && detail.retryDelay) {
+          const retryDelay = parseFloat(detail.retryDelay);
+          if (!isNaN(retryDelay)) {
+            result.retryAfter = Math.ceil(retryDelay);
+          }
+        }
+        if (detail['@type'] === 'type.googleapis.com/google.rpc.QuotaFailure' && detail.violations) {
+          for (const violation of detail.violations) {
+            if (violation.quotaValue) {
+              result.limit = parseInt(violation.quotaValue, 10);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
  * 텍스트가 한국어인지 간단히 판단합니다.
  * 한국어 문자(한글)가 포함되어 있으면 한국어로 간주합니다.
  */
@@ -61,15 +132,39 @@ ${text}`;
     return translatedText;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // 할당량 초과 에러인지 확인
+    if (isQuotaExceededError(error)) {
+      const quotaInfo = parseQuotaError(error);
+      const timestamp = new Date().toISOString();
+      const thailandTime = new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString();
+
+      console.error(`번역 오류: 할당량 초과 (시도 ${retryCount + 1}/${MAX_RETRIES + 1}):`, {
+        timestamp,
+        thailandTime,
+        limit: quotaInfo.limit,
+        retryAfter: quotaInfo.retryAfter,
+        retryAfterFormatted: quotaInfo.retryAfter
+          ? `${Math.floor(quotaInfo.retryAfter / 60)}분 ${quotaInfo.retryAfter % 60}초`
+          : '내일',
+        message: quotaInfo.message,
+        textLength: text.length,
+        textPreview: text.substring(0, 100),
+      });
+      // 할당량 초과는 재시도하지 않고 원본 텍스트 반환
+      console.warn(`번역 실패 (할당량 초과), 원본 텍스트 반환: ${text.substring(0, 50)}...`);
+      return text;
+    }
+
     console.error(`번역 오류 (시도 ${retryCount + 1}/${MAX_RETRIES + 1}):`, errorMessage);
 
     // 재시도 가능한 에러이고 최대 재시도 횟수 미만인 경우 재시도
+    // 할당량 초과는 이미 위에서 처리했으므로 제외
     if (retryCount < MAX_RETRIES && (
       errorMessage.includes('timeout') ||
       errorMessage.includes('network') ||
-      errorMessage.includes('rate limit') ||
-      errorMessage.includes('429')
-    )) {
+      errorMessage.includes('503')
+    ) && !isQuotaExceededError(error)) {
       // 지수 백오프: 1초, 2초, 4초
       const delay = RETRY_DELAY * Math.pow(2, retryCount);
       console.log(`번역 재시도 대기 중... ${delay}ms 후 재시도`);
@@ -220,14 +315,42 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
         lastError = error instanceof Error ? error : new Error(String(error));
         const errorMessage = lastError.message;
 
+        // 할당량 초과 에러인지 확인
+        if (isQuotaExceededError(error)) {
+          const quotaInfo = parseQuotaError(error);
+          const timestamp = new Date().toISOString();
+          const thailandTime = new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString();
+
+          console.error('❌ Gemini API 할당량 초과:', {
+            timestamp,
+            thailandTime,
+            limit: quotaInfo.limit,
+            retryAfter: quotaInfo.retryAfter,
+            retryAfterFormatted: quotaInfo.retryAfter
+              ? `${Math.floor(quotaInfo.retryAfter / 60)}분 ${quotaInfo.retryAfter % 60}초`
+              : '내일',
+            message: quotaInfo.message,
+            errorMessage: errorMessage.substring(0, 500), // 에러 메시지 일부만 로깅
+            attempt: attempt + 1,
+            maxRetries: MAX_RETRIES + 1,
+          });
+
+          // 할당량 초과 에러는 재시도하지 않고 즉시 에러 반환
+          const quotaError = new Error(
+            quotaInfo.retryAfter
+              ? `Gemini API 할당량을 초과했습니다. ${quotaInfo.retryAfter}초 후 다시 시도해주세요. (일일 한도: ${quotaInfo.limit || '알 수 없음'})`
+              : `Gemini API 일일 할당량을 초과했습니다. 내일 다시 시도해주세요. (일일 한도: ${quotaInfo.limit || '알 수 없음'})`
+          );
+          throw quotaError;
+        }
+
         console.log(`❌ 뉴스 수집 시도 ${attempt + 1}/${MAX_RETRIES + 1} 실패:`, errorMessage);
 
-        // 재시도 가능한 에러인지 확인
-        const isRetryable = errorMessage.includes('timeout') ||
+        // 재시도 가능한 에러인지 확인 (할당량 초과는 제외)
+        const isRetryable = (errorMessage.includes('timeout') ||
                            errorMessage.includes('network') ||
-                           errorMessage.includes('rate limit') ||
-                           errorMessage.includes('429') ||
-                           errorMessage.includes('503');
+                           errorMessage.includes('503')) &&
+                           !isQuotaExceededError(error);
 
         if (attempt < MAX_RETRIES && isRetryable) {
           // 지수 백오프: 2초, 4초, 8초
