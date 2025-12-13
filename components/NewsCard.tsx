@@ -47,8 +47,7 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
 
       <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 whitespace-pre-wrap break-words leading-relaxed">{news.content_translated || news.content}</p>
 
-      <div className="flex items-center justify-between text-xs text-gray-500 gap-2">
-        <span className="truncate">{formatDate(news.created_at)}</span>
+      <div className="flex items-center justify-end text-xs text-gray-500 gap-2">
         {showOriginalLink && news.original_link && news.original_link !== "#" ? (
           <a
             href={news.original_link}
@@ -59,6 +58,7 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
             원문 보기 →
           </a>
         ) : null}
+        <span className="whitespace-nowrap">{formatDate(news.created_at)}</span>
       </div>
     </div>
   );
