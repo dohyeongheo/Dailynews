@@ -34,6 +34,101 @@ function isQuotaExceededError(error: unknown): boolean {
 }
 
 /**
+ * 텍스트가 유효한 JSON인지 확인합니다.
+ */
+function isValidJSON(text: string): boolean {
+  if (!text || text.trim().length === 0) {
+    return false;
+  }
+
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 텍스트에서 JSON 부분을 추출합니다.
+ * 마크다운 코드 블록, 주변 텍스트 등을 제거하고 순수 JSON만 반환합니다.
+ */
+function extractJSON(text: string): string | null {
+  if (!text || text.trim().length === 0) {
+    return null;
+  }
+
+  let jsonText = text.trim();
+
+  // 1. 마크다운 코드 블록 제거 (```json ... ``` 또는 ``` ... ```)
+  if (jsonText.includes("```")) {
+    const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (jsonMatch && jsonMatch[1]) {
+      jsonText = jsonMatch[1].trim();
+    }
+  }
+
+  // 2. JSON 시작 위치 찾기 ({)
+  const startIndex = jsonText.indexOf("{");
+  if (startIndex === -1) {
+    return null;
+  }
+
+  // 3. JSON 종료 위치 찾기 (마지막 })
+  let braceCount = 0;
+  let endIndex = -1;
+
+  for (let i = startIndex; i < jsonText.length; i++) {
+    if (jsonText[i] === "{") {
+      braceCount++;
+    } else if (jsonText[i] === "}") {
+      braceCount--;
+      if (braceCount === 0) {
+        endIndex = i;
+        break;
+      }
+    }
+  }
+
+  if (endIndex === -1) {
+    return null;
+  }
+
+  // 4. JSON 부분만 추출
+  const extractedJSON = jsonText.substring(startIndex, endIndex + 1);
+
+  // 5. 유효성 검사
+  if (isValidJSON(extractedJSON)) {
+    return extractedJSON;
+  }
+
+  return null;
+}
+
+/**
+ * 응답이 에러 메시지인지 확인합니다.
+ */
+function isErrorResponse(text: string): boolean {
+  if (!text || text.trim().length === 0) {
+    return false;
+  }
+
+  const lowerText = text.toLowerCase().trim();
+  const errorPatterns = [
+    /^an error/i,
+    /^error/i,
+    /^sorry/i,
+    /^i cannot/i,
+    /^i'm sorry/i,
+    /^unable to/i,
+    /^failed to/i,
+    /^cannot/i,
+  ];
+
+  return errorPatterns.some((pattern) => pattern.test(lowerText));
+}
+
+/**
  * 할당량 초과 에러에서 상세 정보를 파싱합니다.
  */
 function parseQuotaError(error: unknown): { limit?: number; retryAfter?: number; message: string } {
@@ -359,25 +454,92 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
       throw lastError || new Error("뉴스 수집에 실패했습니다.");
     }
 
-    // JSON 응답 파싱
-    let jsonText = text.trim();
-
-    // 마크다운 코드 블록 제거 (```json ... ```)
-    if (jsonText.includes("```")) {
-      const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-      if (jsonMatch) {
-        jsonText = jsonMatch[1].trim();
-      }
+    // 에러 메시지인지 확인
+    if (isErrorResponse(text)) {
+      console.error("❌ Gemini API가 에러 메시지를 반환했습니다:", {
+        responsePreview: text.substring(0, 500),
+        responseLength: text.length,
+      });
+      throw new Error(`Gemini API가 에러를 반환했습니다: ${text.substring(0, 200)}...`);
     }
 
-    const parsedData: GeminiNewsResponse = JSON.parse(jsonText);
+    // JSON 추출 및 파싱
+    const jsonText = extractJSON(text);
+
+    if (!jsonText) {
+      console.error("❌ JSON 추출 실패:", {
+        originalTextPreview: text.substring(0, 500),
+        originalTextLength: text.length,
+        hasMarkdown: text.includes("```"),
+        hasJsonStart: text.includes("{"),
+      });
+      throw new Error("Gemini API 응답에서 유효한 JSON을 찾을 수 없습니다. 응답이 JSON 형식이 아닙니다.");
+    }
+
+    // JSON 파싱
+    let parsedData: GeminiNewsResponse;
+    try {
+      parsedData = JSON.parse(jsonText);
+    } catch (parseError) {
+      console.error("❌ JSON 파싱 실패:", {
+        parseError: parseError instanceof Error ? parseError.message : String(parseError),
+        jsonTextPreview: jsonText.substring(0, 500),
+        jsonTextLength: jsonText.length,
+        originalTextPreview: text.substring(0, 500),
+      });
+      throw new Error(`JSON 파싱에 실패했습니다: ${parseError instanceof Error ? parseError.message : "Unknown error"}`);
+    }
 
     if (!parsedData.news || !Array.isArray(parsedData.news)) {
       throw new Error("Invalid response format from Gemini API");
     }
 
+    // 데이터 검증 및 필터링
+    const validNewsItems = parsedData.news.filter((item, index) => {
+      // 필수 필드 검증
+      if (!item.title || typeof item.title !== "string" || item.title.trim().length === 0) {
+        console.warn(`뉴스 항목 ${index + 1}: title이 없거나 유효하지 않음`, item);
+        return false;
+      }
+
+      if (!item.content || typeof item.content !== "string" || item.content.trim().length === 0) {
+        console.warn(`뉴스 항목 ${index + 1}: content가 없거나 유효하지 않음`, { title: item.title });
+        return false;
+      }
+
+      if (!item.category || typeof item.category !== "string") {
+        console.warn(`뉴스 항목 ${index + 1}: category가 없거나 유효하지 않음`, { title: item.title });
+        return false;
+      }
+
+      // 카테고리 유효성 검증
+      const validCategories: NewsCategory[] = ["태국뉴스", "관련뉴스", "한국뉴스"];
+      if (!validCategories.includes(item.category as NewsCategory)) {
+        console.warn(`뉴스 항목 ${index + 1}: 유효하지 않은 카테고리`, { title: item.title, category: item.category });
+        return false;
+      }
+
+      if (!item.source_country || typeof item.source_country !== "string") {
+        console.warn(`뉴스 항목 ${index + 1}: source_country가 없거나 유효하지 않음`, { title: item.title });
+        return false;
+      }
+
+      if (!item.source_media || typeof item.source_media !== "string") {
+        console.warn(`뉴스 항목 ${index + 1}: source_media가 없거나 유효하지 않음`, { title: item.title });
+        return false;
+      }
+
+      return true;
+    });
+
+    console.log(`✅ 데이터 검증 완료: ${parsedData.news.length}개 중 ${validNewsItems.length}개 유효`);
+
+    if (validNewsItems.length === 0) {
+      throw new Error("유효한 뉴스 데이터가 없습니다. 모든 뉴스 항목이 필수 필드를 만족하지 않습니다.");
+    }
+
     // 데이터 정규화 및 변환
-    const newsItems: NewsInput[] = parsedData.news.map((item) => {
+    const newsItems: NewsInput[] = validNewsItems.map((item) => {
       // original_link 유효성 검사 및 정규화
       let originalLink = item.original_link || "";
 
