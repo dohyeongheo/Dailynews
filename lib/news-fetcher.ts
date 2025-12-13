@@ -26,10 +26,10 @@ function isQuotaExceededError(error: unknown): boolean {
 
   const errorMessage = error.message.toLowerCase();
   return (
-    errorMessage.includes('429') ||
-    errorMessage.includes('quota exceeded') ||
-    errorMessage.includes('exceeded your current quota') ||
-    errorMessage.includes('quotaexceeded')
+    errorMessage.includes("429") ||
+    errorMessage.includes("quota exceeded") ||
+    errorMessage.includes("exceeded your current quota") ||
+    errorMessage.includes("quotaexceeded")
   );
 }
 
@@ -38,7 +38,7 @@ function isQuotaExceededError(error: unknown): boolean {
  */
 function parseQuotaError(error: unknown): { limit?: number; retryAfter?: number; message: string } {
   const result: { limit?: number; retryAfter?: number; message: string } = {
-    message: 'Gemini API 일일 할당량을 초과했습니다.',
+    message: "Gemini API 일일 할당량을 초과했습니다.",
   };
 
   if (!(error instanceof Error)) {
@@ -48,32 +48,32 @@ function parseQuotaError(error: unknown): { limit?: number; retryAfter?: number;
   const errorMessage = error.message;
 
   // 할당량 한도 정보 추출
-  const limitMatch = errorMessage.match(/limit:\s*(\d+)/i) ||
-                    errorMessage.match(/quotaValue["']?\s*:\s*["']?(\d+)/i);
+  const limitMatch = errorMessage.match(/limit:\s*(\d+)/i) || errorMessage.match(/quotaValue["']?\s*:\s*["']?(\d+)/i);
   if (limitMatch) {
     result.limit = parseInt(limitMatch[1], 10);
   }
 
   // 재시도 가능 시간 추출
-  const retryAfterMatch = errorMessage.match(/retry in ([\d.]+)s/i) ||
-                         errorMessage.match(/retryDelay["']?\s*:\s*["']?(\d+)/i) ||
-                         errorMessage.match(/retryDelay["']?\s*:\s*["']?([\d.]+)s/i);
+  const retryAfterMatch =
+    errorMessage.match(/retry in ([\d.]+)s/i) ||
+    errorMessage.match(/retryDelay["']?\s*:\s*["']?(\d+)/i) ||
+    errorMessage.match(/retryDelay["']?\s*:\s*["']?([\d.]+)s/i);
   if (retryAfterMatch) {
     result.retryAfter = Math.ceil(parseFloat(retryAfterMatch[1]));
   }
 
   // 에러 객체에서 retryDelay 정보 추출 시도
-  if (typeof error === 'object' && error !== null) {
+  if (typeof error === "object" && error !== null) {
     const errorObj = error as any;
     if (errorObj.errorDetails) {
       for (const detail of errorObj.errorDetails) {
-        if (detail['@type'] === 'type.googleapis.com/google.rpc.RetryInfo' && detail.retryDelay) {
+        if (detail["@type"] === "type.googleapis.com/google.rpc.RetryInfo" && detail.retryDelay) {
           const retryDelay = parseFloat(detail.retryDelay);
           if (!isNaN(retryDelay)) {
             result.retryAfter = Math.ceil(retryDelay);
           }
         }
-        if (detail['@type'] === 'type.googleapis.com/google.rpc.QuotaFailure' && detail.violations) {
+        if (detail["@type"] === "type.googleapis.com/google.rpc.QuotaFailure" && detail.violations) {
           for (const violation of detail.violations) {
             if (violation.quotaValue) {
               result.limit = parseInt(violation.quotaValue, 10);
@@ -144,9 +144,7 @@ ${text}`;
         thailandTime,
         limit: quotaInfo.limit,
         retryAfter: quotaInfo.retryAfter,
-        retryAfterFormatted: quotaInfo.retryAfter
-          ? `${Math.floor(quotaInfo.retryAfter / 60)}분 ${quotaInfo.retryAfter % 60}초`
-          : '내일',
+        retryAfterFormatted: quotaInfo.retryAfter ? `${Math.floor(quotaInfo.retryAfter / 60)}분 ${quotaInfo.retryAfter % 60}초` : "내일",
         message: quotaInfo.message,
         textLength: text.length,
         textPreview: text.substring(0, 100),
@@ -160,15 +158,15 @@ ${text}`;
 
     // 재시도 가능한 에러이고 최대 재시도 횟수 미만인 경우 재시도
     // 할당량 초과는 이미 위에서 처리했으므로 제외
-    if (retryCount < MAX_RETRIES && (
-      errorMessage.includes('timeout') ||
-      errorMessage.includes('network') ||
-      errorMessage.includes('503')
-    ) && !isQuotaExceededError(error)) {
+    if (
+      retryCount < MAX_RETRIES &&
+      (errorMessage.includes("timeout") || errorMessage.includes("network") || errorMessage.includes("503")) &&
+      !isQuotaExceededError(error)
+    ) {
       // 지수 백오프: 1초, 2초, 4초
       const delay = RETRY_DELAY * Math.pow(2, retryCount);
       console.log(`번역 재시도 대기 중... ${delay}ms 후 재시도`);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
       return translateToKorean(text, retryCount + 1);
     }
 
@@ -233,22 +231,14 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<NewsInput> {
  * Search Grounding 기능을 활용하여 최신 뉴스를 가져옵니다.
  */
 export async function fetchNewsFromGemini(date: string = new Date().toISOString().split("T")[0]): Promise<NewsInput[]> {
-  // 사용 가능한 모델 목록 시도 (우선순위 순)
-  // 최신 모델: gemini-2.5-flash, gemini-2.5-pro, gemini-2.0-flash 등
-  const modelsToTry = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-flash-latest", "gemini-pro-latest"];
-
-  let model = null;
-  let lastError: Error | null = null;
-
   // Gemini AI 클라이언트 초기화 (런타임에 실행)
   const genAI = getGenAI();
 
-  // 기본 모델 사용 (gemini-2.5-flash가 가장 빠르고 안정적)
-  // 모델 객체 생성은 항상 성공하므로, 실제 요청 시 오류가 발생하면 다른 모델 시도
-  model = genAI.getGenerativeModel({ model: modelsToTry[0] });
-  console.log(`✅ 모델 선택: ${modelsToTry[0]}`);
+  // gemini-2.5-flash 모델만 사용
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+  console.log(`✅ 모델 선택: gemini-2.5-flash`);
 
-  const prompt = `${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴스, 한국 주요 뉴스를 10개 이상 수집하여 JSON 포맷으로 출력해주세요.
+  const prompt = `${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴스, 한국 주요 뉴스를 30개 이상 수집하여 JSON 포맷으로 출력해주세요.
 
 다음 JSON 형식을 정확히 따라주세요:
 {
@@ -270,13 +260,15 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 - original_link는 반드시 실제 뉴스 기사 URL이어야 하며, http:// 또는 https://로 시작하는 완전한 URL 형식이어야 합니다.
 - original_link가 없거나 유효하지 않은 경우, 해당 뉴스는 제외하거나 빈 문자열("")로 설정하세요.
 - 각 뉴스는 반드시 실제 존재하는 뉴스 기사여야 하며, 실제 URL을 제공해야 합니다.
+- 각 뉴스의 본문 내용(content)은 최소 500자 이상으로 상세하게 작성해주세요. 뉴스의 핵심 내용, 배경 정보, 영향 등을 포함하여 가능한 한 자세히 작성해주세요.
+- content_translated도 원문과 동일한 수준의 상세함을 유지하여 최소 500자 이상으로 작성해주세요.
 
 카테고리 분류 기준:
 - "태국뉴스": 태국에서 발생한 주요 뉴스
 - "관련뉴스": 한국에서 태국과 관련된 뉴스
 - "한국뉴스": 한국의 주요 뉴스
 
-각 카테고리별로 최소 10개 이상의 뉴스를 포함해주세요.`;
+각 카테고리별로 최소 30개 이상의 뉴스를 포함해주세요.`;
 
   try {
     let result;
@@ -321,14 +313,12 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
           const timestamp = new Date().toISOString();
           const thailandTime = new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString();
 
-          console.error('❌ Gemini API 할당량 초과:', {
+          console.error("❌ Gemini API 할당량 초과:", {
             timestamp,
             thailandTime,
             limit: quotaInfo.limit,
             retryAfter: quotaInfo.retryAfter,
-            retryAfterFormatted: quotaInfo.retryAfter
-              ? `${Math.floor(quotaInfo.retryAfter / 60)}분 ${quotaInfo.retryAfter % 60}초`
-              : '내일',
+            retryAfterFormatted: quotaInfo.retryAfter ? `${Math.floor(quotaInfo.retryAfter / 60)}분 ${quotaInfo.retryAfter % 60}초` : "내일",
             message: quotaInfo.message,
             errorMessage: errorMessage.substring(0, 500), // 에러 메시지 일부만 로깅
             attempt: attempt + 1,
@@ -338,8 +328,8 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
           // 할당량 초과 에러는 재시도하지 않고 즉시 에러 반환
           const quotaError = new Error(
             quotaInfo.retryAfter
-              ? `Gemini API 할당량을 초과했습니다. ${quotaInfo.retryAfter}초 후 다시 시도해주세요. (일일 한도: ${quotaInfo.limit || '알 수 없음'})`
-              : `Gemini API 일일 할당량을 초과했습니다. 내일 다시 시도해주세요. (일일 한도: ${quotaInfo.limit || '알 수 없음'})`
+              ? `Gemini API 할당량을 초과했습니다. ${quotaInfo.retryAfter}초 후 다시 시도해주세요. (일일 한도: ${quotaInfo.limit || "알 수 없음"})`
+              : `Gemini API 일일 할당량을 초과했습니다. 내일 다시 시도해주세요. (일일 한도: ${quotaInfo.limit || "알 수 없음"})`
           );
           throw quotaError;
         }
@@ -347,16 +337,14 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
         console.log(`❌ 뉴스 수집 시도 ${attempt + 1}/${MAX_RETRIES + 1} 실패:`, errorMessage);
 
         // 재시도 가능한 에러인지 확인 (할당량 초과는 제외)
-        const isRetryable = (errorMessage.includes('timeout') ||
-                           errorMessage.includes('network') ||
-                           errorMessage.includes('503')) &&
-                           !isQuotaExceededError(error);
+        const isRetryable =
+          (errorMessage.includes("timeout") || errorMessage.includes("network") || errorMessage.includes("503")) && !isQuotaExceededError(error);
 
         if (attempt < MAX_RETRIES && isRetryable) {
           // 지수 백오프: 2초, 4초, 8초
           const delay = 2000 * Math.pow(2, attempt);
           console.log(`재시도 대기 중... ${delay}ms 후 재시도`);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
 
@@ -368,7 +356,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     }
 
     if (!text) {
-      throw lastError || new Error('뉴스 수집에 실패했습니다.');
+      throw lastError || new Error("뉴스 수집에 실패했습니다.");
     }
 
     // JSON 응답 파싱
@@ -437,9 +425,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 
     for (let i = 0; i < newsItems.length; i += BATCH_SIZE) {
       const batch = newsItems.slice(i, i + BATCH_SIZE);
-      const translatedBatch = await Promise.all(
-        batch.map(newsItem => translateNewsIfNeeded(newsItem))
-      );
+      const translatedBatch = await Promise.all(batch.map((newsItem) => translateNewsIfNeeded(newsItem)));
       translatedNewsItems.push(...translatedBatch);
 
       // 진행 상황 로깅
