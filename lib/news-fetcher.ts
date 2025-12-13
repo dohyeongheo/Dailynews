@@ -333,7 +333,20 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   console.log(`✅ 모델 선택: gemini-2.5-flash`);
 
-  const prompt = `${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴스, 한국 주요 뉴스를 30개 이상 수집하여 JSON 포맷으로 출력해주세요.
+  // 날짜 검증: 미래 날짜가 아닌지 확인
+  const today = new Date();
+  const todayStr = today.toISOString().split("T")[0];
+  const requestDate = date || todayStr;
+
+  // 미래 날짜인 경우 오늘 날짜로 변경
+  if (requestDate > todayStr) {
+    console.warn(`⚠️  미래 날짜 감지: ${requestDate}, 오늘 날짜(${todayStr})로 변경합니다.`);
+    date = todayStr;
+  } else {
+    date = requestDate;
+  }
+
+  const prompt = `${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴스, 한국 주요 뉴스를 가능한 한 많은 뉴스를 수집하여 JSON 포맷으로 출력해주세요. (최소 20개 이상)
 
 다음 JSON 형식을 정확히 따라주세요:
 {
@@ -352,18 +365,17 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 }
 
 중요 사항:
-- original_link는 반드시 실제 뉴스 기사 URL이어야 하며, http:// 또는 https://로 시작하는 완전한 URL 형식이어야 합니다.
-- original_link가 없거나 유효하지 않은 경우, 해당 뉴스는 제외하거나 빈 문자열("")로 설정하세요.
-- 각 뉴스는 반드시 실제 존재하는 뉴스 기사여야 하며, 실제 URL을 제공해야 합니다.
-- 각 뉴스의 본문 내용(content)은 최소 500자 이상으로 상세하게 작성해주세요. 뉴스의 핵심 내용, 배경 정보, 영향 등을 포함하여 가능한 한 자세히 작성해주세요.
-- content_translated도 원문과 동일한 수준의 상세함을 유지하여 최소 500자 이상으로 작성해주세요.
+- original_link는 가능한 한 실제 뉴스 기사 URL을 제공해주세요. http:// 또는 https://로 시작하는 완전한 URL 형식이어야 합니다.
+- original_link를 찾을 수 없는 경우, 빈 문자열("")로 설정하거나 해당 뉴스를 제외할 수 있습니다.
+- 각 뉴스의 본문 내용(content)은 상세하게 작성해주세요. 가능한 한 자세히 작성하되, 최소 300자 이상으로 작성해주세요. 뉴스의 핵심 내용, 배경 정보, 영향 등을 포함해주세요.
+- content_translated도 원문과 동일한 수준의 상세함을 유지하여 가능한 한 자세히 작성해주세요.
 
 카테고리 분류 기준:
 - "태국뉴스": 태국에서 발생한 주요 뉴스
 - "관련뉴스": 한국에서 태국과 관련된 뉴스
 - "한국뉴스": 한국의 주요 뉴스
 
-각 카테고리별로 최소 30개 이상의 뉴스를 포함해주세요.`;
+각 카테고리별로 가능한 한 많은 뉴스를 포함해주세요. (최소 10개 이상 권장)`;
 
   try {
     let result;
@@ -381,7 +393,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
             contents: [{ role: "user", parts: [{ text: prompt }] }],
             tools: [
               {
-                googleSearchRetrieval: {},
+                googleSearch: {},
               },
             ],
           });
@@ -456,11 +468,23 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 
     // 에러 메시지인지 확인
     if (isErrorResponse(text)) {
+      const errorPreview = text.substring(0, 500);
       console.error("❌ Gemini API가 에러 메시지를 반환했습니다:", {
-        responsePreview: text.substring(0, 500),
+        responsePreview: errorPreview,
         responseLength: text.length,
       });
-      throw new Error(`Gemini API가 에러를 반환했습니다: ${text.substring(0, 200)}...`);
+
+      // 에러 메시지에서 주요 내용 추출
+      let errorMessage = "Gemini API가 요청을 처리할 수 없습니다.";
+      if (text.includes("미래 날짜") || text.includes("future date") || text.includes("2025")) {
+        errorMessage = "미래 날짜에 대한 뉴스를 수집할 수 없습니다. 오늘 날짜의 뉴스를 수집하도록 변경되었습니다.";
+      } else if (text.includes("너무 많") || text.includes("too many") || text.includes("대량")) {
+        errorMessage = "요청한 뉴스 개수가 너무 많습니다. 뉴스 개수를 줄여서 다시 시도해주세요.";
+      } else if (text.includes("실제") || text.includes("actual") || text.includes("real")) {
+        errorMessage = "실제 뉴스 기사를 찾을 수 없습니다. 날짜를 확인하거나 다른 날짜로 시도해주세요.";
+      }
+
+      throw new Error(`${errorMessage} (상세: ${errorPreview}...)`);
     }
 
     // JSON 추출 및 파싱
