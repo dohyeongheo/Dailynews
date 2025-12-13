@@ -14,7 +14,7 @@ export const maxDuration = 60; // Vercel Pro 플랜 최대 타임아웃 (초)
 
 /**
  * Vercel Cron Job 인증 확인
- * 
+ *
  * Vercel Cron Job 인증 방식:
  * 1. CRON_SECRET이 설정된 경우: Authorization: Bearer ${CRON_SECRET} 헤더 확인
  * 2. CRON_SECRET이 없는 경우: Vercel 내부 호출로 간주하고 허용
@@ -32,7 +32,7 @@ function verifyCronAuth(request: NextRequest): { authorized: boolean; reason?: s
     // 대신 User-Agent로 Vercel 호출인지 확인 (선택사항)
     const userAgent = request.headers.get('user-agent') || '';
     const isVercelCall = userAgent.includes('vercel') || userAgent.includes('Vercel');
-    
+
     // Vercel Cron Job은 내부 호출이므로 허용
     // 하지만 로깅을 위해 정보를 기록
     console.log('[Cron] CRON_SECRET 미설정, Vercel 내부 호출로 간주:', {
@@ -40,7 +40,7 @@ function verifyCronAuth(request: NextRequest): { authorized: boolean; reason?: s
       isVercelCall,
       hasAuthHeader: !!request.headers.get('authorization'),
     });
-    
+
     return { authorized: true };
   }
 
