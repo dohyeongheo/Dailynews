@@ -6,47 +6,77 @@ import { fetchAndSaveNewsAction } from '@/lib/actions';
  *
  * Vercel Cron Jobs는 UTC 시간을 사용합니다.
  * 태국 시간 오전 7시 50분 = UTC 00시 50분
- * 
+ *
  * 참고: Vercel Serverless Functions는 기본 타임아웃이 10초(Hobby) 또는 60초(Pro)입니다.
  * 뉴스 수집 작업이 오래 걸릴 수 있으므로 타임아웃 처리를 포함했습니다.
  */
 export const maxDuration = 60; // Vercel Pro 플랜 최대 타임아웃 (초)
 
+/**
+ * Vercel Cron Job 인증 확인
+ * Vercel은 자동으로 authorization 헤더를 추가하므로, CRON_SECRET이 없으면 인증을 건너뜁니다.
+ */
+function verifyCronAuth(request: NextRequest): { authorized: boolean; reason?: string } {
+  const cronSecret = process.env.CRON_SECRET;
+  
+  // CRON_SECRET이 설정되지 않은 경우, Vercel의 기본 인증 헤더만 확인
+  if (!cronSecret) {
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return { authorized: false, reason: 'No authorization header' };
+    }
+    return { authorized: true };
+  }
+
+  // CRON_SECRET이 설정된 경우 검증
+  const authHeader = request.headers.get('authorization');
+  const vercelSignature = request.headers.get('x-vercel-signature');
+  
+  // Vercel의 기본 서명이 있으면 허용
+  if (vercelSignature) {
+    return { authorized: true };
+  }
+  
+  // Bearer 토큰으로 검증
+  if (authHeader === `Bearer ${cronSecret}`) {
+    return { authorized: true };
+  }
+
+  return { authorized: false, reason: 'Invalid credentials' };
+}
+
 export async function GET(request: NextRequest) {
   const startTime = Date.now();
-  let executionId = `cron-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-  
+  const executionId = `cron-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
   try {
     // Vercel Cron Job 인증 확인
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-    
-    // Vercel Cron Job은 자동으로 authorization 헤더를 추가합니다
-    // 하지만 CRON_SECRET이 설정된 경우 검증합니다
-    if (cronSecret) {
-      const vercelAuthHeader = request.headers.get('x-vercel-signature');
-      if (!vercelAuthHeader && authHeader !== `Bearer ${cronSecret}`) {
-        console.error('[Cron] 인증 실패:', {
+    const authResult = verifyCronAuth(request);
+    if (!authResult.authorized) {
+      console.error('[Cron] 인증 실패:', {
+        executionId,
+        reason: authResult.reason,
+        hasAuthHeader: !!request.headers.get('authorization'),
+        hasVercelSignature: !!request.headers.get('x-vercel-signature'),
+        timestamp: new Date().toISOString(),
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Unauthorized',
           executionId,
-          hasAuthHeader: !!authHeader,
-          hasVercelSignature: !!vercelAuthHeader,
-          timestamp: new Date().toISOString(),
-        });
-        return NextResponse.json(
-          { 
-            success: false,
-            error: 'Unauthorized',
-            executionId,
-          }, 
-          { status: 401 }
-        );
-      }
+          reason: authResult.reason,
+        },
+        { status: 401 }
+      );
     }
 
     console.log('[Cron] 뉴스 수집 시작:', {
       executionId,
       timestamp: new Date().toISOString(),
       thailandTime: new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString(),
+      nodeVersion: process.version,
+      memoryUsage: process.memoryUsage(),
     });
 
     // 환경 변수 확인
@@ -55,7 +85,7 @@ export async function GET(request: NextRequest) {
       'NEXT_PUBLIC_SUPABASE_URL',
       'SUPABASE_SERVICE_ROLE_KEY',
     ];
-    
+
     const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
     if (missingEnvVars.length > 0) {
       console.error('[Cron] 필수 환경 변수 누락:', {
@@ -75,16 +105,41 @@ export async function GET(request: NextRequest) {
     }
 
     // 타임아웃을 고려한 뉴스 수집 실행
-    const timeoutPromise = new Promise((_, reject) => {
+    // 50초 후 타임아웃 (60초 제한 전에 안전하게 실패 처리)
+    const TIMEOUT_MS = 50000;
+    const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
-        reject(new Error('뉴스 수집 작업이 타임아웃되었습니다. (60초 초과)'));
-      }, 55000); // 55초 후 타임아웃 (60초 제한 전에 실패 처리)
+        reject(new Error(`뉴스 수집 작업이 타임아웃되었습니다. (${TIMEOUT_MS / 1000}초 초과)`));
+      }, TIMEOUT_MS);
     });
 
     const fetchPromise = fetchAndSaveNewsAction();
-    
+
     // Promise.race로 타임아웃 처리
-    const result = await Promise.race([fetchPromise, timeoutPromise]) as Awaited<ReturnType<typeof fetchAndSaveNewsAction>>;
+    let result: Awaited<ReturnType<typeof fetchAndSaveNewsAction>>;
+    try {
+      result = await Promise.race([fetchPromise, timeoutPromise]);
+    } catch (timeoutError) {
+      // 타임아웃 에러 처리
+      const executionTime = Date.now() - startTime;
+      console.error('[Cron] 타임아웃 발생:', {
+        executionId,
+        timeoutMs: TIMEOUT_MS,
+        executionTimeMs: executionTime,
+        timestamp: new Date().toISOString(),
+      });
+      
+      return NextResponse.json(
+        {
+          success: false,
+          message: timeoutError instanceof Error ? timeoutError.message : '타임아웃이 발생했습니다.',
+          executionId,
+          executionTimeMs: executionTime,
+          timestamp: new Date().toISOString(),
+        },
+        { status: 504 } // Gateway Timeout
+      );
+    }
 
     const executionTime = Date.now() - startTime;
 
@@ -94,9 +149,11 @@ export async function GET(request: NextRequest) {
         message: result.message,
         data: result.data,
         executionTimeMs: executionTime,
+        executionTimeSec: (executionTime / 1000).toFixed(2),
         timestamp: new Date().toISOString(),
+        memoryUsage: process.memoryUsage(),
       });
-      
+
       return NextResponse.json({
         success: true,
         message: result.message,
@@ -113,7 +170,7 @@ export async function GET(request: NextRequest) {
         executionTimeMs: executionTime,
         timestamp: new Date().toISOString(),
       });
-      
+
       return NextResponse.json(
         {
           success: false,
@@ -127,7 +184,7 @@ export async function GET(request: NextRequest) {
     }
   } catch (error) {
     const executionTime = Date.now() - startTime;
-    
+
     console.error('[Cron] 뉴스 수집 중 오류 발생:', {
       executionId,
       error: error instanceof Error ? {
@@ -136,9 +193,16 @@ export async function GET(request: NextRequest) {
         name: error.name,
       } : error,
       executionTimeMs: executionTime,
+      executionTimeSec: (executionTime / 1000).toFixed(2),
       timestamp: new Date().toISOString(),
+      memoryUsage: process.memoryUsage(),
+      environment: {
+        hasGeminiKey: !!process.env.GOOGLE_GEMINI_API_KEY,
+        hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        hasSupabaseKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+      },
     });
-    
+
     return NextResponse.json(
       {
         success: false,

@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import Link from 'next/link';
+import { useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 
 export default function Header() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchType, setSearchType] = useState<'title' | 'content' | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchType, setSearchType] = useState<"title" | "content" | "all">("all");
   const router = useRouter();
   const pathname = usePathname();
 
@@ -25,7 +25,7 @@ export default function Header() {
     return pathname === `/category/${encodeURIComponent(category)}`;
   };
 
-  const isHomeActive = pathname === '/';
+  const isHomeActive = pathname === "/";
 
   return (
     <header className="bg-[#232f3e] text-white shadow-lg sticky top-0 z-50">
@@ -36,12 +36,7 @@ export default function Header() {
           <div className="hidden md:flex items-center justify-between h-16">
             {/* 왼쪽: 로고 및 텍스트 */}
             <div className="flex items-center gap-3 flex-shrink-0">
-              <Link
-                href="/"
-                className={`flex items-center gap-2 transition-opacity ${
-                  isHomeActive ? 'opacity-100' : 'hover:opacity-80'
-                }`}
-              >
+              <Link href="/" className={`flex items-center gap-2 transition-opacity ${isHomeActive ? "opacity-100" : "hover:opacity-80"}`}>
                 <div className="w-8 h-8 bg-[#ff9900] rounded flex items-center justify-center flex-shrink-0">
                   <span className="text-white font-bold text-sm">DN</span>
                 </div>
@@ -54,9 +49,7 @@ export default function Header() {
               <Link
                 href="/category/태국뉴스"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                  isCategoryActive('태국뉴스')
-                    ? 'bg-[#ff9900] text-white'
-                    : 'text-gray-300 hover:bg-[#3a4553] hover:text-white'
+                  isCategoryActive("태국뉴스") ? "bg-[#ff9900] text-white" : "text-gray-300 hover:bg-[#3a4553] hover:text-white"
                 }`}
               >
                 태국 뉴스
@@ -64,9 +57,7 @@ export default function Header() {
               <Link
                 href="/category/관련뉴스"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                  isCategoryActive('관련뉴스')
-                    ? 'bg-[#ff9900] text-white'
-                    : 'text-gray-300 hover:bg-[#3a4553] hover:text-white'
+                  isCategoryActive("관련뉴스") ? "bg-[#ff9900] text-white" : "text-gray-300 hover:bg-[#3a4553] hover:text-white"
                 }`}
               >
                 한국 뉴스 (태국 관련)
@@ -74,9 +65,7 @@ export default function Header() {
               <Link
                 href="/category/한국뉴스"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                  isCategoryActive('한국뉴스')
-                    ? 'bg-[#ff9900] text-white'
-                    : 'text-gray-300 hover:bg-[#3a4553] hover:text-white'
+                  isCategoryActive("한국뉴스") ? "bg-[#ff9900] text-white" : "text-gray-300 hover:bg-[#3a4553] hover:text-white"
                 }`}
               >
                 한국 뉴스
@@ -99,12 +88,7 @@ export default function Header() {
           <div className="md:hidden">
             {/* 모바일 첫 번째 줄: 로고 */}
             <div className="flex items-center justify-between h-14 py-2">
-              <Link
-                href="/"
-                className={`flex items-center gap-2 transition-opacity flex-shrink-0 ${
-                  isHomeActive ? 'opacity-100' : 'hover:opacity-80'
-                }`}
-              >
+              <Link href="/" className={`flex items-center gap-2 transition-opacity flex-shrink-0 ${isHomeActive ? "opacity-100" : "hover:opacity-80"}`}>
                 <div className="w-7 h-7 bg-[#ff9900] rounded flex items-center justify-center">
                   <span className="text-white font-bold text-xs">DN</span>
                 </div>
@@ -128,7 +112,7 @@ export default function Header() {
                     router.push(e.target.value);
                   }
                 }}
-                value={pathname.startsWith('/category/') ? pathname : ''}
+                value={pathname.startsWith("/category/") ? pathname : ""}
                 className="w-full px-3 py-2 bg-[#3a4553] text-white rounded-md text-sm border border-[#4a5568] focus:outline-none focus:ring-2 focus:ring-[#ff9900] appearance-none"
               >
                 <option value="">카테고리 선택</option>
@@ -147,7 +131,7 @@ export default function Header() {
           <form onSubmit={handleSubmit} className="flex gap-2 max-w-2xl mx-auto">
             <select
               value={searchType}
-              onChange={(e) => setSearchType(e.target.value as 'title' | 'content' | 'all')}
+              onChange={(e) => setSearchType(e.target.value as "title" | "content" | "all")}
               className="px-2 sm:px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ff9900] focus:border-transparent text-gray-900 text-xs sm:text-sm flex-shrink-0"
             >
               <option value="all">제목 + 내용</option>
@@ -173,4 +157,3 @@ export default function Header() {
     </header>
   );
 }
-

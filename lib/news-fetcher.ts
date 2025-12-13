@@ -37,9 +37,13 @@ function isKorean(text: string): boolean {
 
 /**
  * Gemini API를 사용하여 텍스트를 한국어로 번역합니다.
+ * 재시도 로직 포함 (최대 3회)
  */
-async function translateToKorean(text: string): Promise<string> {
+async function translateToKorean(text: string, retryCount: number = 0): Promise<string> {
   if (!text || text.trim().length === 0) return text;
+
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY = 1000; // 1초
 
   try {
     const genAI = getGenAI();
@@ -56,8 +60,25 @@ ${text}`;
 
     return translatedText;
   } catch (error) {
-    console.error("번역 오류:", error);
-    // 번역 실패 시 원본 반환
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`번역 오류 (시도 ${retryCount + 1}/${MAX_RETRIES + 1}):`, errorMessage);
+    
+    // 재시도 가능한 에러이고 최대 재시도 횟수 미만인 경우 재시도
+    if (retryCount < MAX_RETRIES && (
+      errorMessage.includes('timeout') ||
+      errorMessage.includes('network') ||
+      errorMessage.includes('rate limit') ||
+      errorMessage.includes('429')
+    )) {
+      // 지수 백오프: 1초, 2초, 4초
+      const delay = RETRY_DELAY * Math.pow(2, retryCount);
+      console.log(`번역 재시도 대기 중... ${delay}ms 후 재시도`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return translateToKorean(text, retryCount + 1);
+    }
+    
+    // 재시도 불가능하거나 최대 재시도 횟수 초과 시 원본 반환
+    console.warn(`번역 실패, 원본 텍스트 반환: ${text.substring(0, 50)}...`);
     return text;
   }
 }
@@ -166,30 +187,65 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     let result;
     let response;
     let text;
+    let lastError: Error | null = null;
+    const MAX_RETRIES = 3;
 
-    // 먼저 Search Grounding을 사용하여 시도
-    try {
-      console.log("🔄 Search Grounding을 사용하여 뉴스 수집 시도...");
-      result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        tools: [
-          {
-            googleSearchRetrieval: {},
-          },
-        ],
-      });
-      response = await result.response;
-      text = response.text();
-      console.log("✅ Search Grounding 사용 성공");
-    } catch (groundingError) {
-      // Search Grounding이 지원되지 않거나 실패한 경우, 기본 모드로 시도
-      console.log("⚠️  Search Grounding 사용 실패, 기본 모드로 시도...");
-      console.log(`오류: ${groundingError instanceof Error ? groundingError.message : String(groundingError)}`);
-
-      result = await model.generateContent(prompt);
-      response = await result.response;
-      text = response.text();
-      console.log("✅ 기본 모드로 뉴스 수집 성공");
+    // Search Grounding을 사용하여 시도 (재시도 로직 포함)
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        if (attempt === 0) {
+          console.log("🔄 Search Grounding을 사용하여 뉴스 수집 시도...");
+          result = await model.generateContent({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            tools: [
+              {
+                googleSearchRetrieval: {},
+              },
+            ],
+          });
+          response = await result.response;
+          text = response.text();
+          console.log("✅ Search Grounding 사용 성공");
+          break; // 성공 시 루프 종료
+        } else {
+          // 재시도: 기본 모드로 시도
+          console.log(`⚠️  Search Grounding 실패, 기본 모드로 재시도 (${attempt}/${MAX_RETRIES})...`);
+          result = await model.generateContent(prompt);
+          response = await result.response;
+          text = response.text();
+          console.log("✅ 기본 모드로 뉴스 수집 성공");
+          break; // 성공 시 루프 종료
+        }
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        const errorMessage = lastError.message;
+        
+        console.log(`❌ 뉴스 수집 시도 ${attempt + 1}/${MAX_RETRIES + 1} 실패:`, errorMessage);
+        
+        // 재시도 가능한 에러인지 확인
+        const isRetryable = errorMessage.includes('timeout') ||
+                           errorMessage.includes('network') ||
+                           errorMessage.includes('rate limit') ||
+                           errorMessage.includes('429') ||
+                           errorMessage.includes('503');
+        
+        if (attempt < MAX_RETRIES && isRetryable) {
+          // 지수 백오프: 2초, 4초, 8초
+          const delay = 2000 * Math.pow(2, attempt);
+          console.log(`재시도 대기 중... ${delay}ms 후 재시도`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        // 마지막 시도이거나 재시도 불가능한 에러인 경우
+        if (attempt === MAX_RETRIES) {
+          throw lastError;
+        }
+      }
+    }
+    
+    if (!text) {
+      throw lastError || new Error('뉴스 수집에 실패했습니다.');
     }
 
     // JSON 응답 파싱
@@ -249,12 +305,24 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     });
 
     // 한국어가 아닌 뉴스 항목들을 번역 처리
+    // 성능 개선: 병렬 처리로 번역 시간 단축
     console.log("🔄 한국어 번역이 필요한 뉴스 확인 중...");
+    
+    // 병렬 처리로 번역 시간 단축 (최대 5개씩 동시 처리)
+    const BATCH_SIZE = 5;
     const translatedNewsItems: NewsInput[] = [];
-
-    for (const newsItem of newsItems) {
-      const translated = await translateNewsIfNeeded(newsItem);
-      translatedNewsItems.push(translated);
+    
+    for (let i = 0; i < newsItems.length; i += BATCH_SIZE) {
+      const batch = newsItems.slice(i, i + BATCH_SIZE);
+      const translatedBatch = await Promise.all(
+        batch.map(newsItem => translateNewsIfNeeded(newsItem))
+      );
+      translatedNewsItems.push(...translatedBatch);
+      
+      // 진행 상황 로깅
+      if ((i + BATCH_SIZE) % 10 === 0 || i + BATCH_SIZE >= newsItems.length) {
+        console.log(`🔄 번역 진행 중: ${Math.min(i + BATCH_SIZE, newsItems.length)}/${newsItems.length}개 처리됨`);
+      }
     }
 
     console.log(`✅ 번역 완료: ${translatedNewsItems.length}개 뉴스 처리됨`);

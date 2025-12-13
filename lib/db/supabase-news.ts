@@ -79,17 +79,44 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
 
 /**
  * 여러 뉴스를 배치로 Supabase에 저장
+ * 성능 개선: 병렬 처리로 저장 시간 단축 (최대 10개씩 동시 처리)
  */
 export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success: number; failed: number }> {
   let successCount = 0;
   let failedCount = 0;
-
-  for (const news of newsItems) {
-    const result = await insertNews(news);
-    if (result.success) {
-      successCount++;
-    } else {
-      failedCount++;
+  
+  // 배치 크기: 한 번에 처리할 뉴스 개수
+  const BATCH_SIZE = 10;
+  
+  // 배치 단위로 처리
+  for (let i = 0; i < newsItems.length; i += BATCH_SIZE) {
+    const batch = newsItems.slice(i, i + BATCH_SIZE);
+    
+    // 병렬 처리로 배치 저장
+    const results = await Promise.allSettled(
+      batch.map(news => insertNews(news))
+    );
+    
+    // 결과 집계
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value.success) {
+        successCount++;
+      } else {
+        failedCount++;
+        if (result.status === 'rejected') {
+          console.error('뉴스 저장 중 오류:', result.reason);
+        } else if (result.status === 'fulfilled' && !result.value.success) {
+          // 중복 뉴스는 실패로 카운트하지 않음 (정상 동작)
+          if (result.value.error && !result.value.error.includes('이미 존재')) {
+            console.warn('뉴스 저장 실패:', result.value.error);
+          }
+        }
+      }
+    }
+    
+    // 진행 상황 로깅
+    if ((i + BATCH_SIZE) % 20 === 0 || i + BATCH_SIZE >= newsItems.length) {
+      console.log(`💾 뉴스 저장 진행 중: ${Math.min(i + BATCH_SIZE, newsItems.length)}/${newsItems.length}개 처리됨`);
     }
   }
 
