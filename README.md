@@ -138,11 +138,16 @@ Vercel 환경 변수에 `MANUAL_FETCH_PASSWORD`를 설정하세요.
    - `CRON_SECRET` (Cron Job 인증용, 선택사항)
 4. 배포 완료!
 
+## 문서
+
+- [API 문서](docs/API.md) - API 엔드포인트 상세 문서
+- [아키텍처 문서](docs/ARCHITECTURE.md) - 시스템 아키텍처 및 데이터 흐름
+
 ## 향후 계획
 
 - [ ] 뉴스 상세 페이지
 - [ ] 필터링 (날짜, 카테고리, 국가별)
-- [ ] 모니터링 및 로깅 개선
+- [ ] Redis를 통한 Rate Limiting 개선
 
 ## 라이선스
 

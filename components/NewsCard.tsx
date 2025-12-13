@@ -33,7 +33,10 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4 sm:p-6">
+    <article
+      className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4 sm:p-6"
+      aria-label={`${news.category} 뉴스: ${news.title}`}
+    >
       <div className="flex items-start justify-between mb-2 sm:mb-3">
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
@@ -41,11 +44,11 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
             <span className="px-2 py-0.5 sm:py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded whitespace-nowrap">{news.source_country}</span>
             <span className="text-xs text-gray-500 truncate">{news.source_media}</span>
           </div>
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{news.title}</h3>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 line-clamp-2" aria-label="뉴스 제목">{news.title}</h3>
         </div>
       </div>
 
-      <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 whitespace-pre-wrap break-words leading-relaxed">{news.content_translated || news.content}</p>
+      <p className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 whitespace-pre-wrap break-words leading-relaxed" aria-label="뉴스 내용">{news.content_translated || news.content}</p>
 
       <div className="flex items-center justify-end text-xs text-gray-500 gap-2">
         {showOriginalLink && news.original_link && news.original_link !== "#" ? (
@@ -58,9 +61,9 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
             원문 보기 →
           </a>
         ) : null}
-        <span className="whitespace-nowrap">{formatDate(news.created_at)}</span>
+        <time dateTime={news.created_at} className="whitespace-nowrap" aria-label="뉴스 생성 시간">{formatDate(news.created_at)}</time>
       </div>
-    </div>
+    </article>
   );
 }
 

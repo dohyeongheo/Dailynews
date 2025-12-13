@@ -28,7 +28,7 @@ export default function Header() {
   const isHomeActive = pathname === "/";
 
   return (
-    <header className="bg-[#232f3e] text-white shadow-lg sticky top-0 z-50">
+    <header className="bg-[#232f3e] text-white shadow-lg sticky top-0 z-50" role="banner">
       {/* 첫 번째 줄: 로고, 카테고리 버튼 */}
       <div className="border-b border-[#3a4553]">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
@@ -45,7 +45,7 @@ export default function Header() {
             </div>
 
             {/* 가운데: 카테고리 버튼 */}
-            <nav className="flex items-center gap-1 flex-1 justify-center px-4">
+            <nav className="flex items-center gap-1 flex-1 justify-center px-4" role="navigation" aria-label="카테고리 메뉴">
               <Link
                 href="/category/태국뉴스"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${

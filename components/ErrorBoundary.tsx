@@ -29,6 +29,23 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // Sentry에 에러 전송
+    if (typeof window !== 'undefined') {
+      try {
+        const Sentry = require('@sentry/nextjs');
+        Sentry.captureException(error, {
+          contexts: {
+            react: {
+              componentStack: errorInfo.componentStack,
+            },
+          },
+        });
+      } catch (sentryError) {
+        // Sentry 초기화 실패 시 무시
+        console.warn('Sentry capture failed:', sentryError);
+      }
+    }
+
     // 에러 로깅 (프로덕션 환경에서는 에러 추적 서비스로 전송)
     console.error('ErrorBoundary caught an error:', error, errorInfo);
 

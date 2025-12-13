@@ -1,6 +1,9 @@
 import { searchNewsAction } from "@/lib/actions";
-import Header from "@/components/Header";
+import dynamic from "next/dynamic";
 import NewsCard from "@/components/NewsCard";
+
+// 동적 임포트로 성능 최적화
+const Header = dynamic(() => import("@/components/Header"), { ssr: true });
 
 interface SearchPageProps {
   searchParams: {

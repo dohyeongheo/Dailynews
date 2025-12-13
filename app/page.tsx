@@ -1,7 +1,10 @@
 import { getNewsByCategoryAction } from "@/lib/actions";
-import Header from "@/components/Header";
-import NewsSection from "@/components/NewsSection";
+import dynamic from "next/dynamic";
 import type { NewsCategory } from "@/types/news";
+
+// 동적 임포트로 성능 최적화
+const Header = dynamic(() => import("@/components/Header"), { ssr: true });
+const NewsSection = dynamic(() => import("@/components/NewsSection"), { ssr: true });
 
 // 페이지 캐싱 설정: 60초마다 재검증
 export const revalidate = 60;

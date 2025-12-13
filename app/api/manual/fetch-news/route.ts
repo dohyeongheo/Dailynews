@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchAndSaveNewsAction } from '@/lib/actions';
+import { checkRateLimit } from '@/lib/utils/rate-limit';
+import { manualFetchNewsSchema, safeParse } from '@/lib/utils/validation';
 
 /**
  * 수동 뉴스 수집 API
@@ -20,6 +22,11 @@ import { fetchAndSaveNewsAction } from '@/lib/actions';
  * (Vercel Pro 플랜의 최대 타임아웃)
  */
 export const maxDuration = 300; // Vercel Pro 플랜 최대 타임아웃 (초)
+
+// Rate Limiting 설정: 10분에 5회 요청 허용
+const RATE_LIMIT_MAX_REQUESTS = 5;
+const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10분
+
 export async function GET(request: NextRequest) {
   return handleRequest(request, 'GET');
 }
@@ -30,6 +37,30 @@ export async function POST(request: NextRequest) {
 
 async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
   try {
+    // Rate Limiting 체크
+    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] ||
+                     request.headers.get('x-real-ip') ||
+                     'unknown';
+    const rateLimitResult = checkRateLimit(clientIp, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS);
+
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `요청 한도를 초과했습니다. ${Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)}초 후 다시 시도해주세요.`,
+        },
+        {
+          status: 429,
+          headers: {
+            'X-RateLimit-Limit': String(RATE_LIMIT_MAX_REQUESTS),
+            'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+            'X-RateLimit-Reset': String(rateLimitResult.resetTime),
+            'Retry-After': String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)),
+          },
+        }
+      );
+    }
+
     // 비밀번호 확인
     const expectedPassword = process.env.MANUAL_FETCH_PASSWORD;
 
@@ -45,16 +76,16 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
     }
 
     let providedPassword: string | null = null;
+    let requestData: unknown;
 
     if (method === 'GET') {
       // GET 요청: 쿼리 파라미터에서 비밀번호 가져오기
       const { searchParams } = new URL(request.url);
-      providedPassword = searchParams.get('password');
+      requestData = { password: searchParams.get('password') };
     } else {
       // POST 요청: 요청 본문에서 비밀번호 가져오기
       try {
-        const body = await request.json();
-        providedPassword = body.password || null;
+        requestData = await request.json();
       } catch (error) {
         return NextResponse.json(
           {
@@ -65,6 +96,20 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
         );
       }
     }
+
+    // Input Validation
+    const validationResult = safeParse(manualFetchNewsSchema, requestData);
+    if (!validationResult.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: `입력 검증 실패: ${validationResult.error}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    providedPassword = validationResult.data.password;
 
     // 비밀번호 확인
     if (!providedPassword) {
@@ -154,6 +199,12 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
         executionTimeMs: executionTime,
         timestamp: new Date().toISOString(),
         thailandTime: new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString(), // UTC+7
+      }, {
+        headers: {
+          'X-RateLimit-Limit': String(RATE_LIMIT_MAX_REQUESTS),
+          'X-RateLimit-Remaining': String(rateLimitResult.remaining),
+          'X-RateLimit-Reset': String(rateLimitResult.resetTime),
+        },
       });
     } else {
       console.error('[Manual Fetch] 뉴스 수집 실패:', {

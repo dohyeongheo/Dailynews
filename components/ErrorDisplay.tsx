@@ -17,6 +17,8 @@ export default function ErrorDisplay({
   onRetry,
   showRetry = false,
   className = '',
+  role = 'alert',
+  'aria-live': ariaLive = 'assertive',
 }: ErrorDisplayProps) {
   const errorMessage = getErrorMessage(error);
   const canRetry = showRetry && isRetryableError(error) && onRetry;

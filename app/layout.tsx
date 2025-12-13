@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import '@/lib/config/env-check'; // 환경 변수 검증
 
 export const metadata: Metadata = {
   title: 'Daily News - 태국 및 한국 뉴스 요약',
