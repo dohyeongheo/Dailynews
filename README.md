@@ -7,7 +7,7 @@
 - **Framework**: Next.js 14+ (App Router)
 - **Styling**: Tailwind CSS
 - **Database**: Supabase (PostgreSQL)
-- **AI API**: Google Gemini API (Search Grounding 기능 활용)
+- **AI API**: Google Gemini API
 - **Language**: TypeScript
 
 ## 프로젝트 구조
@@ -103,7 +103,7 @@ Vercel 환경 변수에 `MANUAL_FETCH_PASSWORD`를 설정하세요.
 
 ## 주요 기능
 
-- ✅ Google Gemini API를 통한 뉴스 수집 (Search Grounding 기능 활용)
+- ✅ Google Gemini API를 통한 뉴스 수집
 - ✅ 매일 오전 6시 (태국 시간) 자동 뉴스 수집 (Vercel Cron Jobs)
 - ✅ Supabase PostgreSQL 데이터베이스를 통한 뉴스 데이터 저장
 - ✅ 카테고리별 뉴스 조회 및 표시

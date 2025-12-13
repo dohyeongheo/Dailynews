@@ -14,7 +14,12 @@ import { fetchAndSaveNewsAction } from '@/lib/actions';
  *
  * 환경 변수:
  * MANUAL_FETCH_PASSWORD: 수동 뉴스 수집에 사용할 비밀번호
+ *
+ * 참고: Vercel Serverless Functions는 기본 타임아웃이 10초(Hobby) 또는 60초(Pro)입니다.
+ * 뉴스 수집 작업이 오래 걸릴 수 있으므로 maxDuration을 300초로 설정했습니다.
+ * (Vercel Pro 플랜의 최대 타임아웃)
  */
+export const maxDuration = 300; // Vercel Pro 플랜 최대 타임아웃 (초)
 export async function GET(request: NextRequest) {
   return handleRequest(request, 'GET');
 }
@@ -87,25 +92,82 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
     }
 
     // 뉴스 수집 시작
-    console.log('[Manual Fetch] 뉴스 수집 시작:', new Date().toISOString());
+    const startTime = Date.now();
+    const executionId = `manual-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    console.log('[Manual Fetch] 뉴스 수집 시작:', {
+      executionId,
+      timestamp: new Date().toISOString(),
+      thailandTime: new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString(),
+    });
 
-    const result = await fetchAndSaveNewsAction();
+    // 타임아웃을 고려한 뉴스 수집 실행
+    // 280초 후 타임아웃 (300초 제한 전에 안전하게 실패 처리)
+    const TIMEOUT_MS = 280000; // 280초
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`뉴스 수집 작업이 타임아웃되었습니다. (${TIMEOUT_MS / 1000}초 초과)`));
+      }, TIMEOUT_MS);
+    });
+
+    const fetchPromise = fetchAndSaveNewsAction();
+
+    // Promise.race로 타임아웃 처리
+    let result: Awaited<ReturnType<typeof fetchAndSaveNewsAction>>;
+    try {
+      result = await Promise.race([fetchPromise, timeoutPromise]);
+    } catch (timeoutError) {
+      // 타임아웃 에러 처리
+      const executionTime = Date.now() - startTime;
+      console.error('[Manual Fetch] 타임아웃 발생:', {
+        executionId,
+        timeoutMs: TIMEOUT_MS,
+        executionTimeMs: executionTime,
+        timestamp: new Date().toISOString(),
+      });
+
+      return NextResponse.json(
+        {
+          success: false,
+          message: timeoutError instanceof Error ? timeoutError.message : '타임아웃이 발생했습니다. 뉴스 수집 작업이 너무 오래 걸렸습니다.',
+          executionId,
+          executionTimeMs: executionTime,
+          timestamp: new Date().toISOString(),
+        },
+        { status: 504 } // Gateway Timeout
+      );
+    }
+
+    const executionTime = Date.now() - startTime;
 
     if (result.success) {
-      console.log('[Manual Fetch] 뉴스 수집 성공:', result.message);
+      console.log('[Manual Fetch] 뉴스 수집 성공:', {
+        executionId,
+        message: result.message,
+        executionTimeMs: executionTime,
+        timestamp: new Date().toISOString(),
+      });
       return NextResponse.json({
         success: true,
         message: result.message,
         data: result.data,
+        executionId,
+        executionTimeMs: executionTime,
         timestamp: new Date().toISOString(),
         thailandTime: new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString(), // UTC+7
       });
     } else {
-      console.error('[Manual Fetch] 뉴스 수집 실패:', result.message);
+      console.error('[Manual Fetch] 뉴스 수집 실패:', {
+        executionId,
+        message: result.message,
+        executionTimeMs: executionTime,
+        timestamp: new Date().toISOString(),
+      });
       return NextResponse.json(
         {
           success: false,
           message: result.message,
+          executionId,
+          executionTimeMs: executionTime,
           timestamp: new Date().toISOString(),
         },
         { status: 500 }

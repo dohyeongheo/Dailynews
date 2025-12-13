@@ -323,7 +323,6 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<NewsInput> {
 
 /**
  * Google Gemini API를 사용하여 뉴스를 수집합니다.
- * Search Grounding 기능을 활용하여 최신 뉴스를 가져옵니다.
  */
 export async function fetchNewsFromGemini(date: string = new Date().toISOString().split("T")[0]): Promise<NewsInput[]> {
   // Gemini AI 클라이언트 초기화 (런타임에 실행)
@@ -384,32 +383,15 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     let lastError: Error | null = null;
     const MAX_RETRIES = 3;
 
-    // Search Grounding을 사용하여 시도 (재시도 로직 포함)
+    // 기본 모드로 뉴스 수집 시도 (재시도 로직 포함)
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        if (attempt === 0) {
-          console.log("🔄 Search Grounding을 사용하여 뉴스 수집 시도...");
-          result = await model.generateContent({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-            tools: [
-              {
-                googleSearch: {},
-              },
-            ],
-          });
-          response = await result.response;
-          text = response.text();
-          console.log("✅ Search Grounding 사용 성공");
-          break; // 성공 시 루프 종료
-        } else {
-          // 재시도: 기본 모드로 시도
-          console.log(`⚠️  Search Grounding 실패, 기본 모드로 재시도 (${attempt}/${MAX_RETRIES})...`);
-          result = await model.generateContent(prompt);
-          response = await result.response;
-          text = response.text();
-          console.log("✅ 기본 모드로 뉴스 수집 성공");
-          break; // 성공 시 루프 종료
-        }
+        console.log(`🔄 뉴스 수집 시도 중... (${attempt + 1}/${MAX_RETRIES + 1})`);
+        result = await model.generateContent(prompt);
+        response = await result.response;
+        text = response.text();
+        console.log("✅ 뉴스 수집 성공");
+        break; // 성공 시 루프 종료
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
         const errorMessage = lastError.message;
