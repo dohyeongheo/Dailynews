@@ -12,7 +12,7 @@ export default function AdminPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!password.trim()) {
       setMessage({ type: 'error', text: '비밀번호를 입력해주세요.' });
       return;
