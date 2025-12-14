@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CSRF_TOKEN_HEADER } from "@/lib/utils/csrf";
+import { CSRF_TOKEN_HEADER } from "@/lib/utils/csrf-constants";
 
 /**
  * CSRF 토큰을 가져와서 관리하는 훅

@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
-import { requiresCsrfProtection, CSRF_TOKEN_HEADER } from "@/lib/utils/csrf";
+import { requiresCsrfProtection } from "@/lib/utils/csrf";
+import { CSRF_TOKEN_HEADER } from "@/lib/utils/csrf-constants";
 
 export default auth(async (req) => {
   const { nextUrl } = req;

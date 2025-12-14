@@ -1,9 +1,6 @@
 import { cookies } from "next/headers";
 import crypto from "crypto";
-
-const CSRF_TOKEN_COOKIE_NAME = "csrf-token";
-const CSRF_TOKEN_HEADER = "x-csrf-token";
-const CSRF_TOKEN_MAX_AGE = 60 * 60 * 24; // 24시간
+import { CSRF_TOKEN_COOKIE_NAME, CSRF_TOKEN_HEADER, CSRF_TOKEN_MAX_AGE } from "./csrf-constants";
 
 /**
  * CSRF 토큰 생성
@@ -69,5 +66,3 @@ export function verifyCsrfToken(requestToken: string | null, cookieToken: string
 export function requiresCsrfProtection(method: string): boolean {
   return ["POST", "PUT", "PATCH", "DELETE"].includes(method.toUpperCase());
 }
-
-export { CSRF_TOKEN_COOKIE_NAME, CSRF_TOKEN_HEADER };
