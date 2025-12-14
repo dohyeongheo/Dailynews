@@ -98,3 +98,31 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- 7. news_reactions 테이블 (뉴스 좋아요/싫어요)
+CREATE TABLE IF NOT EXISTS news_reactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  news_id UUID NOT NULL REFERENCES news(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reaction_type TEXT NOT NULL CHECK (reaction_type IN ('like', 'dislike')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(news_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_news_reactions_news_id ON news_reactions(news_id);
+CREATE INDEX IF NOT EXISTS idx_news_reactions_user_id ON news_reactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_news_reactions_type ON news_reactions(reaction_type);
+
+-- 8. comment_reactions 테이블 (댓글 좋아요/싫어요)
+CREATE TABLE IF NOT EXISTS comment_reactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  comment_id UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  reaction_type TEXT NOT NULL CHECK (reaction_type IN ('like', 'dislike')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(comment_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_comment_reactions_comment_id ON comment_reactions(comment_id);
+CREATE INDEX IF NOT EXISTS idx_comment_reactions_user_id ON comment_reactions(user_id);
+CREATE INDEX IF NOT EXISTS idx_comment_reactions_type ON comment_reactions(reaction_type);
+

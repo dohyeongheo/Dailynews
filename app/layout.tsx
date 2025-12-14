@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import dynamic from "next/dynamic";
+
+// 동적 임포트로 성능 최적화
+const Header = dynamic(() => import("@/components/Header"), { ssr: true });
 
 // 환경 변수 검증 (런타임에만 실행, 빌드 시에는 건너뛰기)
 // 빌드 시점에는 환경 변수가 없을 수 있으므로 조건부로 실행
@@ -32,7 +36,10 @@ export default function RootLayout({
     <html lang="ko">
       <body className="antialiased">
         <Providers>
-          <ErrorBoundary>{children}</ErrorBoundary>
+          <ErrorBoundary>
+            <Header />
+            {children}
+          </ErrorBoundary>
         </Providers>
       </body>
     </html>

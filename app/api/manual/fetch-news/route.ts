@@ -47,7 +47,7 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
 
     // 1. 세션 확인 (관리자인 경우)
     const session = await auth();
-    if (session?.user?.role === 'admin') {
+    if (session?.user?.role === "admin") {
       isAuthenticated = true;
       authMethod = "session";
       console.log("[Manual Fetch] 관리자 세션 인증 성공");
@@ -77,12 +77,35 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
         try {
           // body가 비어있을 수 있음
           const text = await request.text();
-          if (text) {
-             const json = JSON.parse(text);
-             providedPassword = json.password;
+
+          if (!text || text.trim() === "") {
+            // 본문이 비어있음 - 정상적인 경우일 수 있음
+            console.log("[Manual Fetch] POST 요청 본문이 비어있습니다.");
+          } else {
+            try {
+              const json = JSON.parse(text);
+              providedPassword = json?.password || null;
+
+              if (!providedPassword) {
+                console.warn("[Manual Fetch] POST 요청 본문에 'password' 필드가 없습니다.");
+              }
+            } catch (parseError) {
+              // JSON 파싱 실패 - 명확한 에러 로깅
+              console.error("[Manual Fetch] POST 요청 본문 JSON 파싱 실패:", {
+                error: parseError instanceof Error ? parseError.message : String(parseError),
+                bodyPreview: text.substring(0, 100), // 처음 100자만 로깅
+              });
+              // JSON 파싱 실패는 인증 실패로 처리하지 않고, providedPassword는 null로 유지
+            }
           }
         } catch (error) {
-          // JSON 파싱 실패는 무시
+          // request.text() 호출 실패 - 본문이 이미 소비되었거나 다른 문제
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error("[Manual Fetch] POST 요청 본문 읽기 실패:", {
+            error: errorMessage,
+            hint: "본문이 이미 소비되었거나 요청 형식이 잘못되었을 수 있습니다.",
+          });
+          // 본문 읽기 실패는 인증 실패로 처리하지 않고, providedPassword는 null로 유지
         }
       }
 
@@ -90,7 +113,7 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
         isAuthenticated = true;
         authMethod = "password";
       } else if (providedPassword) {
-         console.warn("[Manual Fetch] 잘못된 비밀번호로 접근 시도");
+        console.warn("[Manual Fetch] 잘못된 비밀번호로 접근 시도");
       }
     }
 

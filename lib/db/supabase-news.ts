@@ -1,4 +1,4 @@
-import { getSupabaseServer } from "../supabase/server";
+import { supabaseServer } from "../supabase/server";
 import type { News, NewsInput, NewsCategory } from "@/types/news";
 
 /**
@@ -6,7 +6,6 @@ import type { News, NewsInput, NewsCategory } from "@/types/news";
  */
 async function checkDuplicateNews(originalLink: string): Promise<boolean> {
   try {
-    const supabaseServer = getSupabaseServer();
     const { data, error } = await supabaseServer.from("news").select("id").eq("original_link", originalLink).limit(1);
 
     if (error) {
@@ -36,7 +35,6 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
       };
     }
 
-    const supabaseServer = getSupabaseServer();
     const { error } = await (supabaseServer.from("news") as any).insert({
       published_date: news.published_date,
       source_country: news.source_country,
@@ -126,7 +124,6 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
   try {
     console.log(`[getNewsByCategory] 카테고리: ${category}, 제한: ${limit}, 오프셋: ${offset}`);
 
-    const supabaseServer = getSupabaseServer();
     const { data, error } = await (supabaseServer.from("news") as any)
       .select("*")
       .eq("category", category)
@@ -185,7 +182,6 @@ export async function getAllNews(limit: number = 30): Promise<News[]> {
   try {
     console.log(`[getAllNews] 제한: ${limit}`);
 
-    const supabaseServer = getSupabaseServer();
     const { data, error } = await (supabaseServer.from("news") as any).select("*").order("created_at", { ascending: false }).limit(limit);
 
     if (error) {
@@ -242,7 +238,6 @@ export async function searchNews(query: string, searchType: "title" | "content" 
 
   switch (searchType) {
     case "title": {
-      const supabaseServer = getSupabaseServer();
       const { data, error } = await (supabaseServer.from("news") as any)
         .select("*")
         .ilike("title", searchTerm)
@@ -281,7 +276,6 @@ export async function searchNews(query: string, searchType: "title" | "content" 
 
     case "content": {
       // content 또는 content_translated에서 검색
-      const supabaseServer = getSupabaseServer();
       const { data, error } = await (supabaseServer.from("news") as any)
         .select("*")
         .or(`content.ilike.${searchTerm},content_translated.ilike.${searchTerm}`)
@@ -321,7 +315,6 @@ export async function searchNews(query: string, searchType: "title" | "content" 
     case "all":
     default: {
       // title, content, content_translated에서 검색
-      const supabaseServer = getSupabaseServer();
       const { data, error } = await (supabaseServer.from("news") as any)
         .select("*")
         .or(`title.ilike.${searchTerm},content.ilike.${searchTerm},content_translated.ilike.${searchTerm}`)
@@ -364,7 +357,6 @@ export async function searchNews(query: string, searchType: "title" | "content" 
  * 뉴스 개수 조회
  */
 export async function getNewsCount(category?: NewsCategory): Promise<number> {
-  const supabaseServer = getSupabaseServer();
   let queryBuilder = (supabaseServer.from("news") as any).select("*", { count: "exact", head: true });
 
   if (category) {
@@ -386,7 +378,6 @@ export async function getNewsCount(category?: NewsCategory): Promise<number> {
  */
 export async function getNewsById(id: string): Promise<News | null> {
   try {
-    const supabaseServer = getSupabaseServer();
     const { data, error } = await (supabaseServer.from("news") as any).select("*").eq("id", id).single();
 
     if (error) {
@@ -427,7 +418,6 @@ export async function getNewsById(id: string): Promise<News | null> {
  */
 export async function deleteNews(id: string): Promise<boolean> {
   try {
-    const supabaseServer = getSupabaseServer();
     const { error } = await (supabaseServer.from("news") as any).delete().eq("id", id);
 
     if (error) {
@@ -447,7 +437,6 @@ export async function deleteNews(id: string): Promise<boolean> {
  */
 export async function getRelatedNews(currentNewsId: string, category: NewsCategory, limit: number = 5): Promise<News[]> {
   try {
-    const supabaseServer = getSupabaseServer();
     const { data, error } = await (supabaseServer.from("news") as any)
       .select("*")
       .eq("category", category)

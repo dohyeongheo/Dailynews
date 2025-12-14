@@ -4,6 +4,7 @@ import { incrementViewCount, getViewCount } from "@/lib/db/views";
 import { auth } from "@/auth";
 import CommentSection from "@/components/CommentSection";
 import RelatedNews from "@/components/RelatedNews";
+import NewsReactions from "@/components/NewsReactions";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 
@@ -68,21 +69,7 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
 
           <div className="prose max-w-none mb-10 text-gray-800 leading-relaxed whitespace-pre-wrap">{news.content_translated || news.content}</div>
 
-          <div className="bg-gray-50 p-4 rounded-lg mb-10 flex justify-between items-center">
-            <span className="text-sm text-gray-600">원본 기사 확인하기</span>
-            {news.original_link && news.original_link !== "#" ? (
-              <a
-                href={news.original_link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors shadow-sm"
-              >
-                원문 페이지로 이동 →
-              </a>
-            ) : (
-              <span className="text-sm text-gray-400">링크 없음</span>
-            )}
-          </div>
+          <NewsReactions newsId={params.id} />
 
           <CommentSection newsId={params.id} initialComments={comments} session={session} />
         </article>

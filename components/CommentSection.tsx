@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCsrfToken } from "@/lib/hooks/useCsrfToken";
+import CommentReactions from "@/components/CommentReactions";
 
 interface User {
   id: string;
@@ -39,6 +41,7 @@ export default function CommentSection({ newsId, initialComments, session }: Com
   const [editingContent, setEditingContent] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const router = useRouter();
+  const { getHeaders, isLoading: isCsrfLoading } = useCsrfToken();
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("ko-KR", {
@@ -52,13 +55,13 @@ export default function CommentSection({ newsId, initialComments, session }: Com
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() || !session) return;
+    if (!content.trim() || !session || isCsrfLoading) return;
 
     setIsLoading(true);
     try {
       const res = await fetch("/api/comments", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(),
         body: JSON.stringify({ newsId, content }),
       });
 
@@ -69,7 +72,7 @@ export default function CommentSection({ newsId, initialComments, session }: Com
         setContent("");
         router.refresh(); // 서버 데이터와 동기화
       } else {
-        alert("댓글 작성에 실패했습니다.");
+        alert(data.error || "댓글 작성에 실패했습니다.");
       }
     } catch (error) {
       console.error("Failed to post comment", error);
@@ -110,13 +113,13 @@ export default function CommentSection({ newsId, initialComments, session }: Com
   };
 
   const handleUpdate = async (commentId: string) => {
-    if (!editingContent.trim()) return;
+    if (!editingContent.trim() || isCsrfLoading) return;
 
     setIsUpdating(true);
     try {
       const res = await fetch("/api/comments", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: getHeaders(),
         body: JSON.stringify({ commentId, content: editingContent }),
       });
 
@@ -128,7 +131,7 @@ export default function CommentSection({ newsId, initialComments, session }: Com
         setEditingContent("");
         router.refresh();
       } else {
-        alert("댓글 수정에 실패했습니다.");
+        alert(data.error || "댓글 수정에 실패했습니다.");
       }
     } catch (error) {
       console.error("Failed to update comment", error);
@@ -167,10 +170,10 @@ export default function CommentSection({ newsId, initialComments, session }: Com
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={isLoading || !content.trim()}
+              disabled={isLoading || !content.trim() || isCsrfLoading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {isLoading ? "작성 중..." : "댓글 작성"}
+              {isLoading || isCsrfLoading ? "작성 중..." : "댓글 작성"}
             </button>
           </div>
         </form>
@@ -231,7 +234,10 @@ export default function CommentSection({ newsId, initialComments, session }: Com
                 disabled={isUpdating}
               />
             ) : (
-              <p className="text-gray-700 whitespace-pre-wrap">{comment.content}</p>
+              <>
+                <p className="text-gray-700 whitespace-pre-wrap">{comment.content}</p>
+                <CommentReactions commentId={comment.id} />
+              </>
             )}
           </div>
         ))}

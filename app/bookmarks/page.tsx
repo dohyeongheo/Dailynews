@@ -1,7 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { getUserBookmarks } from "@/lib/db/bookmarks";
-import Header from "@/components/Header";
 import NewsCard from "@/components/NewsCard";
 import Link from "next/link";
 
@@ -16,7 +15,6 @@ export default async function BookmarksPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">내 북마크</h1>

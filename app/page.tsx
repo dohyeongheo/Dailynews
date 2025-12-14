@@ -3,7 +3,6 @@ import dynamic from "next/dynamic";
 import type { NewsCategory } from "@/types/news";
 
 // 동적 임포트로 성능 최적화
-const Header = dynamic(() => import("@/components/Header"), { ssr: true });
 const NewsSection = dynamic(() => import("@/components/NewsSection"), { ssr: true });
 
 // 페이지 캐싱 설정: 60초마다 재검증
@@ -30,7 +29,6 @@ export default async function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Daily News</h1>

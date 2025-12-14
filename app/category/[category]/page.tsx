@@ -4,9 +4,6 @@ import NewsListInfinite from "@/components/NewsListInfinite";
 import type { NewsCategory } from "@/types/news";
 import { notFound } from "next/navigation";
 
-// 동적 임포트로 성능 최적화
-const Header = dynamic(() => import("@/components/Header"), { ssr: true });
-
 // 페이지 캐싱 설정: 60초마다 재검증
 export const revalidate = 60;
 
@@ -39,7 +36,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{categoryInfo.title}</h1>

@@ -13,8 +13,9 @@ interface NewsCardProps {
 function NewsCard({ news, showOriginalLink = true, initialBookmarked = false }: NewsCardProps) {
   const [isBookmarked, setIsBookmarked] = useState(initialBookmarked);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [viewCount, setViewCount] = useState<number | null>(null);
 
-  // 초기 북마크 상태 확인
+  // 초기 북마크 상태 및 조회수 확인
   useEffect(() => {
     async function checkBookmarkStatus() {
       try {
@@ -38,7 +39,21 @@ function NewsCard({ news, showOriginalLink = true, initialBookmarked = false }: 
       }
     }
 
+    async function loadViewCount() {
+      try {
+        const res = await fetch(`/api/news/${news.id}/views`);
+        if (res.ok) {
+          const data = await res.json();
+          setViewCount(data.viewCount || 0);
+        }
+      } catch (error) {
+        console.error("Failed to load view count:", error);
+        setViewCount(0);
+      }
+    }
+
     checkBookmarkStatus();
+    loadViewCount();
   }, [news.id]);
 
   const toggleBookmark = async (e: React.MouseEvent) => {
@@ -135,27 +150,45 @@ function NewsCard({ news, showOriginalLink = true, initialBookmarked = false }: 
 
       <Link href={`/news/${news.id}`} className="block">
         <p
-          className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 whitespace-pre-wrap break-words leading-relaxed line-clamp-3 hover:text-gray-900"
+          className="text-sm sm:text-base text-gray-700 mb-3 sm:mb-4 whitespace-pre-wrap break-words leading-relaxed hover:text-gray-900"
           aria-label="뉴스 내용"
         >
           {news.content_translated || news.content}
         </p>
       </Link>
 
-      <div className="flex items-center justify-end text-xs text-gray-500 gap-2">
-        {showOriginalLink && news.original_link && news.original_link !== "#" ? (
-          <a
-            href={news.original_link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:text-blue-800 hover:underline whitespace-nowrap flex-shrink-0"
-          >
-            원문 보기 →
-          </a>
-        ) : null}
-        <time dateTime={news.created_at} className="whitespace-nowrap" aria-label="뉴스 생성 시간">
-          {formatDate(news.created_at)}
-        </time>
+      <div className="flex items-center justify-between text-xs text-gray-500 gap-2">
+        <div className="flex items-center gap-2">
+          {viewCount !== null && (
+            <span className="flex items-center gap-1 whitespace-nowrap">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
+              </svg>
+              조회수 {viewCount.toLocaleString()}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {showOriginalLink && news.original_link && news.original_link !== "#" ? (
+            <a
+              href={news.original_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 hover:underline whitespace-nowrap flex-shrink-0"
+            >
+              원문 보기 →
+            </a>
+          ) : null}
+          <time dateTime={news.created_at} className="whitespace-nowrap" aria-label="뉴스 생성 시간">
+            {formatDate(news.created_at)}
+          </time>
+        </div>
       </div>
     </article>
   );
