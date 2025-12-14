@@ -1,5 +1,5 @@
-import type { News, NewsInput, NewsCategory } from '@/types/news';
-import * as supabaseNews from './supabase-news';
+import type { News, NewsInput, NewsCategory } from "@/types/news";
+import * as supabaseNews from "./supabase-news";
 
 /**
  * 뉴스를 데이터베이스에 저장
@@ -18,11 +18,7 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
 /**
  * 카테고리별로 뉴스 조회
  */
-export async function getNewsByCategory(
-  category: NewsCategory,
-  limit: number = 10,
-  offset: number = 0
-): Promise<News[]> {
+export async function getNewsByCategory(category: NewsCategory, limit: number = 10, offset: number = 0): Promise<News[]> {
   return await supabaseNews.getNewsByCategory(category, limit, offset);
 }
 
@@ -39,7 +35,7 @@ export async function getAllNews(limit: number = 30): Promise<News[]> {
  * @param searchType 검색 타입: 'title' | 'content' | 'all'
  * @param limit 결과 제한
  */
-export async function searchNews(query: string, searchType: 'title' | 'content' | 'all' = 'all', limit: number = 100): Promise<News[]> {
+export async function searchNews(query: string, searchType: "title" | "content" | "all" = "all", limit: number = 100): Promise<News[]> {
   return await supabaseNews.searchNews(query, searchType, limit);
 }
 
@@ -48,4 +44,25 @@ export async function searchNews(query: string, searchType: 'title' | 'content' 
  */
 export async function getNewsCount(category?: NewsCategory): Promise<number> {
   return await supabaseNews.getNewsCount(category);
+}
+
+/**
+ * ID로 뉴스 조회
+ */
+export async function getNewsById(id: string): Promise<News | null> {
+  return await supabaseNews.getNewsById(id);
+}
+
+/**
+ * ID로 뉴스 삭제
+ */
+export async function deleteNews(id: string): Promise<boolean> {
+  return await supabaseNews.deleteNews(id);
+}
+
+/**
+ * 관련 뉴스 조회 (같은 카테고리, 현재 뉴스 제외)
+ */
+export async function getRelatedNews(currentNewsId: string, category: NewsCategory, limit: number = 5): Promise<News[]> {
+  return await supabaseNews.getRelatedNews(currentNewsId, category, limit);
 }

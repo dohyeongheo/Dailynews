@@ -2,26 +2,26 @@
  * 환경 변수 검증 및 타입 안전한 환경 변수 로딩
  */
 
-import { z, ZodError } from 'zod';
+import { z, ZodError } from "zod";
 
 /**
  * 환경 변수 스키마
  */
 const envSchema = z.object({
   // Google Gemini API
-  GOOGLE_GEMINI_API_KEY: z.string().min(1, 'GOOGLE_GEMINI_API_KEY는 필수입니다.'),
+  GOOGLE_GEMINI_API_KEY: z.string().min(1, "GOOGLE_GEMINI_API_KEY는 필수입니다."),
 
   // Supabase
-  NEXT_PUBLIC_SUPABASE_URL: z.string().url('NEXT_PUBLIC_SUPABASE_URL은 유효한 URL이어야 합니다.'),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, 'NEXT_PUBLIC_SUPABASE_ANON_KEY는 필수입니다.'),
-  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, 'SUPABASE_SERVICE_ROLE_KEY는 필수입니다.'),
+  NEXT_PUBLIC_SUPABASE_URL: z.string().url("NEXT_PUBLIC_SUPABASE_URL은 유효한 URL이어야 합니다."),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1, "NEXT_PUBLIC_SUPABASE_ANON_KEY는 필수입니다."),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY는 필수입니다."),
 
   // 선택적 환경 변수
   MANUAL_FETCH_PASSWORD: z.string().optional(),
   CRON_SECRET: z.string().optional(),
 
   // Node 환경
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
 
 /**
@@ -41,11 +41,11 @@ function validateEnv(): Env {
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
       MANUAL_FETCH_PASSWORD: process.env.MANUAL_FETCH_PASSWORD,
       CRON_SECRET: process.env.CRON_SECRET,
-      NODE_ENV: process.env.NODE_ENV || 'development',
+      NODE_ENV: process.env.NODE_ENV || "development",
     });
   } catch (error) {
     if (error instanceof ZodError) {
-      const missingVars = error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('\n');
+      const missingVars = error.issues.map((e) => `${e.path.join(".")}: ${e.message}`).join("\n");
       throw new Error(`환경 변수 검증 실패:\n${missingVars}`);
     }
     throw error;
@@ -73,10 +73,9 @@ export function getEnv(): Env {
 export function initEnv(): void {
   try {
     validatedEnv = validateEnv();
-    console.log('[Env] 환경 변수 검증 완료');
+    console.log("[Env] 환경 변수 검증 완료");
   } catch (error) {
-    console.error('[Env] 환경 변수 검증 실패:', error);
+    console.error("[Env] 환경 변수 검증 실패:", error);
     throw error;
   }
 }
-

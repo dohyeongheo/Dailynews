@@ -4,8 +4,12 @@
 // @testing-library/jest-dom의 매처를 사용할 수 있도록 설정
 import '@testing-library/jest-dom';
 
+// Fetch polyfill
+import 'whatwg-fetch';
+
 // 환경 변수 모킹
 process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.supabase.co';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key';
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
 process.env.GOOGLE_GEMINI_API_KEY = 'test-api-key';
 process.env.DB_TYPE = 'supabase';

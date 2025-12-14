@@ -180,3 +180,84 @@ export async function searchNewsAction(
     };
   }
 }
+
+// 관리자용 액션
+import { auth } from '@/auth';
+import { deleteNews } from '@/lib/db/news';
+import { getAllUsers } from '@/lib/db/users';
+import { revalidatePath } from 'next/cache';
+
+export async function deleteNewsAction(id: string) {
+  const session = await auth();
+  if (session?.user?.role !== 'admin') {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  const result = await deleteNews(id);
+  if (result) {
+    revalidatePath('/');
+    revalidatePath('/admin');
+  }
+
+  return { success: result };
+}
+
+export async function getAllUsersAction(limit = 50, offset = 0) {
+  const session = await auth();
+  if (session?.user?.role !== 'admin') {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  try {
+    const users = await getAllUsers(limit, offset);
+    return { success: true, data: users as any }; // 타입 호환성을 위해 any 캐스팅 (User 타입 확장 필요할 수 있음)
+  } catch (error) {
+    console.error("Get users error:", error);
+    return { success: false, error: "Failed to get users" };
+  }
+}
+
+export async function updateUserRoleAction(userId: string, role: 'user' | 'admin') {
+  const session = await auth();
+  if (session?.user?.role !== 'admin') {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  try {
+    const { updateUserRole } = await import('@/lib/db/users');
+    await updateUserRole(userId, role);
+    return { success: true };
+  } catch (error) {
+    console.error("Update user role error:", error);
+    return { success: false, error: "Failed to update user role" };
+  }
+}
+
+/**
+ * 사용자 프로필 업데이트 Server Action
+ */
+export async function updateProfileAction(data: { name?: string; password?: string }) {
+  const session = await auth();
+  if (!session) {
+    return { success: false, error: 'Unauthorized' };
+  }
+
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/profile`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      return { success: false, error: result.error || 'Failed to update profile' };
+    }
+
+    return { success: true, data: result.user, message: result.message };
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return { success: false, error: 'Failed to update profile' };
+  }
+}

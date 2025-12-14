@@ -1,15 +1,27 @@
-import type { Metadata } from 'next';
-import './globals.css';
-import ErrorBoundary from '@/components/ErrorBoundary';
-import '@/lib/config/env-check'; // 환경 변수 검증
+import type { Metadata } from "next";
+import "./globals.css";
+import ErrorBoundary from "@/components/ErrorBoundary";
+
+// 환경 변수 검증 (런타임에만 실행, 빌드 시에는 건너뛰기)
+// 빌드 시점에는 환경 변수가 없을 수 있으므로 조건부로 실행
+if (typeof window === "undefined" && process.env.NEXT_PUBLIC_SUPABASE_URL) {
+  try {
+    require("@/lib/config/env-check");
+  } catch (error) {
+    // 빌드 시 환경 변수가 없을 수 있으므로 무시
+    console.warn("[Env] 환경 변수 검증 건너뜀 (런타임에 검증됨)");
+  }
+}
 
 export const metadata: Metadata = {
-  title: 'Daily News - 태국 및 한국 뉴스 요약',
-  description: '매일 태국 및 한국의 최신 뉴스를 수집하고 요약하는 서비스',
+  title: "Daily News - 태국 및 한국 뉴스 요약",
+  description: "매일 태국 및 한국의 최신 뉴스를 수집하고 요약하는 서비스",
   icons: {
-    icon: '/icon.svg',
+    icon: "/icon.svg",
   },
 };
+
+import { Providers } from "./providers";
 
 export default function RootLayout({
   children,
@@ -19,9 +31,10 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className="antialiased">
-        <ErrorBoundary>{children}</ErrorBoundary>
+        <Providers>
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </Providers>
       </body>
     </html>
   );
 }
-

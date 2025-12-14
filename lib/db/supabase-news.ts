@@ -1,4 +1,4 @@
-import { supabaseServer } from "../supabase/server";
+import { getSupabaseServer } from "../supabase/server";
 import type { News, NewsInput, NewsCategory } from "@/types/news";
 
 /**
@@ -6,11 +6,8 @@ import type { News, NewsInput, NewsCategory } from "@/types/news";
  */
 async function checkDuplicateNews(originalLink: string): Promise<boolean> {
   try {
-    const { data, error } = await supabaseServer
-      .from("news")
-      .select("id")
-      .eq("original_link", originalLink)
-      .limit(1);
+    const supabaseServer = getSupabaseServer();
+    const { data, error } = await supabaseServer.from("news").select("id").eq("original_link", originalLink).limit(1);
 
     if (error) {
       console.error("Error checking duplicate news:", error);
@@ -39,7 +36,8 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
       };
     }
 
-    const { error } = await supabaseServer.from("news").insert({
+    const supabaseServer = getSupabaseServer();
+    const { error } = await (supabaseServer.from("news") as any).insert({
       published_date: news.published_date,
       source_country: news.source_country,
       source_media: news.source_media,
@@ -52,7 +50,7 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
 
     if (error) {
       // 유니크 제약 조건 위반인 경우 중복으로 처리
-      if (error.code === '23505' || error.message.includes('duplicate') || error.message.includes('unique')) {
+      if (error.code === "23505" || error.message.includes("duplicate") || error.message.includes("unique")) {
         console.log(`중복 뉴스 건너뜀 (DB 제약 조건): ${news.original_link}`);
         return {
           success: false,
@@ -93,22 +91,20 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
     const batch = newsItems.slice(i, i + BATCH_SIZE);
 
     // 병렬 처리로 배치 저장
-    const results = await Promise.allSettled(
-      batch.map(news => insertNews(news))
-    );
+    const results = await Promise.allSettled(batch.map((news) => insertNews(news)));
 
     // 결과 집계
     for (const result of results) {
-      if (result.status === 'fulfilled' && result.value.success) {
+      if (result.status === "fulfilled" && result.value.success) {
         successCount++;
       } else {
         failedCount++;
-        if (result.status === 'rejected') {
-          console.error('뉴스 저장 중 오류:', result.reason);
-        } else if (result.status === 'fulfilled' && !result.value.success) {
+        if (result.status === "rejected") {
+          console.error("뉴스 저장 중 오류:", result.reason);
+        } else if (result.status === "fulfilled" && !result.value.success) {
           // 중복 뉴스는 실패로 카운트하지 않음 (정상 동작)
-          if (result.value.error && !result.value.error.includes('이미 존재')) {
-            console.warn('뉴스 저장 실패:', result.value.error);
+          if (result.value.error && !result.value.error.includes("이미 존재")) {
+            console.warn("뉴스 저장 실패:", result.value.error);
           }
         }
       }
@@ -130,8 +126,8 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
   try {
     console.log(`[getNewsByCategory] 카테고리: ${category}, 제한: ${limit}, 오프셋: ${offset}`);
 
-    const { data, error } = await supabaseServer
-      .from("news")
+    const supabaseServer = getSupabaseServer();
+    const { data, error } = await (supabaseServer.from("news") as any)
       .select("*")
       .eq("category", category)
       .order("created_at", { ascending: false })
@@ -189,7 +185,8 @@ export async function getAllNews(limit: number = 30): Promise<News[]> {
   try {
     console.log(`[getAllNews] 제한: ${limit}`);
 
-    const { data, error } = await supabaseServer.from("news").select("*").order("created_at", { ascending: false }).limit(limit);
+    const supabaseServer = getSupabaseServer();
+    const { data, error } = await (supabaseServer.from("news") as any).select("*").order("created_at", { ascending: false }).limit(limit);
 
     if (error) {
       console.error("[getAllNews] Supabase 에러 발생:", {
@@ -245,7 +242,12 @@ export async function searchNews(query: string, searchType: "title" | "content" 
 
   switch (searchType) {
     case "title": {
-      const { data, error } = await supabaseServer.from("news").select("*").ilike("title", searchTerm).order("created_at", { ascending: false }).limit(limit);
+      const supabaseServer = getSupabaseServer();
+      const { data, error } = await (supabaseServer.from("news") as any)
+        .select("*")
+        .ilike("title", searchTerm)
+        .order("created_at", { ascending: false })
+        .limit(limit);
 
       if (error) {
         console.error("[searchNews] Supabase 에러 발생 (title):", {
@@ -279,8 +281,8 @@ export async function searchNews(query: string, searchType: "title" | "content" 
 
     case "content": {
       // content 또는 content_translated에서 검색
-      const { data, error } = await supabaseServer
-        .from("news")
+      const supabaseServer = getSupabaseServer();
+      const { data, error } = await (supabaseServer.from("news") as any)
         .select("*")
         .or(`content.ilike.${searchTerm},content_translated.ilike.${searchTerm}`)
         .order("created_at", { ascending: false })
@@ -319,8 +321,8 @@ export async function searchNews(query: string, searchType: "title" | "content" 
     case "all":
     default: {
       // title, content, content_translated에서 검색
-      const { data, error } = await supabaseServer
-        .from("news")
+      const supabaseServer = getSupabaseServer();
+      const { data, error } = await (supabaseServer.from("news") as any)
         .select("*")
         .or(`title.ilike.${searchTerm},content.ilike.${searchTerm},content_translated.ilike.${searchTerm}`)
         .order("created_at", { ascending: false })
@@ -362,7 +364,8 @@ export async function searchNews(query: string, searchType: "title" | "content" 
  * 뉴스 개수 조회
  */
 export async function getNewsCount(category?: NewsCategory): Promise<number> {
-  let queryBuilder = supabaseServer.from("news").select("*", { count: "exact", head: true });
+  const supabaseServer = getSupabaseServer();
+  let queryBuilder = (supabaseServer.from("news") as any).select("*", { count: "exact", head: true });
 
   if (category) {
     queryBuilder = queryBuilder.eq("category", category);
@@ -376,4 +379,105 @@ export async function getNewsCount(category?: NewsCategory): Promise<number> {
   }
 
   return count || 0;
+}
+
+/**
+ * ID로 뉴스 단건 조회
+ */
+export async function getNewsById(id: string): Promise<News | null> {
+  try {
+    const supabaseServer = getSupabaseServer();
+    const { data, error } = await (supabaseServer.from("news") as any).select("*").eq("id", id).single();
+
+    if (error) {
+      console.error("[getNewsById] Supabase 에러 발생:", {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        id,
+      });
+      return null;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return {
+      id: String(data.id),
+      published_date: data.published_date || "",
+      source_country: data.source_country || "",
+      source_media: data.source_media || "",
+      title: data.title || "",
+      content: data.content || "",
+      content_translated: data.content_translated || null,
+      category: data.category as NewsCategory,
+      original_link: data.original_link || "",
+      created_at: data.created_at ? new Date(data.created_at).toISOString() : new Date().toISOString(),
+    };
+  } catch (error) {
+    console.error("[getNewsById] 예외 발생:", error);
+    return null;
+  }
+}
+
+/**
+ * ID로 뉴스 삭제
+ */
+export async function deleteNews(id: string): Promise<boolean> {
+  try {
+    const supabaseServer = getSupabaseServer();
+    const { error } = await (supabaseServer.from("news") as any).delete().eq("id", id);
+
+    if (error) {
+      console.error("[deleteNews] Supabase 에러 발생:", error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("[deleteNews] 예외 발생:", error);
+    return false;
+  }
+}
+
+/**
+ * 관련 뉴스 조회 (같은 카테고리, 현재 뉴스 제외)
+ */
+export async function getRelatedNews(currentNewsId: string, category: NewsCategory, limit: number = 5): Promise<News[]> {
+  try {
+    const supabaseServer = getSupabaseServer();
+    const { data, error } = await (supabaseServer.from("news") as any)
+      .select("*")
+      .eq("category", category)
+      .neq("id", currentNewsId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error("[getRelatedNews] Supabase 에러 발생:", error);
+      return [];
+    }
+
+    if (!data) {
+      return [];
+    }
+
+    return data.map((item: any) => ({
+      id: String(item.id || ""),
+      published_date: item.published_date || "",
+      source_country: item.source_country || "",
+      source_media: item.source_media || "",
+      title: item.title || "",
+      content: item.content || "",
+      content_translated: item.content_translated || null,
+      category: item.category as NewsCategory,
+      original_link: item.original_link || "",
+      created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
+    }));
+  } catch (error) {
+    console.error("[getRelatedNews] 예외 발생:", error);
+    return [];
+  }
 }

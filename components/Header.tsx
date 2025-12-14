@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import { useSession, signOut } from "next-auth/react";
 
 export default function Header() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchType, setSearchType] = useState<"title" | "content" | "all">("all");
   const router = useRouter();
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +73,35 @@ export default function Header() {
                 한국 뉴스
               </Link>
             </nav>
+
+            {/* 오른쪽: 로그인/관리자 메뉴 */}
+            <div className="flex items-center gap-3">
+              {session ? (
+                <>
+                  <Link href="/bookmarks" className="text-sm text-gray-300 hover:text-white">
+                    북마크
+                  </Link>
+                  <span className="text-sm text-gray-300">{session.user?.name}님</span>
+                  {session.user?.role === "admin" && (
+                    <Link href="/admin" className="text-sm text-yellow-500 hover:text-yellow-400 font-medium">
+                      관리자
+                    </Link>
+                  )}
+                  <button onClick={() => signOut()} className="text-sm text-gray-300 hover:text-white">
+                    로그아웃
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Link href="/auth/register" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">
+                    회원가입
+                  </Link>
+                  <Link href="/auth/signin" className="text-sm font-medium bg-[#3a4553] hover:bg-[#48576d] px-3 py-1.5 rounded transition-colors">
+                    로그인
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* 모바일 레이아웃 */}
@@ -83,6 +114,24 @@ export default function Header() {
                 </div>
                 <span className="text-base font-semibold">Daily News</span>
               </Link>
+
+              {/* 모바일 로그인 버튼 */}
+              <div className="flex items-center gap-2">
+                {session ? (
+                  <button onClick={() => signOut()} className="text-xs text-gray-300 border border-gray-600 px-2 py-1 rounded">
+                    로그아웃
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <Link href="/auth/register" className="text-xs font-medium text-gray-300 hover:text-white px-2 py-1">
+                      가입
+                    </Link>
+                    <Link href="/auth/signin" className="text-xs font-medium bg-[#3a4553] px-2 py-1 rounded">
+                      로그인
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* 모바일 두 번째 줄: 카테고리 드롭다운 */}
