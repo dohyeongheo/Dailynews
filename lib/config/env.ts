@@ -2,7 +2,7 @@
  * 환경 변수 검증 및 타입 안전한 환경 변수 로딩
  */
 
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 
 /**
  * 환경 변수 스키마
@@ -44,8 +44,8 @@ function validateEnv(): Env {
       NODE_ENV: process.env.NODE_ENV || 'development',
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      const missingVars = error.errors?.map((e) => `${e.path.join('.')}: ${e.message}`).join('\n') || 'Unknown error';
+    if (error instanceof ZodError) {
+      const missingVars = error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('\n');
       throw new Error(`환경 변수 검증 실패:\n${missingVars}`);
     }
     throw error;

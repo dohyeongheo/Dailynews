@@ -7,6 +7,8 @@ interface ErrorDisplayProps {
   onRetry?: () => void;
   showRetry?: boolean;
   className?: string;
+  role?: string;
+  'aria-live'?: 'assertive' | 'off' | 'polite';
 }
 
 /**
@@ -24,7 +26,11 @@ export default function ErrorDisplay({
   const canRetry = showRetry && isRetryableError(error) && onRetry;
 
   return (
-    <div className={`bg-red-50 border border-red-200 rounded-lg p-4 sm:p-6 ${className}`}>
+    <div
+      className={`bg-red-50 border border-red-200 rounded-lg p-4 sm:p-6 ${className}`}
+      role={role}
+      aria-live={ariaLive}
+    >
       <div className="flex items-start">
         <div className="flex-shrink-0">
           <svg

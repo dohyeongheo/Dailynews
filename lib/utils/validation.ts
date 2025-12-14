@@ -38,9 +38,9 @@ export function safeParse<T>(schema: z.ZodSchema<T>, data: unknown): { success: 
   if (result.success) {
     return { success: true, data: result.data };
   } else {
-    // ZodError는 항상 errors 배열을 가지고 있습니다
-    if (result.error && result.error.errors && Array.isArray(result.error.errors)) {
-      const errorMessage = result.error.errors.map((e) => {
+    // ZodError는 항상 issues 배열을 가지고 있습니다
+    if (result.error && result.error.issues && Array.isArray(result.error.issues)) {
+      const errorMessage = result.error.issues.map((e) => {
         const path = e.path && e.path.length > 0 ? e.path.join('.') : 'root';
         return `${path}: ${e.message || 'Validation error'}`;
       }).join(', ');
