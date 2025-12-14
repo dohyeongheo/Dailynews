@@ -13,9 +13,18 @@ export function useCsrfToken() {
   useEffect(() => {
     async function fetchCsrfToken() {
       try {
-        const response = await fetch("/api/csrf-token");
+        const response = await fetch("/api/csrf-token", {
+          credentials: "include", // 쿠키를 포함하여 요청
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch CSRF token: ${response.status}`);
+        }
         const data = await response.json();
-        setToken(data.token);
+        if (data.token) {
+          setToken(data.token);
+        } else {
+          console.error("CSRF token not found in response:", data);
+        }
       } catch (error) {
         console.error("Failed to fetch CSRF token:", error);
       } finally {

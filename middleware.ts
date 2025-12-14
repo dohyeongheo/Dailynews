@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { NextResponse } from "next/server";
 import { requiresCsrfProtection } from "@/lib/utils/csrf";
-import { CSRF_TOKEN_HEADER } from "@/lib/utils/csrf-constants";
+import { CSRF_TOKEN_HEADER, CSRF_TOKEN_COOKIE_NAME } from "@/lib/utils/csrf-constants";
 
 export default auth(async (req) => {
   const { nextUrl } = req;
@@ -20,11 +20,20 @@ export default auth(async (req) => {
     const isCsrfTokenRoute = nextUrl.pathname.startsWith("/api/csrf-token");
     if (!isApiAuthRoute && !isCsrfTokenRoute) {
       const requestToken = req.headers.get(CSRF_TOKEN_HEADER);
-      const cookieToken = req.cookies.get("csrf-token")?.value;
+      const cookieToken = req.cookies.get(CSRF_TOKEN_COOKIE_NAME)?.value;
 
       // CSRF 토큰 검증
       const { verifyCsrfToken } = await import("@/lib/utils/csrf");
-      if (!verifyCsrfToken(requestToken || null, cookieToken || null)) {
+      const isValid = verifyCsrfToken(requestToken || null, cookieToken || null);
+      
+      if (!isValid) {
+        console.error("[CSRF] 토큰 검증 실패:", {
+          path: nextUrl.pathname,
+          method: req.method,
+          hasRequestToken: !!requestToken,
+          hasCookieToken: !!cookieToken,
+          requestTokenPreview: requestToken ? requestToken.substring(0, 10) + "..." : null,
+        });
         return NextResponse.json({ error: "Invalid CSRF token" }, { status: 403 });
       }
     }

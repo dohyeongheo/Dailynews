@@ -41,7 +41,7 @@ export default function CommentSection({ newsId, initialComments, session }: Com
   const [editingContent, setEditingContent] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const router = useRouter();
-  const { getHeaders, isLoading: isCsrfLoading } = useCsrfToken();
+  const { getHeaders, isLoading: isCsrfTokenLoading } = useCsrfToken();
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("ko-KR", {
@@ -55,7 +55,7 @@ export default function CommentSection({ newsId, initialComments, session }: Com
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() || !session || isCsrfLoading) return;
+    if (!content.trim() || !session || isCsrfTokenLoading) return;
 
     setIsLoading(true);
     try {
@@ -63,6 +63,7 @@ export default function CommentSection({ newsId, initialComments, session }: Com
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({ newsId, content }),
+        credentials: "include", // 쿠키를 포함하여 요청
       });
 
       const data = await res.json();
@@ -72,7 +73,14 @@ export default function CommentSection({ newsId, initialComments, session }: Com
         setContent("");
         router.refresh(); // 서버 데이터와 동기화
       } else {
-        alert(data.error || "댓글 작성에 실패했습니다.");
+        console.error("댓글 작성 실패:", data);
+        if (res.status === 403 && data.error === "Invalid CSRF token") {
+          // CSRF 토큰이 만료되었거나 유효하지 않은 경우
+          alert("보안 토큰이 만료되었습니다. 페이지를 새로고침한 후 다시 시도해주세요.");
+          window.location.reload();
+        } else {
+          alert(data.error || "댓글 작성에 실패했습니다.");
+        }
       }
     } catch (error) {
       console.error("Failed to post comment", error);
@@ -113,7 +121,7 @@ export default function CommentSection({ newsId, initialComments, session }: Com
   };
 
   const handleUpdate = async (commentId: string) => {
-    if (!editingContent.trim() || isCsrfLoading) return;
+    if (!editingContent.trim() || isCsrfTokenLoading) return;
 
     setIsUpdating(true);
     try {
@@ -121,6 +129,7 @@ export default function CommentSection({ newsId, initialComments, session }: Com
         method: "PATCH",
         headers: getHeaders(),
         body: JSON.stringify({ commentId, content: editingContent }),
+        credentials: "include", // 쿠키를 포함하여 요청
       });
 
       const data = await res.json();
@@ -170,10 +179,10 @@ export default function CommentSection({ newsId, initialComments, session }: Com
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={isLoading || !content.trim() || isCsrfLoading}
+              disabled={isLoading || !content.trim() || isCsrfTokenLoading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
             >
-              {isLoading || isCsrfLoading ? "작성 중..." : "댓글 작성"}
+              {isLoading || isCsrfTokenLoading ? "작성 중..." : "댓글 작성"}
             </button>
           </div>
         </form>

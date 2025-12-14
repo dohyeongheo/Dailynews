@@ -51,6 +51,7 @@ export default function NewsReactions({ newsId }: NewsReactionsProps) {
         method: "POST",
         headers: getHeaders(),
         body: JSON.stringify({ reactionType }),
+        credentials: "include", // 쿠키를 포함하여 요청
       });
 
       if (res.ok) {
