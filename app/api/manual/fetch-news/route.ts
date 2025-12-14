@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { fetchAndSaveNewsAction } from '@/lib/actions';
-import { checkRateLimit } from '@/lib/utils/rate-limit';
-import { manualFetchNewsSchema, safeParse } from '@/lib/utils/validation';
+import { NextRequest, NextResponse } from "next/server";
+import { fetchAndSaveNewsAction } from "@/lib/actions";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
+import { manualFetchNewsSchema, safeParse } from "@/lib/utils/validation";
 
 /**
  * 수동 뉴스 수집 API
@@ -28,19 +28,17 @@ const RATE_LIMIT_MAX_REQUESTS = 5;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000; // 10분
 
 export async function GET(request: NextRequest) {
-  return handleRequest(request, 'GET');
+  return handleRequest(request, "GET");
 }
 
 export async function POST(request: NextRequest) {
-  return handleRequest(request, 'POST');
+  return handleRequest(request, "POST");
 }
 
-async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
+async function handleRequest(request: NextRequest, method: "GET" | "POST") {
   try {
     // Rate Limiting 체크
-    const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0] ||
-                     request.headers.get('x-real-ip') ||
-                     'unknown';
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0] || request.headers.get("x-real-ip") || "unknown";
     const rateLimitResult = checkRateLimit(clientIp, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS);
 
     if (!rateLimitResult.allowed) {
@@ -52,10 +50,10 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
         {
           status: 429,
           headers: {
-            'X-RateLimit-Limit': String(RATE_LIMIT_MAX_REQUESTS),
-            'X-RateLimit-Remaining': String(rateLimitResult.remaining),
-            'X-RateLimit-Reset': String(rateLimitResult.resetTime),
-            'Retry-After': String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)),
+            "X-RateLimit-Limit": String(RATE_LIMIT_MAX_REQUESTS),
+            "X-RateLimit-Remaining": String(rateLimitResult.remaining),
+            "X-RateLimit-Reset": String(rateLimitResult.resetTime),
+            "Retry-After": String(Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)),
           },
         }
       );
@@ -65,11 +63,11 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
     const expectedPassword = process.env.MANUAL_FETCH_PASSWORD;
 
     if (!expectedPassword) {
-      console.error('[Manual Fetch] MANUAL_FETCH_PASSWORD 환경 변수가 설정되지 않았습니다.');
+      console.error("[Manual Fetch] MANUAL_FETCH_PASSWORD 환경 변수가 설정되지 않았습니다.");
       return NextResponse.json(
         {
           success: false,
-          message: '서버 설정 오류: 비밀번호가 설정되지 않았습니다.',
+          message: "서버 설정 오류: 비밀번호가 설정되지 않았습니다.",
         },
         { status: 500 }
       );
@@ -78,10 +76,10 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
     let providedPassword: string | null = null;
     let requestData: unknown;
 
-    if (method === 'GET') {
+    if (method === "GET") {
       // GET 요청: 쿼리 파라미터에서 비밀번호 가져오기
       const { searchParams } = new URL(request.url);
-      requestData = { password: searchParams.get('password') };
+      requestData = { password: searchParams.get("password") };
     } else {
       // POST 요청: 요청 본문에서 비밀번호 가져오기
       try {
@@ -90,7 +88,7 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
         return NextResponse.json(
           {
             success: false,
-            message: '요청 본문을 파싱할 수 없습니다. JSON 형식으로 요청해주세요.',
+            message: "요청 본문을 파싱할 수 없습니다. JSON 형식으로 요청해주세요.",
           },
           { status: 400 }
         );
@@ -116,21 +114,21 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
       return NextResponse.json(
         {
           success: false,
-          message: '비밀번호가 제공되지 않았습니다.',
+          message: "비밀번호가 제공되지 않았습니다.",
         },
         { status: 401 }
       );
     }
 
     if (providedPassword !== expectedPassword) {
-      console.warn('[Manual Fetch] 잘못된 비밀번호로 접근 시도:', {
+      console.warn("[Manual Fetch] 잘못된 비밀번호로 접근 시도:", {
         timestamp: new Date().toISOString(),
-        ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
+        ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown",
       });
       return NextResponse.json(
         {
           success: false,
-          message: '비밀번호가 올바르지 않습니다.',
+          message: "비밀번호가 올바르지 않습니다.",
         },
         { status: 401 }
       );
@@ -139,7 +137,7 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
     // 뉴스 수집 시작
     const startTime = Date.now();
     const executionId = `manual-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    console.log('[Manual Fetch] 뉴스 수집 시작:', {
+    console.log("[Manual Fetch] 뉴스 수집 시작:", {
       executionId,
       timestamp: new Date().toISOString(),
       thailandTime: new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString(),
@@ -163,7 +161,7 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
     } catch (timeoutError) {
       // 타임아웃 에러 처리
       const executionTime = Date.now() - startTime;
-      console.error('[Manual Fetch] 타임아웃 발생:', {
+      console.error("[Manual Fetch] 타임아웃 발생:", {
         executionId,
         timeoutMs: TIMEOUT_MS,
         executionTimeMs: executionTime,
@@ -173,7 +171,7 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
       return NextResponse.json(
         {
           success: false,
-          message: timeoutError instanceof Error ? timeoutError.message : '타임아웃이 발생했습니다. 뉴스 수집 작업이 너무 오래 걸렸습니다.',
+          message: timeoutError instanceof Error ? timeoutError.message : "타임아웃이 발생했습니다. 뉴스 수집 작업이 너무 오래 걸렸습니다.",
           executionId,
           executionTimeMs: executionTime,
           timestamp: new Date().toISOString(),
@@ -185,29 +183,32 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
     const executionTime = Date.now() - startTime;
 
     if (result.success) {
-      console.log('[Manual Fetch] 뉴스 수집 성공:', {
+      console.log("[Manual Fetch] 뉴스 수집 성공:", {
         executionId,
         message: result.message,
         executionTimeMs: executionTime,
         timestamp: new Date().toISOString(),
       });
-      return NextResponse.json({
-        success: true,
-        message: result.message,
-        data: result.data,
-        executionId,
-        executionTimeMs: executionTime,
-        timestamp: new Date().toISOString(),
-        thailandTime: new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString(), // UTC+7
-      }, {
-        headers: {
-          'X-RateLimit-Limit': String(RATE_LIMIT_MAX_REQUESTS),
-          'X-RateLimit-Remaining': String(rateLimitResult.remaining),
-          'X-RateLimit-Reset': String(rateLimitResult.resetTime),
+      return NextResponse.json(
+        {
+          success: true,
+          message: result.message,
+          data: result.data,
+          executionId,
+          executionTimeMs: executionTime,
+          timestamp: new Date().toISOString(),
+          thailandTime: new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString(), // UTC+7
         },
-      });
+        {
+          headers: {
+            "X-RateLimit-Limit": String(RATE_LIMIT_MAX_REQUESTS),
+            "X-RateLimit-Remaining": String(rateLimitResult.remaining),
+            "X-RateLimit-Reset": String(rateLimitResult.resetTime),
+          },
+        }
+      );
     } else {
-      console.error('[Manual Fetch] 뉴스 수집 실패:', {
+      console.error("[Manual Fetch] 뉴스 수집 실패:", {
         executionId,
         message: result.message,
         executionTimeMs: executionTime,
@@ -225,15 +226,14 @@ async function handleRequest(request: NextRequest, method: 'GET' | 'POST') {
       );
     }
   } catch (error) {
-    console.error('[Manual Fetch] 뉴스 수집 중 오류 발생:', error);
+    console.error("[Manual Fetch] 뉴스 수집 중 오류 발생:", error);
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
+        message: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
         timestamp: new Date().toISOString(),
       },
       { status: 500 }
     );
   }
 }
-

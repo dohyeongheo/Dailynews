@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { fetchAndSaveNewsAction } from '@/lib/actions';
+import { NextRequest, NextResponse } from "next/server";
+import { fetchAndSaveNewsAction } from "@/lib/actions";
 
 /**
  * Vercel Cron Job: 매일 오전 6시 (태국 시간, UTC 23시) 뉴스 수집
@@ -8,9 +8,10 @@ import { fetchAndSaveNewsAction } from '@/lib/actions';
  * 태국 시간 오전 6시 = UTC 23시 (전날)
  *
  * 참고: Vercel Serverless Functions는 기본 타임아웃이 10초(Hobby) 또는 60초(Pro)입니다.
- * 뉴스 수집 작업이 오래 걸릴 수 있으므로 타임아웃 처리를 포함했습니다.
+ * 뉴스 수집 작업이 오래 걸릴 수 있으므로 maxDuration을 300초로 설정했습니다.
+ * (Vercel Pro 플랜의 최대 타임아웃)
  */
-export const maxDuration = 60; // Vercel Pro 플랜 최대 타임아웃 (초)
+export const maxDuration = 300; // Vercel Pro 플랜 최대 타임아웃 (초)
 
 /**
  * Vercel Cron Job 인증 확인
@@ -30,23 +31,23 @@ function verifyCronAuth(request: NextRequest): { authorized: boolean; reason?: s
     // Vercel Cron Job이 호출하는 경우 특정 헤더나 User-Agent를 확인할 수 있지만,
     // Vercel의 내부 호출이므로 인증을 건너뛰는 것이 일반적입니다.
     // 대신 User-Agent로 Vercel 호출인지 확인 (선택사항)
-    const userAgent = request.headers.get('user-agent') || '';
-    const isVercelCall = userAgent.includes('vercel') || userAgent.includes('Vercel');
+    const userAgent = request.headers.get("user-agent") || "";
+    const isVercelCall = userAgent.includes("vercel") || userAgent.includes("Vercel");
 
     // Vercel Cron Job은 내부 호출이므로 허용
     // 하지만 로깅을 위해 정보를 기록
-    console.log('[Cron] CRON_SECRET 미설정, Vercel 내부 호출로 간주:', {
+    console.log("[Cron] CRON_SECRET 미설정, Vercel 내부 호출로 간주:", {
       userAgent,
       isVercelCall,
-      hasAuthHeader: !!request.headers.get('authorization'),
+      hasAuthHeader: !!request.headers.get("authorization"),
     });
 
     return { authorized: true };
   }
 
   // CRON_SECRET이 설정된 경우 검증
-  const authHeader = request.headers.get('authorization');
-  const vercelSignature = request.headers.get('x-vercel-signature');
+  const authHeader = request.headers.get("authorization");
+  const vercelSignature = request.headers.get("x-vercel-signature");
 
   // Vercel의 기본 서명이 있으면 허용
   if (vercelSignature) {
@@ -58,7 +59,7 @@ function verifyCronAuth(request: NextRequest): { authorized: boolean; reason?: s
     return { authorized: true };
   }
 
-  return { authorized: false, reason: 'Invalid credentials' };
+  return { authorized: false, reason: "Invalid credentials" };
 }
 
 export async function GET(request: NextRequest) {
@@ -69,17 +70,17 @@ export async function GET(request: NextRequest) {
     // Vercel Cron Job 인증 확인
     const authResult = verifyCronAuth(request);
     if (!authResult.authorized) {
-      console.error('[Cron] 인증 실패:', {
+      console.error("[Cron] 인증 실패:", {
         executionId,
         reason: authResult.reason,
-        hasAuthHeader: !!request.headers.get('authorization'),
-        hasVercelSignature: !!request.headers.get('x-vercel-signature'),
+        hasAuthHeader: !!request.headers.get("authorization"),
+        hasVercelSignature: !!request.headers.get("x-vercel-signature"),
         timestamp: new Date().toISOString(),
       });
       return NextResponse.json(
         {
           success: false,
-          error: 'Unauthorized',
+          error: "Unauthorized",
           executionId,
           reason: authResult.reason,
         },
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('[Cron] 뉴스 수집 시작:', {
+    console.log("[Cron] 뉴스 수집 시작:", {
       executionId,
       timestamp: new Date().toISOString(),
       thailandTime: new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString(),
@@ -96,15 +97,11 @@ export async function GET(request: NextRequest) {
     });
 
     // 환경 변수 확인
-    const requiredEnvVars = [
-      'GOOGLE_GEMINI_API_KEY',
-      'NEXT_PUBLIC_SUPABASE_URL',
-      'SUPABASE_SERVICE_ROLE_KEY',
-    ];
+    const requiredEnvVars = ["GOOGLE_GEMINI_API_KEY", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"];
 
-    const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+    const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
     if (missingEnvVars.length > 0) {
-      console.error('[Cron] 필수 환경 변수 누락:', {
+      console.error("[Cron] 필수 환경 변수 누락:", {
         executionId,
         missingEnvVars,
         timestamp: new Date().toISOString(),
@@ -112,7 +109,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: `필수 환경 변수가 설정되지 않았습니다: ${missingEnvVars.join(', ')}`,
+          message: `필수 환경 변수가 설정되지 않았습니다: ${missingEnvVars.join(", ")}`,
           executionId,
           timestamp: new Date().toISOString(),
         },
@@ -121,8 +118,8 @@ export async function GET(request: NextRequest) {
     }
 
     // 타임아웃을 고려한 뉴스 수집 실행
-    // 50초 후 타임아웃 (60초 제한 전에 안전하게 실패 처리)
-    const TIMEOUT_MS = 50000;
+    // 280초 후 타임아웃 (300초 제한 전에 안전하게 실패 처리)
+    const TIMEOUT_MS = 280000; // 280초
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(() => {
         reject(new Error(`뉴스 수집 작업이 타임아웃되었습니다. (${TIMEOUT_MS / 1000}초 초과)`));
@@ -138,7 +135,7 @@ export async function GET(request: NextRequest) {
     } catch (timeoutError) {
       // 타임아웃 에러 처리
       const executionTime = Date.now() - startTime;
-      console.error('[Cron] 타임아웃 발생:', {
+      console.error("[Cron] 타임아웃 발생:", {
         executionId,
         timeoutMs: TIMEOUT_MS,
         executionTimeMs: executionTime,
@@ -148,7 +145,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          message: timeoutError instanceof Error ? timeoutError.message : '타임아웃이 발생했습니다.',
+          message: timeoutError instanceof Error ? timeoutError.message : "타임아웃이 발생했습니다.",
           executionId,
           executionTimeMs: executionTime,
           timestamp: new Date().toISOString(),
@@ -160,7 +157,7 @@ export async function GET(request: NextRequest) {
     const executionTime = Date.now() - startTime;
 
     if (result.success) {
-      console.log('[Cron] 뉴스 수집 성공:', {
+      console.log("[Cron] 뉴스 수집 성공:", {
         executionId,
         message: result.message,
         data: result.data,
@@ -180,7 +177,7 @@ export async function GET(request: NextRequest) {
         thailandTime: new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString(),
       });
     } else {
-      console.error('[Cron] 뉴스 수집 실패:', {
+      console.error("[Cron] 뉴스 수집 실패:", {
         executionId,
         message: result.message,
         executionTimeMs: executionTime,
@@ -201,13 +198,16 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const executionTime = Date.now() - startTime;
 
-    console.error('[Cron] 뉴스 수집 중 오류 발생:', {
+    console.error("[Cron] 뉴스 수집 중 오류 발생:", {
       executionId,
-      error: error instanceof Error ? {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      } : error,
+      error:
+        error instanceof Error
+          ? {
+              message: error.message,
+              stack: error.stack,
+              name: error.name,
+            }
+          : error,
       executionTimeMs: executionTime,
       executionTimeSec: (executionTime / 1000).toFixed(2),
       timestamp: new Date().toISOString(),
@@ -222,7 +222,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.',
+        message: error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다.",
         executionId,
         executionTimeMs: executionTime,
         timestamp: new Date().toISOString(),
@@ -231,4 +231,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

@@ -1,13 +1,14 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { insertNewsBatch } from "./db/news";
 import type { NewsInput, GeminiNewsResponse, NewsCategory } from "@/types/news";
+import { log } from "./utils/logger";
 
 /**
  * Gemini AI 클라이언트를 지연 초기화합니다.
  * 빌드 타임에 API 키가 없어도 오류가 발생하지 않도록 합니다.
  */
 function getGenAI(): GoogleGenerativeAI {
-  const { GOOGLE_GEMINI_API_KEY } = require('@/lib/config/env').getEnv();
+  const { GOOGLE_GEMINI_API_KEY } = require("@/lib/config/env").getEnv();
   return new GoogleGenerativeAI(GOOGLE_GEMINI_API_KEY);
 }
 
@@ -109,16 +110,7 @@ function isErrorResponse(text: string): boolean {
   }
 
   const lowerText = text.toLowerCase().trim();
-  const errorPatterns = [
-    /^an error/i,
-    /^error/i,
-    /^sorry/i,
-    /^i cannot/i,
-    /^i'm sorry/i,
-    /^unable to/i,
-    /^failed to/i,
-    /^cannot/i,
-  ];
+  const errorPatterns = [/^an error/i, /^error/i, /^sorry/i, /^i cannot/i, /^i'm sorry/i, /^unable to/i, /^failed to/i, /^cannot/i];
 
   return errorPatterns.some((pattern) => pattern.test(lowerText));
 }
@@ -325,7 +317,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 
   // gemini-2.5-flash 모델만 사용
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-      log.info('모델 선택: gemini-2.5-flash');
+  log.info("모델 선택: gemini-2.5-flash");
 
   // 날짜 검증: 미래 날짜가 아닌지 확인
   const today = new Date();
@@ -334,7 +326,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 
   // 미래 날짜인 경우 오늘 날짜로 변경
   if (requestDate > todayStr) {
-    log.warn('미래 날짜 감지', { requestDate, todayStr });
+    log.warn("미래 날짜 감지", { requestDate, todayStr });
     date = todayStr;
   } else {
     date = requestDate;
@@ -381,11 +373,11 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     // 기본 모드로 뉴스 수집 시도 (재시도 로직 포함)
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        log.debug('뉴스 수집 시도 중', { attempt: attempt + 1, maxRetries: MAX_RETRIES + 1 });
+        log.debug("뉴스 수집 시도 중", { attempt: attempt + 1, maxRetries: MAX_RETRIES + 1 });
         result = await model.generateContent(prompt);
         response = await result.response;
         text = response.text();
-        log.info('뉴스 수집 성공');
+        log.info("뉴스 수집 성공");
         break; // 성공 시 루프 종료
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
@@ -397,7 +389,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
           const timestamp = new Date().toISOString();
           const thailandTime = new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString();
 
-          log.error('Gemini API 할당량 초과', error, {
+          log.error("Gemini API 할당량 초과", error, {
             timestamp,
             thailandTime,
             limit: quotaInfo.limit,
@@ -417,7 +409,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
           throw quotaError;
         }
 
-        log.warn('뉴스 수집 시도 실패', { attempt: attempt + 1, maxRetries: MAX_RETRIES + 1, errorMessage });
+        log.warn("뉴스 수집 시도 실패", { attempt: attempt + 1, maxRetries: MAX_RETRIES + 1, errorMessage });
 
         // 재시도 가능한 에러인지 확인 (할당량 초과는 제외)
         const isRetryable =
@@ -426,7 +418,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
         if (attempt < MAX_RETRIES && isRetryable) {
           // 지수 백오프: 2초, 4초, 8초
           const delay = 2000 * Math.pow(2, attempt);
-          log.debug('재시도 대기 중', { delay });
+          log.debug("재시도 대기 중", { delay });
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
@@ -445,7 +437,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     // 에러 메시지인지 확인
     if (isErrorResponse(text)) {
       const errorPreview = text.substring(0, 500);
-      log.error('Gemini API가 에러 메시지를 반환했습니다', undefined, {
+      log.error("Gemini API가 에러 메시지를 반환했습니다", undefined, {
         responsePreview: errorPreview,
         responseLength: text.length,
       });
@@ -532,7 +524,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
       return true;
     });
 
-    log.info('데이터 검증 완료', { total: parsedData.news.length, valid: validNewsItems.length });
+    log.info("데이터 검증 완료", { total: parsedData.news.length, valid: validNewsItems.length });
 
     if (validNewsItems.length === 0) {
       throw new Error("유효한 뉴스 데이터가 없습니다. 모든 뉴스 항목이 필수 필드를 만족하지 않습니다.");
@@ -579,7 +571,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 
     // 한국어가 아닌 뉴스 항목들을 번역 처리
     // 성능 개선: 병렬 처리로 번역 시간 단축
-    log.debug('한국어 번역이 필요한 뉴스 확인 중');
+    log.debug("한국어 번역이 필요한 뉴스 확인 중");
 
     // 병렬 처리로 번역 시간 단축 (최대 5개씩 동시 처리)
     const BATCH_SIZE = 5;
@@ -592,14 +584,14 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 
       // 진행 상황 로깅
       if ((i + BATCH_SIZE) % 10 === 0 || i + BATCH_SIZE >= newsItems.length) {
-        log.debug('번역 진행 중', { processed: Math.min(i + BATCH_SIZE, newsItems.length), total: newsItems.length });
+        log.debug("번역 진행 중", { processed: Math.min(i + BATCH_SIZE, newsItems.length), total: newsItems.length });
       }
     }
 
-    log.info('번역 완료', { count: translatedNewsItems.length });
+    log.info("번역 완료", { count: translatedNewsItems.length });
     return translatedNewsItems;
   } catch (error) {
-    log.error('Error fetching news from Gemini', error);
+    log.error("Error fetching news from Gemini", error);
     throw new Error(`Failed to fetch news: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
@@ -613,13 +605,13 @@ export async function saveNewsToDatabase(newsItems: NewsInput[]): Promise<{ succ
 
     // result가 유효한지 확인
     if (!result || typeof result !== "object" || typeof result.success !== "number" || typeof result.failed !== "number") {
-      log.error('Invalid result from insertNewsBatch', undefined, { result });
+      log.error("Invalid result from insertNewsBatch", undefined, { result });
       return { success: 0, failed: newsItems.length };
     }
 
     return result;
   } catch (error) {
-    log.error('Error in saveNewsToDatabase', error);
+    log.error("Error in saveNewsToDatabase", error);
     return { success: 0, failed: newsItems.length };
   }
 }
@@ -634,7 +626,7 @@ export async function fetchAndSaveNews(date?: string): Promise<{ success: number
 
     // result가 유효한지 확인
     if (!result || typeof result !== "object") {
-      log.error('Invalid result from saveNewsToDatabase', undefined, { result });
+      log.error("Invalid result from saveNewsToDatabase", undefined, { result });
       return {
         success: 0,
         failed: newsItems.length,
@@ -648,7 +640,7 @@ export async function fetchAndSaveNews(date?: string): Promise<{ success: number
       total: newsItems.length,
     };
   } catch (error) {
-    log.error('Error in fetchAndSaveNews', error);
+    log.error("Error in fetchAndSaveNews", error);
     throw error;
   }
 }
