@@ -43,6 +43,7 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
       content: news.content,
       content_translated: news.content_translated || null,
       category: news.category,
+      news_category: news.news_category || null,
       original_link: news.original_link,
     });
 
@@ -159,6 +160,7 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
       content: item.content || "",
       content_translated: item.content_translated || null,
       category: item.category as NewsCategory,
+      news_category: item.news_category || null,
       original_link: item.original_link || "",
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));
@@ -176,13 +178,16 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
 }
 
 /**
- * 모든 뉴스 조회
+ * 모든 뉴스 조회 (페이지네이션 지원)
  */
-export async function getAllNews(limit: number = 30): Promise<News[]> {
+export async function getAllNews(limit: number = 30, offset: number = 0): Promise<News[]> {
   try {
-    console.log(`[getAllNews] 제한: ${limit}`);
+    console.log(`[getAllNews] 제한: ${limit}, 오프셋: ${offset}`);
 
-    const { data, error } = await (supabaseServer.from("news") as any).select("*").order("created_at", { ascending: false }).limit(limit);
+    const { data, error } = await (supabaseServer.from("news") as any)
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
 
     if (error) {
       console.error("[getAllNews] Supabase 에러 발생:", {
@@ -212,6 +217,7 @@ export async function getAllNews(limit: number = 30): Promise<News[]> {
       content: item.content || "",
       content_translated: item.content_translated || null,
       category: item.category as NewsCategory,
+      news_category: item.news_category || null,
       original_link: item.original_link || "",
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));
@@ -404,6 +410,7 @@ export async function getNewsById(id: string): Promise<News | null> {
       content: data.content || "",
       content_translated: data.content_translated || null,
       category: data.category as NewsCategory,
+      news_category: data.news_category || null,
       original_link: data.original_link || "",
       created_at: data.created_at ? new Date(data.created_at).toISOString() : new Date().toISOString(),
     };
@@ -462,6 +469,7 @@ export async function getRelatedNews(currentNewsId: string, category: NewsCatego
       content: item.content || "",
       content_translated: item.content_translated || null,
       category: item.category as NewsCategory,
+      news_category: item.news_category || null,
       original_link: item.original_link || "",
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));

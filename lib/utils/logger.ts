@@ -5,26 +5,21 @@
 
 import pino from 'pino';
 
-// 개발 환경에서는 pretty print 사용
+// 개발/프로덕션 공통: worker thread(transport)를 사용하지 않는 기본 Pino 설정
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 /**
  * 로거 인스턴스
+ * - Next.js 환경에서 thread-stream 기반 worker를 사용하지 않기 위해
+ *   transport(pino-pretty)를 완전히 제거하고 기본 stdout 로깅만 사용합니다.
  */
 export const logger = pino({
   level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
-  ...(isDevelopment && {
-    transport: {
-      target: 'pino-pretty',
-      options: {
-        colorize: true,
-        translateTime: 'SYS:standard',
-        ignore: 'pid,hostname',
-      },
-    },
-  }),
   base: {
     env: process.env.NODE_ENV,
+  },
+  formatters: {
+    level: (label) => ({ level: label }),
   },
 });
 

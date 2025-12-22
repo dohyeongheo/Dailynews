@@ -1,5 +1,4 @@
 import { cookies } from "next/headers";
-import crypto from "crypto";
 import { CSRF_TOKEN_COOKIE_NAME, CSRF_TOKEN_HEADER, CSRF_TOKEN_MAX_AGE } from "./csrf-constants";
 
 /**
@@ -46,29 +45,20 @@ export function verifyCsrfToken(requestToken: string | null, cookieToken: string
     return false;
   }
 
-  // 토큰이 일치하는지 확인 (타이밍 공격 방지를 위해 crypto.timingSafeEqual 사용)
-  try {
-    // 토큰이 hex 문자열인지 확인
-    const requestBuffer = Buffer.from(requestToken, "hex");
-    const cookieBuffer = Buffer.from(cookieToken, "hex");
-
-    if (requestBuffer.length !== cookieBuffer.length) {
-      console.warn("[CSRF] 토큰 길이 불일치:", {
-        requestLength: requestBuffer.length,
-        cookieLength: cookieBuffer.length,
-      });
-      return false;
-    }
-
-    const isValid = crypto.timingSafeEqual(requestBuffer, cookieBuffer);
-    if (!isValid) {
-      console.warn("[CSRF] 토큰 불일치");
-    }
-    return isValid;
-  } catch (error) {
-    console.error("[CSRF] 토큰 검증 중 오류:", error);
+  // Edge/Node 환경 차이 없이 동작하도록 단순 문자열 비교 사용
+  if (requestToken.length !== cookieToken.length) {
+    console.warn("[CSRF] 토큰 길이 불일치:", {
+      requestLength: requestToken.length,
+      cookieLength: cookieToken.length,
+    });
     return false;
   }
+
+  const isValid = requestToken === cookieToken;
+  if (!isValid) {
+    console.warn("[CSRF] 토큰 불일치");
+  }
+  return isValid;
 }
 
 /**

@@ -16,8 +16,8 @@ interface CategoryPageProps {
 // 카테고리 이름 매핑
 const categoryMap: Record<string, { category: NewsCategory; title: string }> = {
   태국뉴스: { category: "태국뉴스", title: "태국 뉴스" },
-  관련뉴스: { category: "관련뉴스", title: "한국 뉴스 (태국 관련)" },
   한국뉴스: { category: "한국뉴스", title: "한국 뉴스" },
+  관련뉴스: { category: "관련뉴스", title: "태국 관련 뉴스" },
 };
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
@@ -39,9 +39,6 @@ export default async function CategoryPage({ params }: CategoryPageProps) {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">{categoryInfo.title}</h1>
-          <p className="text-sm sm:text-base text-gray-600">
-            {result.success && result.data ? `${result.data.length}개의 뉴스${result.hasMore ? " (더 보기 가능)" : ""}` : "뉴스를 불러오는 중..."}
-          </p>
         </div>
 
         {result.success && result.data && result.data.length > 0 ? (

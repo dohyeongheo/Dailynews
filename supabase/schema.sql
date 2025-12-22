@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS news (
   content TEXT NOT NULL,
   content_translated TEXT,
   category TEXT NOT NULL,
+  news_category TEXT,
   original_link TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -18,6 +19,8 @@ CREATE TABLE IF NOT EXISTS news (
 CREATE INDEX IF NOT EXISTS idx_news_published_date ON news(published_date);
 CREATE INDEX IF NOT EXISTS idx_news_source_country ON news(source_country);
 CREATE INDEX IF NOT EXISTS idx_news_category ON news(category);
+CREATE INDEX IF NOT EXISTS idx_news_news_category ON news(news_category);
+CREATE INDEX IF NOT EXISTS idx_news_category_news_category ON news(category, news_category);
 CREATE INDEX IF NOT EXISTS idx_news_created_at ON news(created_at DESC);
 
 -- original_link 유니크 제약 조건 추가 (중복 뉴스 방지)

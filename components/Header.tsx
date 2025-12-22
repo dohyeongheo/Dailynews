@@ -56,14 +56,7 @@ export default function Header() {
               >
                 태국 뉴스
               </Link>
-              <Link
-                href="/category/관련뉴스"
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
-                  isCategoryActive("관련뉴스") ? "bg-[#ff9900] text-white" : "text-gray-300 hover:bg-[#3a4553] hover:text-white"
-                }`}
-              >
-                한국 뉴스 (태국 관련)
-              </Link>
+              {/* 카테고리 순서: 태국 뉴스, 한국 뉴스, 태국 관련 뉴스 */}
               <Link
                 href="/category/한국뉴스"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
@@ -71,6 +64,14 @@ export default function Header() {
                 }`}
               >
                 한국 뉴스
+              </Link>
+              <Link
+                href="/category/관련뉴스"
+                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                  isCategoryActive("관련뉴스") ? "bg-[#ff9900] text-white" : "text-gray-300 hover:bg-[#3a4553] hover:text-white"
+                }`}
+              >
+                태국 관련 뉴스
               </Link>
             </nav>
 
@@ -87,7 +88,13 @@ export default function Header() {
                       관리자
                     </Link>
                   )}
-                  <button onClick={() => signOut()} className="text-sm text-gray-300 hover:text-white">
+                  <button
+                    onClick={() => {
+                      // 로그아웃 후 홈으로 이동
+                      signOut({ callbackUrl: "/" });
+                    }}
+                    className="text-sm text-gray-300 hover:text-white"
+                  >
                     로그아웃
                   </button>
                 </>
@@ -118,7 +125,13 @@ export default function Header() {
               {/* 모바일 로그인 버튼 */}
               <div className="flex items-center gap-2">
                 {session ? (
-                  <button onClick={() => signOut()} className="text-xs text-gray-300 border border-gray-600 px-2 py-1 rounded">
+                  <button
+                    onClick={() => {
+                      // 모바일에서도 동일하게 홈으로 리다이렉트
+                      signOut({ callbackUrl: "/" });
+                    }}
+                    className="text-xs text-gray-300 border border-gray-600 px-2 py-1 rounded"
+                  >
                     로그아웃
                   </button>
                 ) : (
@@ -147,8 +160,8 @@ export default function Header() {
               >
                 <option value="">카테고리 선택</option>
                 <option value="/category/태국뉴스">태국 뉴스</option>
-                <option value="/category/관련뉴스">한국 뉴스 (태국 관련)</option>
                 <option value="/category/한국뉴스">한국 뉴스</option>
+                <option value="/category/관련뉴스">태국 관련 뉴스</option>
               </select>
             </div>
           </div>

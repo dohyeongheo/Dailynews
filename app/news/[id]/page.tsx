@@ -8,6 +8,9 @@ import NewsReactions from "@/components/NewsReactions";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
 
+// 페이지 캐싱 설정: 300초마다 재검증 (5분)
+export const revalidate = 300;
+
 // 메타데이터 생성
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
   const news = await getNewsById(params.id);
@@ -51,11 +54,6 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
         <article className="bg-white rounded-xl shadow-lg overflow-hidden p-6 sm:p-10">
           <header className="mb-8">
-            <div className="flex flex-wrap gap-2 mb-4">
-              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">{news.category}</span>
-              <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">{news.source_country}</span>
-            </div>
-
             <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4 leading-tight">{news.title}</h1>
 
             <div className="flex flex-wrap items-center gap-4 text-gray-500 text-sm border-b pb-6">

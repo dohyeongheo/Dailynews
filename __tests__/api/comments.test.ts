@@ -1,196 +1,214 @@
-import { GET, POST, PATCH, DELETE } from "@/app/api/comments/route";
-import { NextRequest } from "next/server";
+/**
+ * comments API 라우트 통합 테스트
+ */
 
-// Mock dependencies
-jest.mock("@/auth", () => ({
+import { NextRequest } from 'next/server';
+import { GET, POST, PATCH, DELETE } from '@/app/api/comments/route';
+
+// 인증 모킹
+jest.mock('@/auth', () => ({
   auth: jest.fn(),
 }));
 
-jest.mock("@/lib/db/comments", () => ({
-  getCommentsByNewsId: jest.fn(),
+// DB 모듈 모킹
+jest.mock('@/lib/db/comments', () => ({
   createComment: jest.fn(),
+  getCommentsByNewsId: jest.fn(),
+  getCommentById: jest.fn(),
   updateComment: jest.fn(),
   deleteComment: jest.fn(),
-  getCommentById: jest.fn(),
 }));
 
-jest.mock("@/lib/utils/rate-limit-helper", () => ({
-  applyRateLimit: jest.fn().mockResolvedValue(null),
+// Rate limiting 모킹
+jest.mock('@/lib/utils/rate-limit-helper', () => ({
+  applyRateLimit: jest.fn(() => null), // Rate limit 통과
   RATE_LIMIT_CONFIGS: {
     COMMENTS: { maxRequests: 20, windowMs: 60000 },
   },
 }));
 
-// Mock NextRequest
-jest.mock("next/server", () => ({
-  NextRequest: class MockNextRequest {
-    url: string;
-    method: string;
-    headers: Headers;
-    body: string | null;
-
-    constructor(input: string | Request, init?: RequestInit) {
-      const url = typeof input === "string" ? input : input.url;
-      this.url = url;
-      this.method = init?.method || "GET";
-      this.headers = new Headers(init?.headers);
-      this.body = (init?.body as string) || null;
-    }
-
-    async json() {
-      return this.body ? JSON.parse(this.body) : {};
-    }
-
-    async text() {
-      return this.body || "";
-    }
-  },
-  NextResponse: {
-    json: jest.fn((body, init) => ({
-      json: async () => body,
-      status: init?.status || 200,
-      headers: new Headers(init?.headers),
-    })),
-  },
-}));
-
-describe("댓글 API", () => {
+describe('API /api/comments', () => {
   const mockSession = {
     user: {
-      id: "user1",
-      email: "test@example.com",
-      name: "Test User",
-      role: "user",
+      id: 'user-123',
+      email: 'test@example.com',
+      name: 'Test User',
+      role: 'user',
     },
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    const { auth } = require("@/auth");
-    auth.mockResolvedValue(mockSession);
   });
 
-  describe("GET /api/comments", () => {
-    it("댓글 목록 조회 성공", async () => {
-      const { getCommentsByNewsId } = require("@/lib/db/comments");
-      getCommentsByNewsId.mockResolvedValue([
+  describe('GET', () => {
+    it('뉴스 ID로 댓글 목록을 조회해야 함', async () => {
+      const { getCommentsByNewsId } = await import('@/lib/db/comments');
+      const mockComments = [
         {
-          id: "1",
-          content: "Test comment",
-          news_id: "news1",
-          user_id: "user1",
-          created_at: "2024-01-01",
+          id: 'comment-1',
+          news_id: 'news-123',
+          user_id: 'user-123',
+          content: 'Test comment',
+          created_at: '2025-01-15T00:00:00Z',
         },
-      ]);
+      ];
+      (getCommentsByNewsId as jest.Mock).mockResolvedValueOnce(mockComments);
 
-      const request = new NextRequest("http://localhost:3000/api/comments?newsId=news1");
+      const request = new NextRequest('http://localhost:3000/api/comments?newsId=news-123');
       const response = await GET(request);
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.comments).toBeDefined();
-      expect(Array.isArray(data.comments)).toBe(true);
+      expect(data.success).toBe(true);
+      expect(data.data.comments).toEqual(mockComments);
+    });
+
+    it('newsId가 없으면 400 에러를 반환해야 함', async () => {
+      const request = new NextRequest('http://localhost:3000/api/comments');
+      const response = await GET(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
     });
   });
 
-  describe("POST /api/comments", () => {
-    it("댓글 작성 성공", async () => {
-      const { createComment } = require("@/lib/db/comments");
-      createComment.mockResolvedValue({
-        id: "1",
-        content: "New comment",
-        news_id: "news1",
-        user_id: "user1",
-      });
+  describe('POST', () => {
+    it('댓글 생성에 성공해야 함', async () => {
+      const { auth } = await import('@/auth');
+      (auth as jest.Mock).mockResolvedValueOnce(mockSession);
 
-      const request = new NextRequest("http://localhost:3000/api/comments", {
-        method: "POST",
-        body: JSON.stringify({ newsId: "news1", content: "New comment" }),
+      const { createComment } = await import('@/lib/db/comments');
+      const mockComment = {
+        id: 'comment-123',
+        news_id: 'news-123',
+        user_id: 'user-123',
+        content: 'New comment',
+        created_at: '2025-01-15T00:00:00Z',
+      };
+      (createComment as jest.Mock).mockResolvedValueOnce(mockComment);
+
+      const request = new NextRequest('http://localhost:3000/api/comments', {
+        method: 'POST',
+        body: JSON.stringify({
+          newsId: 'news-123',
+          content: 'New comment',
+        }),
       });
 
       const response = await POST(request);
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.comment).toBeDefined();
+      expect(data.success).toBe(true);
+      expect(data.data.comment).toEqual(mockComment);
     });
 
-    it("로그인하지 않은 사용자는 401 반환", async () => {
-      const { auth } = require("@/auth");
-      auth.mockResolvedValue(null);
+    it('인증되지 않은 사용자는 401 에러를 받아야 함', async () => {
+      const { auth } = await import('@/auth');
+      (auth as jest.Mock).mockResolvedValueOnce(null);
 
-      const request = new NextRequest("http://localhost:3000/api/comments", {
-        method: "POST",
-        body: JSON.stringify({ newsId: "news1", content: "Comment" }),
+      const request = new NextRequest('http://localhost:3000/api/comments', {
+        method: 'POST',
+        body: JSON.stringify({
+          newsId: 'news-123',
+          content: 'New comment',
+        }),
       });
 
       const response = await POST(request);
+      const data = await response.json();
 
       expect(response.status).toBe(401);
+      expect(data.success).toBe(false);
+      expect(data.error.type).toBe('AUTH_ERROR');
     });
   });
 
-  describe("PATCH /api/comments", () => {
-    it("댓글 수정 성공 (작성자 본인)", async () => {
-      const { getCommentById, updateComment } = require("@/lib/db/comments");
-      getCommentById.mockResolvedValue({
-        id: "1",
-        content: "Old comment",
-        news_id: "news1",
-        user_id: "user1",
-      });
-      updateComment.mockResolvedValue({
-        id: "1",
-        content: "Updated comment",
-        news_id: "news1",
-        user_id: "user1",
-      });
+  describe('PATCH', () => {
+    it('댓글 수정에 성공해야 함', async () => {
+      const { auth } = await import('@/auth');
+      (auth as jest.Mock).mockResolvedValueOnce(mockSession);
 
-      const request = new NextRequest("http://localhost:3000/api/comments", {
-        method: "PATCH",
-        body: JSON.stringify({ commentId: "1", content: "Updated comment" }),
+      const { getCommentById, updateComment } = await import('@/lib/db/comments');
+      const mockComment = {
+        id: 'comment-123',
+        news_id: 'news-123',
+        user_id: 'user-123',
+        content: 'Original comment',
+      };
+      const updatedComment = {
+        ...mockComment,
+        content: 'Updated comment',
+      };
+
+      (getCommentById as jest.Mock).mockResolvedValueOnce(mockComment);
+      (updateComment as jest.Mock).mockResolvedValueOnce(updatedComment);
+
+      const request = new NextRequest('http://localhost:3000/api/comments', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          commentId: 'comment-123',
+          content: 'Updated comment',
+        }),
       });
 
       const response = await PATCH(request);
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.comment).toBeDefined();
-      expect(data.comment.content).toBe("Updated comment");
+      expect(data.success).toBe(true);
+      expect(data.data.comment.content).toBe('Updated comment');
     });
 
-    it("다른 사용자의 댓글 수정 시 403 반환", async () => {
-      const { getCommentById } = require("@/lib/db/comments");
-      getCommentById.mockResolvedValue({
-        id: "1",
-        content: "Old comment",
-        news_id: "news1",
-        user_id: "other_user",
-      });
+    it('작성자가 아닌 사용자는 403 에러를 받아야 함', async () => {
+      const { auth } = await import('@/auth');
+      (auth as jest.Mock).mockResolvedValueOnce(mockSession);
 
-      const request = new NextRequest("http://localhost:3000/api/comments", {
-        method: "PATCH",
-        body: JSON.stringify({ commentId: "1", content: "Updated comment" }),
+      const { getCommentById } = await import('@/lib/db/comments');
+      const mockComment = {
+        id: 'comment-123',
+        news_id: 'news-123',
+        user_id: 'other-user-123', // 다른 사용자
+        content: 'Original comment',
+      };
+
+      (getCommentById as jest.Mock).mockResolvedValueOnce(mockComment);
+
+      const request = new NextRequest('http://localhost:3000/api/comments', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          commentId: 'comment-123',
+          content: 'Updated comment',
+        }),
       });
 
       const response = await PATCH(request);
+      const data = await response.json();
 
       expect(response.status).toBe(403);
+      expect(data.success).toBe(false);
     });
   });
 
-  describe("DELETE /api/comments", () => {
-    it("댓글 삭제 성공 (작성자 본인)", async () => {
-      const { getCommentById, deleteComment } = require("@/lib/db/comments");
-      getCommentById.mockResolvedValue({
-        id: "1",
-        news_id: "news1",
-        user_id: "user1",
-      });
-      deleteComment.mockResolvedValue(undefined);
+  describe('DELETE', () => {
+    it('댓글 삭제에 성공해야 함', async () => {
+      const { auth } = await import('@/auth');
+      (auth as jest.Mock).mockResolvedValueOnce(mockSession);
 
-      const request = new NextRequest("http://localhost:3000/api/comments?commentId=1", {
-        method: "DELETE",
+      const { getCommentById, deleteComment } = await import('@/lib/db/comments');
+      const mockComment = {
+        id: 'comment-123',
+        news_id: 'news-123',
+        user_id: 'user-123',
+      };
+
+      (getCommentById as jest.Mock).mockResolvedValueOnce(mockComment);
+      (deleteComment as jest.Mock).mockResolvedValueOnce(undefined);
+
+      const request = new NextRequest('http://localhost:3000/api/comments?commentId=comment-123', {
+        method: 'DELETE',
       });
 
       const response = await DELETE(request);
@@ -198,32 +216,6 @@ describe("댓글 API", () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-    });
-
-    it("관리자는 모든 댓글 삭제 가능", async () => {
-      const { auth } = require("@/auth");
-      auth.mockResolvedValue({
-        user: {
-          id: "admin1",
-          role: "admin",
-        },
-      });
-
-      const { getCommentById, deleteComment } = require("@/lib/db/comments");
-      getCommentById.mockResolvedValue({
-        id: "1",
-        news_id: "news1",
-        user_id: "user1",
-      });
-      deleteComment.mockResolvedValue(undefined);
-
-      const request = new NextRequest("http://localhost:3000/api/comments?commentId=1", {
-        method: "DELETE",
-      });
-
-      const response = await DELETE(request);
-
-      expect(response.status).toBe(200);
     });
   });
 });

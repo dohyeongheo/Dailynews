@@ -16,16 +16,19 @@ export default auth(async (req) => {
 
   // CSRF 보호: API 라우트에서 POST/PUT/PATCH/DELETE 요청에 대해 CSRF 토큰 검증
   if (isApiRoute && requiresCsrfProtection(req.method)) {
-    // NextAuth 라우트와 CSRF 토큰 API는 제외
+    // 제외할 라우트들: NextAuth, CSRF 토큰 API, 비밀번호/Secret 기반 인증 API
     const isCsrfTokenRoute = nextUrl.pathname.startsWith("/api/csrf-token");
-    if (!isApiAuthRoute && !isCsrfTokenRoute) {
+    const isManualFetchRoute = nextUrl.pathname.startsWith("/api/manual/fetch-news");
+    const isCronFetchRoute = nextUrl.pathname.startsWith("/api/cron/fetch-news");
+
+    if (!isApiAuthRoute && !isCsrfTokenRoute && !isManualFetchRoute && !isCronFetchRoute) {
       const requestToken = req.headers.get(CSRF_TOKEN_HEADER);
       const cookieToken = req.cookies.get(CSRF_TOKEN_COOKIE_NAME)?.value;
 
       // CSRF 토큰 검증
       const { verifyCsrfToken } = await import("@/lib/utils/csrf");
       const isValid = verifyCsrfToken(requestToken || null, cookieToken || null);
-      
+
       if (!isValid) {
         console.error("[CSRF] 토큰 검증 실패:", {
           path: nextUrl.pathname,

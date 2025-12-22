@@ -2,14 +2,6 @@
 const { withSentryConfig } = require('@sentry/nextjs');
 
 const nextConfig = {
-  // Sentry 설정
-  sentry: {
-    // 자동 소스맵 업로드 비활성화 (선택사항)
-    hideSourceMaps: true,
-    // 와일드카드 경로 제외
-    widenClientFileUpload: true,
-  },
-
   // 성능 최적화
   compress: true,
 
@@ -24,6 +16,25 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['@google/generative-ai', '@supabase/supabase-js'],
   },
+
+  // Webpack 설정: pino-pretty와 thread-stream 처리
+  webpack: (config, { isServer, dev }) => {
+    if (isServer && !dev) {
+      // 프로덕션 빌드에서 pino-pretty와 thread-stream을 외부 모듈로 처리
+      // 이렇게 하면 worker thread 파일이 번들에 포함되지 않음
+      config.externals = config.externals || [];
+      if (Array.isArray(config.externals)) {
+        config.externals.push('pino-pretty', 'thread-stream');
+      } else {
+        config.externals = [
+          config.externals,
+          'pino-pretty',
+          'thread-stream',
+        ];
+      }
+    }
+    return config;
+  },
 };
 
 // Sentry가 설정된 경우에만 래핑
@@ -35,5 +46,8 @@ module.exports = isSentryEnabled
       silent: true,
       org: process.env.SENTRY_ORG,
       project: process.env.SENTRY_PROJECT,
+      // 기존에 nextConfig.sentry 안에 두었던 옵션들을 여기로 이동
+      hideSourceMaps: true,
+      widenClientFileUpload: true,
     })
   : nextConfig;

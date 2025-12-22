@@ -79,11 +79,11 @@ export async function getNewsByCategoryAction(
 }
 
 /**
- * 모든 뉴스를 조회하는 Server Action
+ * 모든 뉴스를 조회하는 Server Action (페이지네이션 지원)
  */
-export async function getAllNewsAction(limit: number = 30): Promise<{ success: boolean; data: News[] | null; error?: string }> {
+export async function getAllNewsAction(limit: number = 30, offset: number = 0): Promise<{ success: boolean; data: News[] | null; error?: string }> {
   try {
-    const data = await newsDB.getAllNews(limit);
+    const data = await newsDB.getAllNews(limit, offset);
     return {
       success: true,
       data,

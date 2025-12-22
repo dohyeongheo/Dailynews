@@ -10,7 +10,7 @@ interface NewsReactionsProps {
 
 export default function NewsReactions({ newsId }: NewsReactionsProps) {
   const { data: session } = useSession();
-  const { getHeaders } = useCsrfToken();
+  const { getHeaders, isLoading: isCsrfTokenLoading } = useCsrfToken();
   const [likes, setLikes] = useState(0);
   const [dislikes, setDislikes] = useState(0);
   const [userReaction, setUserReaction] = useState<"like" | "dislike" | null>(null);
@@ -43,7 +43,8 @@ export default function NewsReactions({ newsId }: NewsReactionsProps) {
       return;
     }
 
-    if (isLoading) return;
+    // CSRF 토큰이 아직 로딩 중이면 요청을 보내지 않음
+    if (isLoading || isCsrfTokenLoading) return;
 
     setIsLoading(true);
     try {
@@ -61,6 +62,12 @@ export default function NewsReactions({ newsId }: NewsReactionsProps) {
         setUserReaction(data.userReaction || null);
       } else {
         const error = await res.json();
+        // CSRF 토큰이 유효하지 않은 경우 안내 및 새로고침
+        if (res.status === 403 && error.error === "Invalid CSRF token") {
+          alert("보안 토큰이 만료되었습니다. 페이지를 새로고침한 후 다시 시도해주세요.");
+          window.location.reload();
+          return;
+        }
         alert(error.error || "반응을 저장하는데 실패했습니다.");
       }
     } catch (error) {

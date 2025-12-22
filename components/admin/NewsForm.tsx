@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { News, NewsCategory } from "@/types/news";
+import type { News, NewsCategory, NewsTopicCategory } from "@/types/news";
 
 interface NewsFormProps {
   news?: News;
@@ -16,6 +16,7 @@ export default function NewsForm({ news, onSuccess, onCancel }: NewsFormProps) {
     content: news?.content || "",
     content_translated: news?.content_translated || "",
     category: (news?.category || "태국뉴스") as NewsCategory,
+    news_category: (news?.news_category || null) as NewsTopicCategory | null,
     source_country: news?.source_country || "",
     source_media: news?.source_media || "",
     original_link: news?.original_link || "",
@@ -120,6 +121,33 @@ export default function NewsForm({ news, onSuccess, onCancel }: NewsFormProps) {
           </select>
         </div>
 
+        <div>
+          <label htmlFor="news_category" className="block text-sm font-medium text-gray-700 mb-1">
+            뉴스 주제 분류
+          </label>
+          <select
+            id="news_category"
+            value={formData.news_category || ""}
+            onChange={(e) => setFormData({ ...formData, news_category: e.target.value || null as NewsTopicCategory | null })}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">선택 안 함</option>
+            <option value="과학">과학</option>
+            <option value="사회">사회</option>
+            <option value="정치">정치</option>
+            <option value="경제">경제</option>
+            <option value="스포츠">스포츠</option>
+            <option value="문화">문화</option>
+            <option value="기술">기술</option>
+            <option value="건강">건강</option>
+            <option value="환경">환경</option>
+            <option value="국제">국제</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
         <div>
           <label htmlFor="published_date" className="block text-sm font-medium text-gray-700 mb-1">
             발행일 *

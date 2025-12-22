@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { insertNewsBatch } from "./db/news";
-import type { NewsInput, GeminiNewsResponse, NewsCategory } from "@/types/news";
+import type { NewsInput, GeminiNewsResponse, NewsCategory, NewsTopicCategory } from "@/types/news";
 import { log } from "./utils/logger";
 
 /**
@@ -315,7 +315,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
   // Gemini AI 클라이언트 초기화 (런타임에 실행)
   const genAI = getGenAI();
 
-  // gemini-2.5-flash 모델만 사용
+  // gemini-2.5-flash 모델 사용
   const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   log.info("모델 선택: gemini-2.5-flash");
 
@@ -344,22 +344,35 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
       "source_country": "태국" 또는 "한국",
       "source_media": "언론사 이름",
       "category": "태국뉴스" 또는 "관련뉴스" 또는 "한국뉴스",
-      "original_link": "원본 뉴스 링크 URL (반드시 http:// 또는 https://로 시작하는 완전한 URL이어야 함)",
+      "news_category": "과학" 또는 "사회" 또는 "정치" 또는 "경제" 또는 "스포츠" 또는 "문화" 또는 "기술" 또는 "건강" 또는 "환경" 또는 "국제" 또는 "기타" (뉴스 내용을 분석하여 가장 적합한 주제 분류를 선택, 없으면 null),
       "published_date": "${date}"
     }
   ]
 }
 
 중요 사항:
-- original_link는 가능한 한 실제 뉴스 기사 URL을 제공해주세요. http:// 또는 https://로 시작하는 완전한 URL 형식이어야 합니다.
-- original_link를 찾을 수 없는 경우, 빈 문자열("")로 설정하거나 해당 뉴스를 제외할 수 있습니다.
 - 각 뉴스의 본문 내용(content)은 상세하게 작성해주세요. 가능한 한 자세히 작성하되, 최소 300자 이상으로 작성해주세요. 뉴스의 핵심 내용, 배경 정보, 영향 등을 포함해주세요.
 - content_translated도 원문과 동일한 수준의 상세함을 유지하여 가능한 한 자세히 작성해주세요.
+- news_category는 뉴스의 제목과 내용을 분석하여 가장 적합한 주제 분류를 선택해주세요. 뉴스의 주요 주제가 명확하지 않은 경우 null로 설정할 수 있습니다.
 
 카테고리 분류 기준:
 - "태국뉴스": 태국에서 발생한 주요 뉴스
 - "관련뉴스": 한국에서 태국과 관련된 뉴스
 - "한국뉴스": 한국의 주요 뉴스
+
+뉴스 주제 분류(news_category) 기준:
+- "과학": 과학 연구, 발견, 기술 등
+- "사회": 사회 이슈, 인물, 지역 뉴스 등
+- "정치": 정치, 선거, 정책 등
+- "경제": 경제, 기업, 금융, 주식 등
+- "스포츠": 스포츠 경기, 선수, 대회 등
+- "문화": 예술, 문화, 엔터테인먼트 등
+- "기술": IT, 기술, 디지털 등
+- "건강": 건강, 의료, 질병 등
+- "환경": 환경, 기후, 생태 등
+- "국제": 국제 관계, 외교, 해외 뉴스 등
+- "기타": 위 분류에 해당하지 않는 경우
+- null: 주제 분류가 명확하지 않은 경우
 
 각 카테고리별로 가능한 한 많은 뉴스를 포함해주세요. (최소 10개 이상 권장)`;
 
@@ -521,6 +534,16 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
         return false;
       }
 
+      // news_category 유효성 검증 (선택적 필드이지만 유효한 값이어야 함)
+      if (item.news_category !== null && item.news_category !== undefined) {
+        const validNewsCategories: NewsTopicCategory[] = ["과학", "사회", "정치", "경제", "스포츠", "문화", "기술", "건강", "환경", "국제", "기타"];
+        if (typeof item.news_category !== "string" || !validNewsCategories.includes(item.news_category as NewsTopicCategory)) {
+          console.warn(`뉴스 항목 ${index + 1}: 유효하지 않은 news_category`, { title: item.title, news_category: item.news_category });
+          // 유효하지 않은 경우 null로 설정하여 계속 진행
+          item.news_category = null;
+        }
+      }
+
       return true;
     });
 
@@ -532,28 +555,12 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 
     // 데이터 정규화 및 변환
     const newsItems: NewsInput[] = validNewsItems.map((item) => {
-      // original_link 유효성 검사 및 정규화
-      let originalLink = item.original_link || "";
-
-      // 빈 문자열이거나 유효하지 않은 경우 처리
-      if (!originalLink || originalLink.trim() === "") {
-        originalLink = "#"; // 기본값으로 # 설정
-      } else {
-        // URL 형식 검증 및 정규화
-        originalLink = originalLink.trim();
-
-        // http:// 또는 https://로 시작하지 않으면 추가
-        if (!originalLink.startsWith("http://") && !originalLink.startsWith("https://")) {
-          originalLink = `https://${originalLink}`;
-        }
-
-        // URL 유효성 검사
-        try {
-          new URL(originalLink);
-        } catch {
-          // 유효하지 않은 URL인 경우 기본값으로 설정
-          console.warn(`Invalid URL detected: ${originalLink}, setting to #`);
-          originalLink = "#";
+      // news_category 유효성 검증 및 정규화
+      let newsCategory: NewsTopicCategory | null = null;
+      if (item.news_category && typeof item.news_category === "string") {
+        const validNewsCategories: NewsTopicCategory[] = ["과학", "사회", "정치", "경제", "스포츠", "문화", "기술", "건강", "환경", "국제", "기타"];
+        if (validNewsCategories.includes(item.news_category as NewsTopicCategory)) {
+          newsCategory = item.news_category as NewsTopicCategory;
         }
       }
 
@@ -565,7 +572,8 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
         content: item.content,
         content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
-        original_link: originalLink,
+        news_category: newsCategory,
+        original_link: "#", // 원문 출처는 가져오지 않으므로 항상 "#"로 설정
       };
     });
 

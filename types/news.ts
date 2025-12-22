@@ -1,4 +1,5 @@
 export type NewsCategory = '태국뉴스' | '관련뉴스' | '한국뉴스';
+export type NewsTopicCategory = '과학' | '사회' | '정치' | '경제' | '스포츠' | '문화' | '기술' | '건강' | '환경' | '국제' | '기타';
 
 export interface News {
   id: string;
@@ -9,6 +10,7 @@ export interface News {
   content: string;
   content_translated: string | null;
   category: NewsCategory;
+  news_category: NewsTopicCategory | null;
   original_link: string;
   created_at: string;
 }
@@ -21,6 +23,7 @@ export interface NewsInput {
   content: string;
   content_translated?: string | null;
   category: NewsCategory;
+  news_category?: NewsTopicCategory | null;
   original_link: string;
 }
 
@@ -32,7 +35,7 @@ export interface GeminiNewsResponse {
     source_country: string;
     source_media: string;
     category: NewsCategory;
-    original_link: string;
+    news_category?: NewsTopicCategory | null;
     published_date: string;
   }>;
 }

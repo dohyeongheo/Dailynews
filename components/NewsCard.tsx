@@ -119,15 +119,11 @@ function NewsCard({ news, showOriginalLink = true, initialBookmarked = false }: 
   return (
     <article
       className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4 sm:p-6 relative group"
-      aria-label={`${news.category} 뉴스: ${news.title}`}
+      aria-label={`${news.category}${news.news_category ? ` - ${news.news_category}` : ""} 뉴스: ${news.title}`}
     >
       <div className="flex items-start justify-between mb-2 sm:mb-3">
         <div className="flex-1 min-w-0 pr-8">
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
-            <span className="px-2 py-0.5 sm:py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded whitespace-nowrap">{news.category}</span>
-            <span className="px-2 py-0.5 sm:py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded whitespace-nowrap">{news.source_country}</span>
-            <span className="text-xs text-gray-500 truncate">{news.source_media}</span>
-          </div>
+          {/* 상단 태그/출처 영역 제거 (카드 상단에 카테고리/출처 표시하지 않음) */}
 
           <Link href={`/news/${news.id}`} className="block group-hover:text-blue-600 transition-colors">
             <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2 line-clamp-2" aria-label="뉴스 제목">
@@ -159,6 +155,11 @@ function NewsCard({ news, showOriginalLink = true, initialBookmarked = false }: 
 
       <div className="flex items-center justify-between text-xs text-gray-500 gap-2">
         <div className="flex items-center gap-2">
+          {news.news_category && (
+            <span className="px-2 py-0.5 inline-flex text-xs leading-4 font-semibold rounded-full bg-purple-100 text-purple-800">
+              {news.news_category}
+            </span>
+          )}
           {viewCount !== null && (
             <span className="flex items-center gap-1 whitespace-nowrap">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

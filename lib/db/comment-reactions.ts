@@ -9,7 +9,7 @@ export interface CommentReaction {
 }
 
 /**
- * 댓글에 대한 사용자의 반응 조회
+ * 댓글에 대한 사용자의 반응 조회 (회원)
  */
 export async function getUserCommentReaction(commentId: string, userId: string): Promise<"like" | "dislike" | null> {
   try {
@@ -33,16 +33,57 @@ export async function getUserCommentReaction(commentId: string, userId: string):
 }
 
 /**
+ * 댓글에 대한 비회원의 반응 조회 (IP 기반)
+ */
+export async function getUserCommentReactionByIp(commentId: string, guestIp: string): Promise<"like" | "dislike" | null> {
+  try {
+    const { data, error } = await (supabaseServer.from("comment_reactions") as any)
+      .select("reaction_type")
+      .eq("comment_id", commentId)
+      .eq("guest_ip", guestIp)
+      .is("user_id", null)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      console.error("Error getting guest comment reaction:", error);
+      return null;
+    }
+
+    return data?.reaction_type || null;
+  } catch (error) {
+    console.error("Error getting guest comment reaction:", error);
+    return null;
+  }
+}
+
+/**
  * 댓글 반응 추가/업데이트
  */
-export async function setCommentReaction(commentId: string, userId: string, reactionType: "like" | "dislike"): Promise<boolean> {
+export async function setCommentReaction(
+  commentId: string,
+  userId: string | null,
+  reactionType: "like" | "dislike",
+  guestIp?: string | null
+): Promise<boolean> {
   try {
     // 기존 반응 확인
-    const existing = await getUserCommentReaction(commentId, userId);
+    let existing: "like" | "dislike" | null = null;
+    if (userId) {
+      existing = await getUserCommentReaction(commentId, userId);
+    } else if (guestIp) {
+      existing = await getUserCommentReactionByIp(commentId, guestIp);
+    }
 
     if (existing === reactionType) {
       // 같은 반응이면 삭제 (토글)
-      const { error } = await (supabaseServer.from("comment_reactions") as any).delete().eq("comment_id", commentId).eq("user_id", userId);
+      let deleteQuery = (supabaseServer.from("comment_reactions") as any).delete().eq("comment_id", commentId);
+      if (userId) {
+        deleteQuery = deleteQuery.eq("user_id", userId);
+      } else if (guestIp) {
+        deleteQuery = deleteQuery.eq("guest_ip", guestIp).is("user_id", null);
+      }
+
+      const { error } = await deleteQuery;
 
       if (error) {
         console.error("Error removing comment reaction:", error);
@@ -52,23 +93,50 @@ export async function setCommentReaction(commentId: string, userId: string, reac
     }
 
     // 반응 추가/업데이트
-    const { error } = await (supabaseServer.from("comment_reactions") as any)
-      .upsert(
-        {
-          comment_id: commentId,
-          user_id: userId,
-          reaction_type: reactionType,
-        },
-        {
-          onConflict: "comment_id,user_id",
-        }
-      )
-      .select()
-      .single();
+    const insertData: {
+      comment_id: string;
+      user_id: string | null;
+      guest_ip?: string | null;
+      reaction_type: "like" | "dislike";
+    } = {
+      comment_id: commentId,
+      user_id: userId,
+      reaction_type: reactionType,
+    };
 
-    if (error) {
-      console.error("Error setting comment reaction:", error);
-      return false;
+    if (!userId && guestIp) {
+      insertData.guest_ip = guestIp;
+    }
+
+    // upsert 실행
+    if (userId) {
+      const { error } = await (supabaseServer.from("comment_reactions") as any)
+        .upsert(insertData, { onConflict: "comment_id,user_id" })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("Error setting comment reaction:", error);
+        return false;
+      }
+    } else if (guestIp) {
+      // guest_ip는 인덱스로 처리되므로 직접 처리
+      // 먼저 기존 항목 삭제 후 삽입
+      await (supabaseServer.from("comment_reactions") as any)
+        .delete()
+        .eq("comment_id", commentId)
+        .eq("guest_ip", guestIp)
+        .is("user_id", null);
+
+      const { error: insertError } = await (supabaseServer.from("comment_reactions") as any)
+        .insert(insertData)
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error("Error setting comment reaction:", insertError);
+        return false;
+      }
     }
 
     return true;

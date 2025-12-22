@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAndSaveNewsAction } from "@/lib/actions";
 
+// 이 라우트는 요청 헤더 등을 사용하는 동적 서버 코드이므로
+// 정적 렌더링 대상이 아닌 동적 처리로 강제한다.
+export const dynamic = "force-dynamic";
+
 /**
  * Vercel Cron Job: 매일 오전 6시 (태국 시간, UTC 23시) 뉴스 수집
  *

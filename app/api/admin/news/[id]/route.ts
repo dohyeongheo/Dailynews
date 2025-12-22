@@ -8,6 +8,7 @@ const updateNewsSchema = z.object({
   content: z.string().min(1, "내용은 필수입니다.").optional(),
   content_translated: z.string().optional(),
   category: z.enum(["태국뉴스", "관련뉴스", "한국뉴스"]).optional(),
+  news_category: z.enum(["과학", "사회", "정치", "경제", "스포츠", "문화", "기술", "건강", "환경", "국제", "기타"]).nullable().optional(),
   source_country: z.string().optional(),
   source_media: z.string().optional(),
   original_link: z.string().url().optional().or(z.literal("")),
@@ -39,6 +40,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       updateData.content_translated = validatedData.content_translated || null;
     }
     if (validatedData.category) updateData.category = validatedData.category;
+    if (validatedData.news_category !== undefined) {
+      updateData.news_category = validatedData.news_category || null;
+    }
     if (validatedData.source_country !== undefined) {
       updateData.source_country = validatedData.source_country;
     }
