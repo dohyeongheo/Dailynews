@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import dynamic from "next/dynamic";
+import { log } from "@/lib/utils/logger";
 
 // 동적 임포트로 성능 최적화
 const Header = dynamic(() => import("@/components/Header"), { ssr: true });
@@ -13,7 +14,7 @@ if (typeof window === "undefined" && process.env.NEXT_PUBLIC_SUPABASE_URL) {
     require("@/lib/config/env-check");
   } catch (error) {
     // 빌드 시 환경 변수가 없을 수 있으므로 무시
-    console.warn("[Env] 환경 변수 검증 건너뜀 (런타임에 검증됨)");
+    log.warn("Env 환경 변수 검증 건너뜀 (런타임에 검증됨)");
   }
 }
 

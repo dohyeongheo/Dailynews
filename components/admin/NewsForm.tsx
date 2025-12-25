@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { News, NewsCategory, NewsTopicCategory } from "@/types/news";
+import { clientLog } from "@/lib/utils/client-logger";
 
 interface NewsFormProps {
   news?: News;
@@ -52,7 +53,7 @@ export default function NewsForm({ news, onSuccess, onCancel }: NewsFormProps) {
       }
     } catch (err) {
       setError("오류가 발생했습니다.");
-      console.error("News form error:", err);
+      clientLog.error("News form error", err instanceof Error ? err : new Error(String(err)));
     } finally {
       setIsLoading(false);
     }

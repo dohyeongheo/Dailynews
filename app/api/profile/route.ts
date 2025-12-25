@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getUserByEmail, updateUserProfile } from "@/lib/db/users";
 import { z } from "zod";
+import { log } from "@/lib/utils/logger";
 
 const updateProfileSchema = z.object({
   name: z.string().min(2, "이름은 최소 2자 이상이어야 합니다.").optional(),
@@ -37,7 +38,7 @@ export async function GET() {
       user: userWithoutPassword,
     });
   } catch (error) {
-    console.error("Get profile error:", error);
+    log.error("Get profile error", error instanceof Error ? error : new Error(String(error)));
     return NextResponse.json({ error: "Failed to get profile" }, { status: 500 });
   }
 }
@@ -88,7 +89,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "입력값이 올바르지 않습니다.", details: error.issues }, { status: 400 });
     }
 
-    console.error("Update profile error:", error);
+    log.error("Update profile error", error instanceof Error ? error : new Error(String(error)));
     return NextResponse.json({ error: "프로필 업데이트 중 오류가 발생했습니다." }, { status: 500 });
   }
 }

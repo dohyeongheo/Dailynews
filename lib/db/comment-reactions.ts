@@ -1,4 +1,5 @@
 import { supabaseServer } from "../supabase/server";
+import { log } from "../utils/logger";
 
 export interface CommentReaction {
   id: string;
@@ -9,7 +10,7 @@ export interface CommentReaction {
 }
 
 /**
- * 댓글에 대한 사용자의 반응 조회 (회원)
+ * 댓글에 대한 사용자의 반응 조회
  */
 export async function getUserCommentReaction(commentId: string, userId: string): Promise<"like" | "dislike" | null> {
   try {
@@ -21,37 +22,13 @@ export async function getUserCommentReaction(commentId: string, userId: string):
 
     if (error && error.code !== "PGRST116") {
       // PGRST116은 "no rows returned" 에러로 정상적인 경우
-      console.error("Error getting user comment reaction:", error);
+      log.error("Error getting user comment reaction", new Error(error.message), { commentId, userId, errorCode: error.code });
       return null;
     }
 
     return data?.reaction_type || null;
   } catch (error) {
-    console.error("Error getting user comment reaction:", error);
-    return null;
-  }
-}
-
-/**
- * 댓글에 대한 비회원의 반응 조회 (IP 기반)
- */
-export async function getUserCommentReactionByIp(commentId: string, guestIp: string): Promise<"like" | "dislike" | null> {
-  try {
-    const { data, error } = await (supabaseServer.from("comment_reactions") as any)
-      .select("reaction_type")
-      .eq("comment_id", commentId)
-      .eq("guest_ip", guestIp)
-      .is("user_id", null)
-      .single();
-
-    if (error && error.code !== "PGRST116") {
-      console.error("Error getting guest comment reaction:", error);
-      return null;
-    }
-
-    return data?.reaction_type || null;
-  } catch (error) {
-    console.error("Error getting guest comment reaction:", error);
+    log.error("Error getting user comment reaction", error instanceof Error ? error : new Error(String(error)), { commentId, userId });
     return null;
   }
 }
@@ -59,89 +36,45 @@ export async function getUserCommentReactionByIp(commentId: string, guestIp: str
 /**
  * 댓글 반응 추가/업데이트
  */
-export async function setCommentReaction(
-  commentId: string,
-  userId: string | null,
-  reactionType: "like" | "dislike",
-  guestIp?: string | null
-): Promise<boolean> {
+export async function setCommentReaction(commentId: string, userId: string, reactionType: "like" | "dislike"): Promise<boolean> {
   try {
     // 기존 반응 확인
-    let existing: "like" | "dislike" | null = null;
-    if (userId) {
-      existing = await getUserCommentReaction(commentId, userId);
-    } else if (guestIp) {
-      existing = await getUserCommentReactionByIp(commentId, guestIp);
-    }
+    const existing = await getUserCommentReaction(commentId, userId);
 
     if (existing === reactionType) {
       // 같은 반응이면 삭제 (토글)
-      let deleteQuery = (supabaseServer.from("comment_reactions") as any).delete().eq("comment_id", commentId);
-      if (userId) {
-        deleteQuery = deleteQuery.eq("user_id", userId);
-      } else if (guestIp) {
-        deleteQuery = deleteQuery.eq("guest_ip", guestIp).is("user_id", null);
-      }
-
-      const { error } = await deleteQuery;
+      const { error } = await (supabaseServer.from("comment_reactions") as any).delete().eq("comment_id", commentId).eq("user_id", userId);
 
       if (error) {
-        console.error("Error removing comment reaction:", error);
+        log.error("Error removing comment reaction", new Error(error.message), { commentId, userId, errorCode: error.code });
         return false;
       }
       return true;
     }
 
     // 반응 추가/업데이트
-    const insertData: {
-      comment_id: string;
-      user_id: string | null;
-      guest_ip?: string | null;
-      reaction_type: "like" | "dislike";
-    } = {
-      comment_id: commentId,
-      user_id: userId,
-      reaction_type: reactionType,
-    };
+    const { error } = await (supabaseServer.from("comment_reactions") as any)
+      .upsert(
+        {
+          comment_id: commentId,
+          user_id: userId,
+          reaction_type: reactionType,
+        },
+        {
+          onConflict: "comment_id,user_id",
+        }
+      )
+      .select()
+      .single();
 
-    if (!userId && guestIp) {
-      insertData.guest_ip = guestIp;
-    }
-
-    // upsert 실행
-    if (userId) {
-      const { error } = await (supabaseServer.from("comment_reactions") as any)
-        .upsert(insertData, { onConflict: "comment_id,user_id" })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("Error setting comment reaction:", error);
-        return false;
-      }
-    } else if (guestIp) {
-      // guest_ip는 인덱스로 처리되므로 직접 처리
-      // 먼저 기존 항목 삭제 후 삽입
-      await (supabaseServer.from("comment_reactions") as any)
-        .delete()
-        .eq("comment_id", commentId)
-        .eq("guest_ip", guestIp)
-        .is("user_id", null);
-
-      const { error: insertError } = await (supabaseServer.from("comment_reactions") as any)
-        .insert(insertData)
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error("Error setting comment reaction:", insertError);
-        return false;
-      }
+    if (error) {
+      log.error("Error setting comment reaction", new Error(error.message), { commentId, userId, reactionType, errorCode: error.code });
+      return false;
     }
 
     return true;
   } catch (error) {
-    console.error("Error setting comment reaction:", error);
+    log.error("Error setting comment reaction", error instanceof Error ? error : new Error(String(error)), { commentId, userId, reactionType });
     return false;
   }
 }
@@ -154,7 +87,7 @@ export async function getCommentReactionCounts(commentId: string): Promise<{ lik
     const { data, error } = await (supabaseServer.from("comment_reactions") as any).select("reaction_type").eq("comment_id", commentId);
 
     if (error) {
-      console.error("Error getting comment reaction counts:", error);
+      log.error("Error getting comment reaction counts", new Error(error.message), { commentId, errorCode: error.code });
       return { likes: 0, dislikes: 0 };
     }
 
@@ -163,7 +96,7 @@ export async function getCommentReactionCounts(commentId: string): Promise<{ lik
 
     return { likes, dislikes };
   } catch (error) {
-    console.error("Error getting comment reaction counts:", error);
+    log.error("Error getting comment reaction counts", error instanceof Error ? error : new Error(String(error)), { commentId });
     return { likes: 0, dislikes: 0 };
   }
 }
@@ -180,7 +113,7 @@ export async function getCommentReactionCountsBatch(commentIds: string[]): Promi
     const { data, error } = await (supabaseServer.from("comment_reactions") as any).select("comment_id, reaction_type").in("comment_id", commentIds);
 
     if (error) {
-      console.error("Error getting comment reaction counts batch:", error);
+      log.error("Error getting comment reaction counts batch", new Error(error.message), { commentIdsCount: commentIds.length, errorCode: error.code });
       return {};
     }
 
@@ -205,7 +138,7 @@ export async function getCommentReactionCountsBatch(commentIds: string[]): Promi
 
     return result;
   } catch (error) {
-    console.error("Error getting comment reaction counts batch:", error);
+    log.error("Error getting comment reaction counts batch", error instanceof Error ? error : new Error(String(error)), { commentIdsCount: commentIds.length });
     return {};
   }
 }

@@ -1,5 +1,7 @@
 import { supabaseServer } from "../supabase/server";
 import type { News, NewsInput, NewsCategory } from "@/types/news";
+import { log } from "../utils/logger";
+import type { NewsRow } from "../types/supabase";
 
 /**
  * original_link로 중복 뉴스 확인
@@ -9,13 +11,13 @@ async function checkDuplicateNews(originalLink: string): Promise<boolean> {
     const { data, error } = await supabaseServer.from("news").select("id").eq("original_link", originalLink).limit(1);
 
     if (error) {
-      console.error("Error checking duplicate news:", error);
+      log.error("Error checking duplicate news", error instanceof Error ? error : new Error(String(error)));
       return false; // 에러 발생 시 중복이 아닌 것으로 간주하고 진행
     }
 
     return (data && data.length > 0) || false;
   } catch (error) {
-    console.error("Error checking duplicate news:", error);
+    log.error("Error checking duplicate news", error instanceof Error ? error : new Error(String(error)));
     return false;
   }
 }
@@ -28,14 +30,14 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
     // 중복 체크
     const isDuplicate = await checkDuplicateNews(news.original_link);
     if (isDuplicate) {
-      console.log(`중복 뉴스 건너뜀: ${news.original_link}`);
+      log.info("중복 뉴스 건너뜀", { originalLink: news.original_link });
       return {
         success: false,
         error: "이미 존재하는 뉴스입니다.",
       };
     }
 
-    const { error } = await (supabaseServer.from("news") as any).insert({
+    const { error } = await supabaseServer.from("news").insert({
       published_date: news.published_date,
       source_country: news.source_country,
       source_media: news.source_media,
@@ -50,14 +52,14 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
     if (error) {
       // 유니크 제약 조건 위반인 경우 중복으로 처리
       if (error.code === "23505" || error.message.includes("duplicate") || error.message.includes("unique")) {
-        console.log(`중복 뉴스 건너뜀 (DB 제약 조건): ${news.original_link}`);
+        log.info("중복 뉴스 건너뜀 (DB 제약 조건)", { originalLink: news.original_link });
         return {
           success: false,
           error: "이미 존재하는 뉴스입니다.",
         };
       }
 
-      console.error("Error inserting news:", error);
+      log.error("Error inserting news", new Error(error.message), { errorCode: error.code, originalLink: news.original_link });
       return {
         success: false,
         error: error.message,
@@ -66,7 +68,7 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
 
     return { success: true };
   } catch (error) {
-    console.error("Error inserting news:", error);
+    log.error("Error inserting news", error instanceof Error ? error : new Error(String(error)));
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error",
@@ -99,11 +101,11 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
       } else {
         failedCount++;
         if (result.status === "rejected") {
-          console.error("뉴스 저장 중 오류:", result.reason);
+          log.error("뉴스 저장 중 오류", result.reason instanceof Error ? result.reason : new Error(String(result.reason)));
         } else if (result.status === "fulfilled" && !result.value.success) {
           // 중복 뉴스는 실패로 카운트하지 않음 (정상 동작)
           if (result.value.error && !result.value.error.includes("이미 존재")) {
-            console.warn("뉴스 저장 실패:", result.value.error);
+            log.warn("뉴스 저장 실패", { error: result.value.error });
           }
         }
       }
@@ -111,7 +113,10 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
 
     // 진행 상황 로깅
     if ((i + BATCH_SIZE) % 20 === 0 || i + BATCH_SIZE >= newsItems.length) {
-      console.log(`💾 뉴스 저장 진행 중: ${Math.min(i + BATCH_SIZE, newsItems.length)}/${newsItems.length}개 처리됨`);
+      log.info("뉴스 저장 진행 중", {
+        processed: Math.min(i + BATCH_SIZE, newsItems.length),
+        total: newsItems.length,
+      });
     }
   }
 
@@ -123,17 +128,17 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
  */
 export async function getNewsByCategory(category: NewsCategory, limit: number = 10, offset: number = 0): Promise<News[]> {
   try {
-    console.log(`[getNewsByCategory] 카테고리: ${category}, 제한: ${limit}, 오프셋: ${offset}`);
+    log.debug("getNewsByCategory 호출", { category, limit, offset });
 
-    const { data, error } = await (supabaseServer.from("news") as any)
+    const { data, error } = await supabaseServer
+      .from("news")
       .select("*")
       .eq("category", category)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error("[getNewsByCategory] Supabase 에러 발생:", {
-        message: error.message,
+      log.error("getNewsByCategory Supabase 에러 발생", new Error(error.message), {
         details: error.details,
         hint: error.hint,
         code: error.code,
@@ -144,14 +149,14 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
     }
 
     if (!data) {
-      console.warn(`[getNewsByCategory] 데이터가 null입니다. 카테고리: ${category}`);
+      log.warn("getNewsByCategory 데이터가 null", { category });
       return [];
     }
 
-    console.log(`[getNewsByCategory] 성공: ${data.length}개의 뉴스 조회됨. 카테고리: ${category}`);
+    log.debug("getNewsByCategory 성공", { count: data.length, category });
 
     // 데이터 타입 변환 및 검증
-    const newsItems: News[] = data.map((item: any) => ({
+    const newsItems: News[] = data.map((item: NewsRow) => ({
       id: String(item.id || ""),
       published_date: item.published_date || "",
       source_country: item.source_country || "",
@@ -167,9 +172,7 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
 
     return newsItems;
   } catch (error) {
-    console.error("[getNewsByCategory] 예외 발생:", {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
+    log.error("getNewsByCategory 예외 발생", error instanceof Error ? error : new Error(String(error)), {
       category,
       limit,
     });
@@ -182,16 +185,16 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
  */
 export async function getAllNews(limit: number = 30, offset: number = 0): Promise<News[]> {
   try {
-    console.log(`[getAllNews] 제한: ${limit}, 오프셋: ${offset}`);
+    log.debug("getAllNews 호출", { limit, offset });
 
-    const { data, error } = await (supabaseServer.from("news") as any)
+    const { data, error } = await supabaseServer
+      .from("news")
       .select("*")
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) {
-      console.error("[getAllNews] Supabase 에러 발생:", {
-        message: error.message,
+      log.error("getAllNews Supabase 에러 발생", new Error(error.message), {
         details: error.details,
         hint: error.hint,
         code: error.code,
@@ -201,14 +204,14 @@ export async function getAllNews(limit: number = 30, offset: number = 0): Promis
     }
 
     if (!data) {
-      console.warn("[getAllNews] 데이터가 null입니다.");
+      log.warn("getAllNews 데이터가 null");
       return [];
     }
 
-    console.log(`[getAllNews] 성공: ${data.length}개의 뉴스 조회됨.`);
+    log.debug("getAllNews 성공", { count: data.length });
 
     // 데이터 타입 변환 및 검증
-    const newsItems: News[] = data.map((item: any) => ({
+    const newsItems: News[] = data.map((item: NewsRow) => ({
       id: String(item.id || ""),
       published_date: item.published_date || "",
       source_country: item.source_country || "",
@@ -224,11 +227,7 @@ export async function getAllNews(limit: number = 30, offset: number = 0): Promis
 
     return newsItems;
   } catch (error) {
-    console.error("[getAllNews] 예외 발생:", {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-      limit,
-    });
+    log.error("getAllNews 예외 발생", error instanceof Error ? error : new Error(String(error)), { limit });
     return [];
   }
 }
@@ -244,15 +243,15 @@ export async function searchNews(query: string, searchType: "title" | "content" 
 
   switch (searchType) {
     case "title": {
-      const { data, error } = await (supabaseServer.from("news") as any)
+      const { data, error } = await supabaseServer
+        .from("news")
         .select("*")
         .ilike("title", searchTerm)
         .order("created_at", { ascending: false })
         .limit(limit);
 
       if (error) {
-        console.error("[searchNews] Supabase 에러 발생 (title):", {
-          message: error.message,
+        log.error("searchNews Supabase 에러 발생 (title)", new Error(error.message), {
           details: error.details,
           hint: error.hint,
           code: error.code,
@@ -266,7 +265,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         return [];
       }
 
-      return data.map((item: any) => ({
+      return data.map((item: NewsRow) => ({
         id: String(item.id || ""),
         published_date: item.published_date || "",
         source_country: item.source_country || "",
@@ -275,6 +274,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         content: item.content || "",
         content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
+        news_category: item.news_category || null,
         original_link: item.original_link || "",
         created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
       }));
@@ -282,15 +282,15 @@ export async function searchNews(query: string, searchType: "title" | "content" 
 
     case "content": {
       // content 또는 content_translated에서 검색
-      const { data, error } = await (supabaseServer.from("news") as any)
+      const { data, error } = await supabaseServer
+        .from("news")
         .select("*")
         .or(`content.ilike.${searchTerm},content_translated.ilike.${searchTerm}`)
         .order("created_at", { ascending: false })
         .limit(limit);
 
       if (error) {
-        console.error("[searchNews] Supabase 에러 발생 (content):", {
-          message: error.message,
+        log.error("searchNews Supabase 에러 발생 (content)", new Error(error.message), {
           details: error.details,
           hint: error.hint,
           code: error.code,
@@ -304,7 +304,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         return [];
       }
 
-      return data.map((item: any) => ({
+      return data.map((item: NewsRow) => ({
         id: String(item.id || ""),
         published_date: item.published_date || "",
         source_country: item.source_country || "",
@@ -313,6 +313,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         content: item.content || "",
         content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
+        news_category: item.news_category || null,
         original_link: item.original_link || "",
         created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
       }));
@@ -321,15 +322,15 @@ export async function searchNews(query: string, searchType: "title" | "content" 
     case "all":
     default: {
       // title, content, content_translated에서 검색
-      const { data, error } = await (supabaseServer.from("news") as any)
+      const { data, error } = await supabaseServer
+        .from("news")
         .select("*")
         .or(`title.ilike.${searchTerm},content.ilike.${searchTerm},content_translated.ilike.${searchTerm}`)
         .order("created_at", { ascending: false })
         .limit(limit);
 
       if (error) {
-        console.error("[searchNews] Supabase 에러 발생 (all):", {
-          message: error.message,
+        log.error("searchNews Supabase 에러 발생 (all)", new Error(error.message), {
           details: error.details,
           hint: error.hint,
           code: error.code,
@@ -343,7 +344,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         return [];
       }
 
-      return data.map((item: any) => ({
+      return data.map((item: NewsRow) => ({
         id: String(item.id || ""),
         published_date: item.published_date || "",
         source_country: item.source_country || "",
@@ -352,6 +353,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         content: item.content || "",
         content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
+        news_category: item.news_category || null,
         original_link: item.original_link || "",
         created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
       }));
@@ -363,7 +365,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
  * 뉴스 개수 조회
  */
 export async function getNewsCount(category?: NewsCategory): Promise<number> {
-  let queryBuilder = (supabaseServer.from("news") as any).select("*", { count: "exact", head: true });
+  let queryBuilder = supabaseServer.from("news").select("*", { count: "exact", head: true });
 
   if (category) {
     queryBuilder = queryBuilder.eq("category", category);
@@ -372,7 +374,7 @@ export async function getNewsCount(category?: NewsCategory): Promise<number> {
   const { count, error } = await queryBuilder;
 
   if (error) {
-    console.error("Error getting news count:", error);
+    log.error("Error getting news count", error instanceof Error ? error : new Error(String(error)), { category });
     return 0;
   }
 
@@ -384,11 +386,10 @@ export async function getNewsCount(category?: NewsCategory): Promise<number> {
  */
 export async function getNewsById(id: string): Promise<News | null> {
   try {
-    const { data, error } = await (supabaseServer.from("news") as any).select("*").eq("id", id).single();
+    const { data, error } = await supabaseServer.from("news").select("*").eq("id", id).single();
 
     if (error) {
-      console.error("[getNewsById] Supabase 에러 발생:", {
-        message: error.message,
+      log.error("getNewsById Supabase 에러 발생", new Error(error.message), {
         details: error.details,
         hint: error.hint,
         code: error.code,
@@ -415,7 +416,7 @@ export async function getNewsById(id: string): Promise<News | null> {
       created_at: data.created_at ? new Date(data.created_at).toISOString() : new Date().toISOString(),
     };
   } catch (error) {
-    console.error("[getNewsById] 예외 발생:", error);
+    log.error("getNewsById 예외 발생", error instanceof Error ? error : new Error(String(error)), { id });
     return null;
   }
 }
@@ -425,16 +426,16 @@ export async function getNewsById(id: string): Promise<News | null> {
  */
 export async function deleteNews(id: string): Promise<boolean> {
   try {
-    const { error } = await (supabaseServer.from("news") as any).delete().eq("id", id);
+    const { error } = await supabaseServer.from("news").delete().eq("id", id);
 
     if (error) {
-      console.error("[deleteNews] Supabase 에러 발생:", error);
+      log.error("deleteNews Supabase 에러 발생", new Error(error.message), { id, errorCode: error.code });
       return false;
     }
 
     return true;
   } catch (error) {
-    console.error("[deleteNews] 예외 발생:", error);
+    log.error("deleteNews 예외 발생", error instanceof Error ? error : new Error(String(error)), { id });
     return false;
   }
 }
@@ -444,7 +445,8 @@ export async function deleteNews(id: string): Promise<boolean> {
  */
 export async function getRelatedNews(currentNewsId: string, category: NewsCategory, limit: number = 5): Promise<News[]> {
   try {
-    const { data, error } = await (supabaseServer.from("news") as any)
+    const { data, error } = await supabaseServer
+      .from("news")
       .select("*")
       .eq("category", category)
       .neq("id", currentNewsId)
@@ -452,7 +454,12 @@ export async function getRelatedNews(currentNewsId: string, category: NewsCatego
       .limit(limit);
 
     if (error) {
-      console.error("[getRelatedNews] Supabase 에러 발생:", error);
+      log.error("getRelatedNews Supabase 에러 발생", new Error(error.message), {
+        currentNewsId,
+        category,
+        limit,
+        errorCode: error.code,
+      });
       return [];
     }
 
@@ -460,7 +467,7 @@ export async function getRelatedNews(currentNewsId: string, category: NewsCatego
       return [];
     }
 
-    return data.map((item: any) => ({
+    return data.map((item: NewsRow) => ({
       id: String(item.id || ""),
       published_date: item.published_date || "",
       source_country: item.source_country || "",
@@ -474,7 +481,11 @@ export async function getRelatedNews(currentNewsId: string, category: NewsCatego
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));
   } catch (error) {
-    console.error("[getRelatedNews] 예외 발생:", error);
+    log.error("getRelatedNews 예외 발생", error instanceof Error ? error : new Error(String(error)), {
+      currentNewsId,
+      category,
+      limit,
+    });
     return [];
   }
 }

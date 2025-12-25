@@ -1,6 +1,7 @@
 import { getNewsByCategoryAction } from "@/lib/actions";
 import dynamic from "next/dynamic";
 import type { NewsCategory } from "@/types/news";
+import { log } from "@/lib/utils/logger";
 
 // 동적 임포트로 성능 최적화
 const NewsSection = dynamic(() => import("@/components/NewsSection"), { ssr: true });
@@ -18,13 +19,13 @@ export default async function Home() {
 
   // 에러 확인 및 로깅
   if (!thailandNews.success && thailandNews.error) {
-    console.error("[Home] 태국뉴스 조회 실패:", thailandNews.error);
+    log.error("Home 태국뉴스 조회 실패", undefined, { error: thailandNews.error });
   }
   if (!koreaNews.success && koreaNews.error) {
-    console.error("[Home] 한국뉴스 조회 실패:", koreaNews.error);
+    log.error("Home 한국뉴스 조회 실패", undefined, { error: koreaNews.error });
   }
   if (!relatedNews.success && relatedNews.error) {
-    console.error("[Home] 관련뉴스 조회 실패:", relatedNews.error);
+    log.error("Home 관련뉴스 조회 실패", undefined, { error: relatedNews.error });
   }
 
   return (

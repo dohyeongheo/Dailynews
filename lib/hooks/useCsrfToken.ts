@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { CSRF_TOKEN_HEADER } from "@/lib/utils/csrf-constants";
 
+// 클라이언트 사이드에서는 console 사용 (서버 사이드 log 유틸리티 사용 불가)
+// TODO: 클라이언트 사이드 로깅 유틸리티 추가 고려
+
 /**
  * CSRF 토큰을 가져와서 관리하는 훅
  */

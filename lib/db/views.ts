@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { log } from '../utils/logger';
 
 export async function incrementViewCount(newsId: string) {
   const supabase = createClient();
@@ -10,7 +11,7 @@ export async function incrementViewCount(newsId: string) {
   });
 
   if (error) {
-    console.error('Error incrementing view count:', error);
+    log.error('Error incrementing view count', new Error(error.message), { newsId, errorCode: error.code });
     return 0;
   }
   return data;

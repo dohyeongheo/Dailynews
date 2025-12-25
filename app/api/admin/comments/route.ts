@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
+import { log } from "@/lib/utils/logger";
+import { withAdmin, withErrorHandling } from "@/lib/utils/api-middleware";
+import { createSuccessResponse, createErrorResponse } from "@/lib/utils/api-response";
 
 /**
  * 모든 댓글 조회 (관리자 전용)
  */
-export async function GET() {
-  const session = await auth();
-
-  if (!session || !session.user || session.user.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
+export const GET = withAdmin(
+  withErrorHandling(async (request) => {
     const supabase = createClient();
 
     const { data, error } = await supabase
@@ -28,13 +25,10 @@ export async function GET() {
       .limit(100); // 최대 100개
 
     if (error) {
-      console.error("Get all comments error:", error);
-      return NextResponse.json({ error: "Failed to get comments" }, { status: 500 });
+      log.error("Get all comments error", new Error(error.message), { errorCode: error.code });
+      return createErrorResponse(new Error(error.message), 500);
     }
 
-    return NextResponse.json({ comments: data || [] });
-  } catch (error) {
-    console.error("Get all comments error:", error);
-    return NextResponse.json({ error: "Failed to get comments" }, { status: 500 });
-  }
-}
+    return createSuccessResponse({ comments: data || [] });
+  })
+);

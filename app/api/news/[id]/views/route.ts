@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getViewCount } from "@/lib/db/views";
+import { log } from "@/lib/utils/logger";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -11,7 +12,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     return response;
   } catch (error) {
-    console.error("Get view count error:", error);
+    log.error("Get view count error", error instanceof Error ? error : new Error(String(error)), { id: params.id });
     const response = NextResponse.json({ viewCount: 0 });
     response.headers.set('Cache-Control', 'no-store');
     return response;

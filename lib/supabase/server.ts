@@ -43,7 +43,5 @@ export function createClient() {
   });
 }
 
-console.log("[Supabase Server] 클라이언트 초기화 완료:", {
-  url: supabaseUrl.substring(0, 30) + "...",
-  hasServiceRoleKey: !!supabaseServiceRoleKey,
-});
+// 클라이언트 초기화 로그는 환경 변수 검증 시점에만 필요하므로 제거
+// 필요시 log.info로 변경 가능

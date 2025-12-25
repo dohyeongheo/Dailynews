@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkRateLimit } from "./rate-limit-redis";
+import { checkRateLimit } from "./rate-limit";
 
 interface RateLimitConfig {
   maxRequests: number;

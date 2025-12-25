@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
+import { log } from "@/lib/utils/logger";
+import { withAdmin, withErrorHandling } from "@/lib/utils/api-middleware";
+import { createSuccessResponse, createErrorResponse } from "@/lib/utils/api-response";
+import { BadRequestError } from "@/lib/errors";
 
 const updateNewsSchema = z.object({
   title: z.string().min(1, "제목은 필수입니다.").optional(),
@@ -19,57 +23,46 @@ const updateNewsSchema = z.object({
  * 뉴스 수정
  */
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
-  const session = await auth();
+  return withAdmin(
+    withErrorHandling(async (req: NextRequest) => {
+      const body = await req.json();
+      const validatedData = updateNewsSchema.parse(body);
 
-  if (!session || !session.user || session.user.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+      const supabase = createClient();
+      const updateData: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
 
-  try {
-    const body = await request.json();
-    const validatedData = updateNewsSchema.parse(body);
+      if (validatedData.title) updateData.title = validatedData.title;
+      if (validatedData.content) updateData.content = validatedData.content;
+      if (validatedData.content_translated !== undefined) {
+        updateData.content_translated = validatedData.content_translated || null;
+      }
+      if (validatedData.category) updateData.category = validatedData.category;
+      if (validatedData.news_category !== undefined) {
+        updateData.news_category = validatedData.news_category || null;
+      }
+      if (validatedData.source_country !== undefined) {
+        updateData.source_country = validatedData.source_country;
+      }
+      if (validatedData.source_media !== undefined) {
+        updateData.source_media = validatedData.source_media;
+      }
+      if (validatedData.original_link !== undefined) {
+        updateData.original_link = validatedData.original_link || "#";
+      }
+      if (validatedData.published_date) {
+        updateData.published_date = validatedData.published_date;
+      }
 
-    const supabase = createClient();
-    const updateData: any = {
-      updated_at: new Date().toISOString(),
-    };
+      const { error } = await supabase.from("news").update(updateData).eq("id", params.id);
 
-    if (validatedData.title) updateData.title = validatedData.title;
-    if (validatedData.content) updateData.content = validatedData.content;
-    if (validatedData.content_translated !== undefined) {
-      updateData.content_translated = validatedData.content_translated || null;
-    }
-    if (validatedData.category) updateData.category = validatedData.category;
-    if (validatedData.news_category !== undefined) {
-      updateData.news_category = validatedData.news_category || null;
-    }
-    if (validatedData.source_country !== undefined) {
-      updateData.source_country = validatedData.source_country;
-    }
-    if (validatedData.source_media !== undefined) {
-      updateData.source_media = validatedData.source_media;
-    }
-    if (validatedData.original_link !== undefined) {
-      updateData.original_link = validatedData.original_link || "#";
-    }
-    if (validatedData.published_date) {
-      updateData.published_date = validatedData.published_date;
-    }
+      if (error) {
+        log.error("Update news error", new Error(error.message), { id: params.id, errorCode: error.code });
+        return createErrorResponse(new Error(error.message), 500);
+      }
 
-    const { error } = await supabase.from("news").update(updateData).eq("id", params.id);
-
-    if (error) {
-      console.error("Update news error:", error);
-      return NextResponse.json({ error: "뉴스 수정에 실패했습니다." }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, message: "뉴스가 수정되었습니다." });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "입력값이 올바르지 않습니다.", details: error.issues }, { status: 400 });
-    }
-
-    console.error("Update news error:", error);
-    return NextResponse.json({ error: "뉴스 수정 중 오류가 발생했습니다." }, { status: 500 });
-  }
+      return createSuccessResponse({ success: true }, "뉴스가 수정되었습니다.");
+    })
+  )(request);
 }

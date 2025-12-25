@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/auth";
-import { setCommentReaction, getCommentReactionCounts, getUserCommentReaction, getUserCommentReactionByIp } from "@/lib/db/comment-reactions";
+import { setCommentReaction, getCommentReactionCounts, getUserCommentReaction } from "@/lib/db/comment-reactions";
 import { withErrorHandling } from "@/lib/utils/api-middleware";
 import { applyRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/utils/rate-limit-helper";
 import { createSuccessResponse, createErrorResponse } from "@/lib/utils/api-response";
@@ -23,6 +23,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     const session = await auth();
+    if (!session || !session.user) {
+      return createErrorResponse(new AuthError("인증이 필요합니다."), 401);
+    }
+
     const commentId = params.id;
 
     const bodyResult = await parseJsonBody(req, reactionSchema);
@@ -31,21 +35,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     const { reactionType } = bodyResult.data;
+    const userId = getUserId(req, session);
 
-    // 회원 또는 비회원 처리
-    let userId: string | null = null;
-    let guestIp: string | null = null;
-
-    if (session?.user?.id) {
-      userId = session.user.id;
-    } else {
-      // 비회원인 경우 IP 주소 사용
-      const forwarded = req.headers.get("x-forwarded-for");
-      const realIp = req.headers.get("x-real-ip");
-      guestIp = forwarded?.split(",")[0]?.trim() || realIp || req.headers.get("x-vercel-forwarded-for") || "unknown";
-    }
-
-    const success = await setCommentReaction(commentId, userId, reactionType, guestIp);
+    const success = await setCommentReaction(commentId, userId, reactionType);
 
     if (!success) {
       throw new InternalServerError("반응 설정에 실패했습니다.");
@@ -54,7 +46,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     // 업데이트된 반응 개수와 사용자 반응 조회
     const [counts, userReaction] = await Promise.all([
       getCommentReactionCounts(commentId),
-      userId ? getUserCommentReaction(commentId, userId) : (guestIp ? getUserCommentReactionByIp(commentId, guestIp) : Promise.resolve(null)),
+      getUserCommentReaction(commentId, userId),
     ]);
 
     return createSuccessResponse({
@@ -70,20 +62,10 @@ export const GET = withErrorHandling(async (request: NextRequest, { params }: { 
   const session = await auth();
   const userId = session?.user?.id;
 
-  // 비회원인 경우 IP 주소 사용
-  let userReaction: "like" | "dislike" | null = null;
-  if (userId) {
-    userReaction = await getUserCommentReaction(commentId, userId);
-  } else {
-    const forwarded = request.headers.get("x-forwarded-for");
-    const realIp = request.headers.get("x-real-ip");
-    const guestIp = forwarded?.split(",")[0]?.trim() || realIp || request.headers.get("x-vercel-forwarded-for");
-    if (guestIp) {
-      userReaction = await getUserCommentReactionByIp(commentId, guestIp);
-    }
-  }
-
-  const counts = await getCommentReactionCounts(commentId);
+  const [counts, userReaction] = await Promise.all([
+    getCommentReactionCounts(commentId),
+    userId ? getUserCommentReaction(commentId, userId) : Promise.resolve(null),
+  ]);
 
   return createSuccessResponse({
     counts,

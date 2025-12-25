@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { getAllNewsAction, deleteNewsAction, searchNewsAction } from "@/lib/actions";
 import type { News } from "@/types/news";
 import NewsForm from "./NewsForm";
+import { clientLog } from "@/lib/utils/client-logger";
 
 const PAGE_SIZE = 20;
 
@@ -55,7 +56,7 @@ export default function NewsManagement() {
         setSelectedIds(new Set());
       }
     } catch (error) {
-      console.error("Failed to load news", error);
+      clientLog.error("Failed to load news", error instanceof Error ? error : new Error(String(error)));
     } finally {
       setIsLoading(false);
     }
@@ -87,7 +88,7 @@ export default function NewsManagement() {
         }
       }
     } catch (error) {
-      console.error("Failed to search news", error);
+      clientLog.error("Failed to search news", error instanceof Error ? error : new Error(String(error)), { searchQuery, searchType });
     } finally {
       setIsLoading(false);
     }
@@ -176,8 +177,7 @@ export default function NewsManagement() {
         }
       }
     } catch (error) {
-      console.error("Failed to delete news", error);
-      alert("오류가 발생했습니다.");
+      clientLog.error("Failed to delete news", error instanceof Error ? error : new Error(String(error)), { selectedCount: selectedIds.size });
     } finally {
       setIsDeleting(false);
     }

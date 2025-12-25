@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getAllUsersAction } from "@/lib/actions";
+import { clientLog } from "@/lib/utils/client-logger";
 
 interface User {
   id: string;
@@ -28,7 +29,7 @@ export default function UserManagement() {
         setUsers(res.data);
       }
     } catch (error) {
-      console.error("Failed to load users", error);
+      clientLog.error("Failed to load users", error instanceof Error ? error : new Error(String(error)));
     } finally {
       setIsLoading(false);
     }
@@ -51,8 +52,7 @@ export default function UserManagement() {
         alert("권한 변경에 실패했습니다: " + res.error);
       }
     } catch (error) {
-      console.error("Failed to update user role", error);
-      alert("오류가 발생했습니다.");
+      clientLog.error("Failed to update user role", error instanceof Error ? error : new Error(String(error)), { userId, newRole });
     } finally {
       setUpdatingUserId(null);
     }

@@ -1,33 +1,9 @@
 /**
  * 캐싱 유틸리티 모듈
- * Redis 기반 캐싱 (Upstash Redis) + In-memory fallback
+ * In-memory 기반 캐싱
  */
 
-import { Redis } from '@upstash/redis';
-
-// Upstash Redis 클라이언트 초기화
-let redis: Redis | null = null;
-
-/**
- * Redis 클라이언트 가져오기
- */
-function getRedisClient(): Redis | null {
-  // 환경 변수가 설정되어 있지 않으면 null 반환
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
-    return null;
-  }
-
-  if (!redis) {
-    redis = new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    });
-  }
-
-  return redis;
-}
-
-// In-memory fallback (Redis를 사용할 수 없을 때)
+// In-memory 캐시 저장소
 interface CacheEntry<T> {
   value: T;
   expiresAt: number;
@@ -47,20 +23,8 @@ function createCacheKey(namespace: string, key: string): string {
  */
 export async function getCache<T>(namespace: string, key: string): Promise<T | null> {
   const cacheKey = createCacheKey(namespace, key);
-  const client = getRedisClient();
 
-  // Redis를 사용할 수 있으면 Redis에서 가져오기
-  if (client) {
-    try {
-      const cached = await client.get<T>(cacheKey);
-      return cached;
-    } catch (error) {
-      console.error('[Cache] Redis get error:', error);
-      // Redis 에러 시 in-memory fallback
-    }
-  }
-
-  // In-memory fallback
+  // In-memory 캐시에서 조회
   const entry = inMemoryStore.get(cacheKey);
   if (!entry) {
     return null;
@@ -80,20 +44,8 @@ export async function getCache<T>(namespace: string, key: string): Promise<T | n
  */
 export async function setCache<T>(namespace: string, key: string, value: T, ttlSeconds: number = 60): Promise<void> {
   const cacheKey = createCacheKey(namespace, key);
-  const client = getRedisClient();
 
-  // Redis를 사용할 수 있으면 Redis에 저장
-  if (client) {
-    try {
-      await client.setex(cacheKey, ttlSeconds, value);
-      return;
-    } catch (error) {
-      console.error('[Cache] Redis set error:', error);
-      // Redis 에러 시 in-memory fallback
-    }
-  }
-
-  // In-memory fallback
+  // In-memory 캐시에 저장
   const expiresAt = Date.now() + ttlSeconds * 1000;
   inMemoryStore.set(cacheKey, {
     value,
@@ -111,20 +63,8 @@ export async function setCache<T>(namespace: string, key: string, value: T, ttlS
  */
 export async function deleteCache(namespace: string, key: string): Promise<void> {
   const cacheKey = createCacheKey(namespace, key);
-  const client = getRedisClient();
 
-  // Redis를 사용할 수 있으면 Redis에서 삭제
-  if (client) {
-    try {
-      await client.del(cacheKey);
-      return;
-    } catch (error) {
-      console.error('[Cache] Redis delete error:', error);
-      // Redis 에러 시 in-memory fallback
-    }
-  }
-
-  // In-memory fallback
+  // In-memory 캐시에서 삭제
   inMemoryStore.delete(cacheKey);
 }
 
@@ -132,34 +72,7 @@ export async function deleteCache(namespace: string, key: string): Promise<void>
  * 네임스페이스의 모든 캐시 삭제 (패턴 매칭)
  */
 export async function invalidateNamespace(namespace: string): Promise<void> {
-  const pattern = createCacheKey(namespace, '*');
-  const client = getRedisClient();
-
-  // Redis를 사용할 수 있으면
-  if (client) {
-    try {
-      // Redis SCAN으로 패턴 매칭하는 키들 찾기
-      const keys: string[] = [];
-      let cursor = 0;
-
-      do {
-        const result = await client.scan(cursor, { match: pattern, count: 100 });
-        cursor = result[0] as number;
-        keys.push(...(result[1] as string[]));
-      } while (cursor !== 0);
-
-      // 찾은 키들 삭제
-      if (keys.length > 0) {
-        await client.del(...keys);
-      }
-      return;
-    } catch (error) {
-      console.error('[Cache] Redis invalidate namespace error:', error);
-      // Redis 에러 시 in-memory fallback
-    }
-  }
-
-  // In-memory fallback: 네임스페이스로 시작하는 모든 키 삭제
+  // In-memory 캐시: 네임스페이스로 시작하는 모든 키 삭제
   const prefix = createCacheKey(namespace, '');
   for (const key of inMemoryStore.keys()) {
     if (key.startsWith(prefix)) {
@@ -169,7 +82,7 @@ export async function invalidateNamespace(namespace: string): Promise<void> {
 }
 
 /**
- * 만료된 항목 정리 (in-memory fallback용)
+ * 만료된 항목 정리
  */
 function cleanupExpiredEntries(): void {
   const now = Date.now();
@@ -183,9 +96,8 @@ function cleanupExpiredEntries(): void {
 /**
  * 캐시 통계 가져오기 (디버깅용)
  */
-export function getCacheStats(): { redis: boolean; inMemorySize: number } {
+export function getCacheStats(): { inMemorySize: number } {
   return {
-    redis: getRedisClient() !== null,
     inMemorySize: inMemoryStore.size,
   };
 }

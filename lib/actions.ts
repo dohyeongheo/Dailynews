@@ -4,6 +4,7 @@ import { fetchAndSaveNews } from "./news-fetcher";
 import * as newsDB from "./db/news";
 import type { News, NewsCategory } from "@/types/news";
 import { toAppError, getErrorMessage, ErrorType } from "./errors";
+import { log } from "./utils/logger";
 
 /**
  * 뉴스를 수집하고 데이터베이스에 저장하는 Server Action
@@ -23,7 +24,7 @@ export async function fetchAndSaveNewsAction(date?: string) {
       data: result,
     };
   } catch (error) {
-    console.error("Error in fetchAndSaveNewsAction:", error);
+    log.error("Error in fetchAndSaveNewsAction", error instanceof Error ? error : new Error(String(error)));
     const appError = toAppError(error, ErrorType.API_ERROR);
     const errorMessage = getErrorMessage(appError);
     return {
@@ -43,11 +44,11 @@ export async function getNewsByCategoryAction(
   offset: number = 0
 ): Promise<{ success: boolean; data: News[] | null; error?: string }> {
   try {
-    console.log(`[getNewsByCategoryAction] 시작 - 카테고리: ${category}, 제한: ${limit}, 오프셋: ${offset}`);
+    log.debug("getNewsByCategoryAction 시작", { category, limit, offset });
     const data = await newsDB.getNewsByCategory(category, limit, offset);
 
     if (!data || !Array.isArray(data)) {
-      console.warn(`[getNewsByCategoryAction] 유효하지 않은 데이터 반환 - 카테고리: ${category}`);
+      log.warn("getNewsByCategoryAction 유효하지 않은 데이터 반환", { category });
       return {
         success: false,
         data: null,
@@ -55,7 +56,7 @@ export async function getNewsByCategoryAction(
       };
     }
 
-    console.log(`[getNewsByCategoryAction] 성공 - ${data.length}개의 뉴스 조회됨. 카테고리: ${category}`);
+    log.debug("getNewsByCategoryAction 성공", { count: data.length, category });
 
     return {
       success: true,
@@ -64,9 +65,7 @@ export async function getNewsByCategoryAction(
   } catch (error) {
     const appError = toAppError(error, ErrorType.DATABASE_ERROR);
     const errorMessage = getErrorMessage(appError);
-    console.error("[getNewsByCategoryAction] 에러 발생:", {
-      error: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
+    log.error("getNewsByCategoryAction 에러 발생", error instanceof Error ? error : new Error(String(error)), {
       category,
       limit,
     });
@@ -89,7 +88,7 @@ export async function getAllNewsAction(limit: number = 30, offset: number = 0): 
       data,
     };
   } catch (error) {
-    console.error("Error in getAllNews:", error);
+    log.error("Error in getAllNews", error instanceof Error ? error : new Error(String(error)));
     const appError = toAppError(error, ErrorType.DATABASE_ERROR);
     const errorMessage = getErrorMessage(appError);
     return {
@@ -112,11 +111,11 @@ export async function getNewsByCategoryPaginatedAction(
     const offset = (page - 1) * pageSize;
     const limit = pageSize + 1; // 한 개 더 가져와서 hasMore 판단
 
-    console.log(`[getNewsByCategoryPaginatedAction] 시작 - 카테고리: ${category}, 페이지: ${page}, 페이지 크기: ${pageSize}`);
+    log.debug("getNewsByCategoryPaginatedAction 시작", { category, page, pageSize });
     const data = await newsDB.getNewsByCategory(category, limit, offset);
 
     if (!data || !Array.isArray(data)) {
-      console.warn(`[getNewsByCategoryPaginatedAction] 유효하지 않은 데이터 반환 - 카테고리: ${category}`);
+      log.warn("getNewsByCategoryPaginatedAction 유효하지 않은 데이터 반환", { category });
       return {
         success: false,
         data: null,
@@ -129,7 +128,7 @@ export async function getNewsByCategoryPaginatedAction(
     const hasMore = data.length > pageSize;
     const newsData = hasMore ? data.slice(0, pageSize) : data;
 
-    console.log(`[getNewsByCategoryPaginatedAction] 성공 - ${newsData.length}개의 뉴스 조회됨. 카테고리: ${category}, 더 있음: ${hasMore}`);
+    log.debug("getNewsByCategoryPaginatedAction 성공", { count: newsData.length, category, hasMore });
 
     return {
       success: true,
@@ -139,9 +138,7 @@ export async function getNewsByCategoryPaginatedAction(
   } catch (error) {
     const appError = toAppError(error, ErrorType.DATABASE_ERROR);
     const errorMessage = getErrorMessage(appError);
-    console.error("[getNewsByCategoryPaginatedAction] 에러 발생:", {
-      error: errorMessage,
-      stack: error instanceof Error ? error.stack : undefined,
+    log.error("getNewsByCategoryPaginatedAction 에러 발생", error instanceof Error ? error : new Error(String(error)), {
       category,
       page,
       pageSize,
@@ -170,7 +167,7 @@ export async function searchNewsAction(
       data,
     };
   } catch (error) {
-    console.error("Error in searchNews:", error);
+    log.error("Error in searchNews", error instanceof Error ? error : new Error(String(error)));
     const appError = toAppError(error, ErrorType.DATABASE_ERROR);
     const errorMessage = getErrorMessage(appError);
     return {
@@ -212,7 +209,7 @@ export async function getAllUsersAction(limit = 50, offset = 0) {
     const users = await getAllUsers(limit, offset);
     return { success: true, data: users as any }; // 타입 호환성을 위해 any 캐스팅 (User 타입 확장 필요할 수 있음)
   } catch (error) {
-    console.error("Get users error:", error);
+    log.error("Get users error", error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: "Failed to get users" };
   }
 }
@@ -228,7 +225,7 @@ export async function updateUserRoleAction(userId: string, role: 'user' | 'admin
     await updateUserRole(userId, role);
     return { success: true };
   } catch (error) {
-    console.error("Update user role error:", error);
+    log.error("Update user role error", error instanceof Error ? error : new Error(String(error)), { userId, role });
     return { success: false, error: "Failed to update user role" };
   }
 }
@@ -257,7 +254,7 @@ export async function updateProfileAction(data: { name?: string; password?: stri
 
     return { success: true, data: result.user, message: result.message };
   } catch (error) {
-    console.error('Update profile error:', error);
+    log.error("Update profile error", error instanceof Error ? error : new Error(String(error)));
     return { success: false, error: 'Failed to update profile' };
   }
 }

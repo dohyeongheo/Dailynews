@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { clientLog } from "@/lib/utils/client-logger";
 
 interface Comment {
   id: string;
@@ -40,7 +41,7 @@ export default function CommentManagement() {
         setComments(data.comments || []);
       }
     } catch (error) {
-      console.error("Failed to load comments", error);
+      clientLog.error("Failed to load comments", error instanceof Error ? error : new Error(String(error)));
     } finally {
       setIsLoading(false);
     }
@@ -72,8 +73,7 @@ export default function CommentManagement() {
         loadComments(); // 목록 새로고침
       }
     } catch (error) {
-      console.error("Failed to delete comments", error);
-      alert("오류가 발생했습니다.");
+      clientLog.error("Failed to delete comments", error instanceof Error ? error : new Error(String(error)), { selectedCount: selectedIds.size });
     } finally {
       setIsDeleting(false);
     }

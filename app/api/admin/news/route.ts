@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { insertNews } from "@/lib/db/news";
 import { z } from "zod";
+import { log } from "@/lib/utils/logger";
+import { withAdmin, withErrorHandling } from "@/lib/utils/api-middleware";
+import { createSuccessResponse, createErrorResponse } from "@/lib/utils/api-response";
+import { BadRequestError } from "@/lib/errors";
 
 const newsSchema = z.object({
   title: z.string().min(1, "제목은 필수입니다."),
@@ -18,14 +22,8 @@ const newsSchema = z.object({
 /**
  * 뉴스 생성
  */
-export async function POST(request: NextRequest) {
-  const session = await auth();
-
-  if (!session || !session.user || session.user.role !== "admin") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
+export const POST = withAdmin(
+  withErrorHandling(async (request: NextRequest) => {
     const body = await request.json();
     const validatedData = newsSchema.parse(body);
 
@@ -42,16 +40,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (result.success) {
-      return NextResponse.json({ success: true, message: "뉴스가 생성되었습니다." });
+      return createSuccessResponse({ success: true }, "뉴스가 생성되었습니다.");
     } else {
-      return NextResponse.json({ error: result.error || "뉴스 생성에 실패했습니다." }, { status: 400 });
+      return createErrorResponse(new BadRequestError(result.error || "뉴스 생성에 실패했습니다."), 400);
     }
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "입력값이 올바르지 않습니다.", details: error.issues }, { status: 400 });
-    }
-
-    console.error("Create news error:", error);
-    return NextResponse.json({ error: "뉴스 생성 중 오류가 발생했습니다." }, { status: 500 });
-  }
-}
+  })
+);

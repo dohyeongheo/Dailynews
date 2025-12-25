@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import crypto from "crypto";
 import { CSRF_TOKEN_COOKIE_NAME, CSRF_TOKEN_HEADER, CSRF_TOKEN_MAX_AGE } from "./csrf-constants";
 
 /**
@@ -18,7 +19,7 @@ export async function setCsrfToken(): Promise<string> {
   cookieStore.set(CSRF_TOKEN_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax", // strict에서 lax로 변경하여 더 유연하게 처리
+    sameSite: "strict",
     maxAge: CSRF_TOKEN_MAX_AGE,
     path: "/",
   });
@@ -41,24 +42,22 @@ export async function getCsrfToken(): Promise<string | null> {
  */
 export function verifyCsrfToken(requestToken: string | null, cookieToken: string | null): boolean {
   if (!requestToken || !cookieToken) {
-    console.warn("[CSRF] 토큰 누락:", { hasRequestToken: !!requestToken, hasCookieToken: !!cookieToken });
     return false;
   }
 
-  // Edge/Node 환경 차이 없이 동작하도록 단순 문자열 비교 사용
-  if (requestToken.length !== cookieToken.length) {
-    console.warn("[CSRF] 토큰 길이 불일치:", {
-      requestLength: requestToken.length,
-      cookieLength: cookieToken.length,
-    });
+  // 토큰이 일치하는지 확인 (타이밍 공격 방지를 위해 crypto.timingSafeEqual 사용)
+  try {
+    const requestBuffer = Buffer.from(requestToken, "hex");
+    const cookieBuffer = Buffer.from(cookieToken, "hex");
+
+    if (requestBuffer.length !== cookieBuffer.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(requestBuffer, cookieBuffer);
+  } catch {
     return false;
   }
-
-  const isValid = requestToken === cookieToken;
-  if (!isValid) {
-    console.warn("[CSRF] 토큰 불일치");
-  }
-  return isValid;
 }
 
 /**

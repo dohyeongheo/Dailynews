@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAndSaveNewsAction } from "@/lib/actions";
+import { log } from "@/lib/utils/logger";
 
 // 이 라우트는 요청 헤더 등을 사용하는 동적 서버 코드이므로
 // 정적 렌더링 대상이 아닌 동적 처리로 강제한다.
@@ -40,7 +41,7 @@ function verifyCronAuth(request: NextRequest): { authorized: boolean; reason?: s
 
     // Vercel Cron Job은 내부 호출이므로 허용
     // 하지만 로깅을 위해 정보를 기록
-    console.log("[Cron] CRON_SECRET 미설정, Vercel 내부 호출로 간주:", {
+    log.debug("Cron CRON_SECRET 미설정, Vercel 내부 호출로 간주", {
       userAgent,
       isVercelCall,
       hasAuthHeader: !!request.headers.get("authorization"),
@@ -74,7 +75,7 @@ export async function GET(request: NextRequest) {
     // Vercel Cron Job 인증 확인
     const authResult = verifyCronAuth(request);
     if (!authResult.authorized) {
-      console.error("[Cron] 인증 실패:", {
+      log.error("Cron 인증 실패", undefined, {
         executionId,
         reason: authResult.reason,
         hasAuthHeader: !!request.headers.get("authorization"),
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log("[Cron] 뉴스 수집 시작:", {
+    log.info("Cron 뉴스 수집 시작", {
       executionId,
       timestamp: new Date().toISOString(),
       thailandTime: new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString(),
@@ -105,7 +106,7 @@ export async function GET(request: NextRequest) {
 
     const missingEnvVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
     if (missingEnvVars.length > 0) {
-      console.error("[Cron] 필수 환경 변수 누락:", {
+      log.error("Cron 필수 환경 변수 누락", undefined, {
         executionId,
         missingEnvVars,
         timestamp: new Date().toISOString(),
@@ -139,7 +140,7 @@ export async function GET(request: NextRequest) {
     } catch (timeoutError) {
       // 타임아웃 에러 처리
       const executionTime = Date.now() - startTime;
-      console.error("[Cron] 타임아웃 발생:", {
+      log.error("Cron 타임아웃 발생", timeoutError instanceof Error ? timeoutError : new Error(String(timeoutError)), {
         executionId,
         timeoutMs: TIMEOUT_MS,
         executionTimeMs: executionTime,
@@ -161,7 +162,7 @@ export async function GET(request: NextRequest) {
     const executionTime = Date.now() - startTime;
 
     if (result.success) {
-      console.log("[Cron] 뉴스 수집 성공:", {
+      log.info("Cron 뉴스 수집 성공", {
         executionId,
         message: result.message,
         data: result.data,
@@ -181,7 +182,7 @@ export async function GET(request: NextRequest) {
         thailandTime: new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString(),
       });
     } else {
-      console.error("[Cron] 뉴스 수집 실패:", {
+      log.error("Cron 뉴스 수집 실패", undefined, {
         executionId,
         message: result.message,
         executionTimeMs: executionTime,
@@ -202,16 +203,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     const executionTime = Date.now() - startTime;
 
-    console.error("[Cron] 뉴스 수집 중 오류 발생:", {
+    log.error("Cron 뉴스 수집 중 오류 발생", error instanceof Error ? error : new Error(String(error)), {
       executionId,
-      error:
-        error instanceof Error
-          ? {
-              message: error.message,
-              stack: error.stack,
-              name: error.name,
-            }
-          : error,
       executionTimeMs: executionTime,
       executionTimeSec: (executionTime / 1000).toFixed(2),
       timestamp: new Date().toISOString(),

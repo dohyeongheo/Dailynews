@@ -221,7 +221,9 @@ ${text}`;
       const timestamp = new Date().toISOString();
       const thailandTime = new Date(new Date().getTime() + 7 * 60 * 60 * 1000).toISOString();
 
-      console.error(`번역 오류: 할당량 초과 (시도 ${retryCount + 1}/${MAX_RETRIES + 1}):`, {
+      log.error("번역 오류: 할당량 초과", error instanceof Error ? error : new Error(String(error)), {
+        attempt: retryCount + 1,
+        maxRetries: MAX_RETRIES + 1,
         timestamp,
         thailandTime,
         limit: quotaInfo.limit,
@@ -232,11 +234,14 @@ ${text}`;
         textPreview: text.substring(0, 100),
       });
       // 할당량 초과는 재시도하지 않고 원본 텍스트 반환
-      console.warn(`번역 실패 (할당량 초과), 원본 텍스트 반환: ${text.substring(0, 50)}...`);
+      log.warn("번역 실패 (할당량 초과), 원본 텍스트 반환", { textPreview: text.substring(0, 50) });
       return text;
     }
 
-    console.error(`번역 오류 (시도 ${retryCount + 1}/${MAX_RETRIES + 1}):`, errorMessage);
+    log.error("번역 오류", error instanceof Error ? error : new Error(errorMessage), {
+      attempt: retryCount + 1,
+      maxRetries: MAX_RETRIES + 1,
+    });
 
     // 재시도 가능한 에러이고 최대 재시도 횟수 미만인 경우 재시도
     // 할당량 초과는 이미 위에서 처리했으므로 제외
@@ -247,13 +252,13 @@ ${text}`;
     ) {
       // 지수 백오프: 1초, 2초, 4초
       const delay = RETRY_DELAY * Math.pow(2, retryCount);
-      console.log(`번역 재시도 대기 중... ${delay}ms 후 재시도`);
+      log.debug("번역 재시도 대기 중", { delay, attempt: retryCount + 1 });
       await new Promise((resolve) => setTimeout(resolve, delay));
       return translateToKorean(text, retryCount + 1);
     }
 
     // 재시도 불가능하거나 최대 재시도 횟수 초과 시 원본 반환
-    console.warn(`번역 실패, 원본 텍스트 반환: ${text.substring(0, 50)}...`);
+    log.warn("번역 실패, 원본 텍스트 반환", { textPreview: text.substring(0, 50) });
     return text;
   }
 }
@@ -268,7 +273,7 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<NewsInput> {
 
   // 제목이 한국어가 아니면 번역
   if (!isKorean(title)) {
-    console.log(`📝 제목 번역 중: ${title.substring(0, 50)}...`);
+    log.debug("제목 번역 중", { titlePreview: title.substring(0, 50) });
     title = await translateToKorean(title);
   }
 
@@ -278,7 +283,7 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<NewsInput> {
     if (!isKorean(content)) {
       // content_translated가 없거나, 있더라도 한국어가 아니면 번역
       if (!contentTranslated || !isKorean(contentTranslated)) {
-        console.log(`📝 태국 뉴스 내용 번역 중: ${content.substring(0, 50)}...`);
+        log.debug("태국 뉴스 내용 번역 중", { contentPreview: content.substring(0, 50) });
         contentTranslated = await translateToKorean(content);
       }
     } else {
@@ -288,14 +293,14 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<NewsInput> {
   } else {
     // 다른 카테고리: content_translated가 없거나 비어있고, content가 한국어가 아니면 번역
     if ((!contentTranslated || contentTranslated.trim() === "") && !isKorean(content)) {
-      console.log(`📝 내용 번역 중: ${content.substring(0, 50)}...`);
+      log.debug("내용 번역 중", { contentPreview: content.substring(0, 50) });
       contentTranslated = await translateToKorean(content);
     } else if (!contentTranslated || contentTranslated.trim() === "") {
       // 한국어인 경우 content_translated를 null로 유지
       contentTranslated = null;
     } else if (contentTranslated && !isKorean(contentTranslated)) {
       // content_translated가 있지만 한국어가 아닌 경우 다시 번역
-      console.log(`📝 content_translated가 한국어가 아니어서 재번역 중: ${contentTranslated.substring(0, 50)}...`);
+      log.debug("content_translated가 한국어가 아니어서 재번역 중", { contentTranslatedPreview: contentTranslated.substring(0, 50) });
       contentTranslated = await translateToKorean(content);
     }
   }
@@ -472,7 +477,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     const jsonText = extractJSON(text);
 
     if (!jsonText) {
-      console.error("❌ JSON 추출 실패:", {
+      log.error("JSON 추출 실패", undefined, {
         originalTextPreview: text.substring(0, 500),
         originalTextLength: text.length,
         hasMarkdown: text.includes("```"),
@@ -486,8 +491,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     try {
       parsedData = JSON.parse(jsonText);
     } catch (parseError) {
-      console.error("❌ JSON 파싱 실패:", {
-        parseError: parseError instanceof Error ? parseError.message : String(parseError),
+      log.error("JSON 파싱 실패", parseError instanceof Error ? parseError : new Error(String(parseError)), {
         jsonTextPreview: jsonText.substring(0, 500),
         jsonTextLength: jsonText.length,
         originalTextPreview: text.substring(0, 500),
@@ -503,34 +507,34 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     const validNewsItems = parsedData.news.filter((item, index) => {
       // 필수 필드 검증
       if (!item.title || typeof item.title !== "string" || item.title.trim().length === 0) {
-        console.warn(`뉴스 항목 ${index + 1}: title이 없거나 유효하지 않음`, item);
+        log.warn("뉴스 항목 title이 없거나 유효하지 않음", { index: index + 1, item });
         return false;
       }
 
       if (!item.content || typeof item.content !== "string" || item.content.trim().length === 0) {
-        console.warn(`뉴스 항목 ${index + 1}: content가 없거나 유효하지 않음`, { title: item.title });
+        log.warn("뉴스 항목 content가 없거나 유효하지 않음", { index: index + 1, title: item.title });
         return false;
       }
 
       if (!item.category || typeof item.category !== "string") {
-        console.warn(`뉴스 항목 ${index + 1}: category가 없거나 유효하지 않음`, { title: item.title });
+        log.warn("뉴스 항목 category가 없거나 유효하지 않음", { index: index + 1, title: item.title });
         return false;
       }
 
       // 카테고리 유효성 검증
       const validCategories: NewsCategory[] = ["태국뉴스", "관련뉴스", "한국뉴스"];
       if (!validCategories.includes(item.category as NewsCategory)) {
-        console.warn(`뉴스 항목 ${index + 1}: 유효하지 않은 카테고리`, { title: item.title, category: item.category });
+        log.warn("뉴스 항목 유효하지 않은 카테고리", { index: index + 1, title: item.title, category: item.category });
         return false;
       }
 
       if (!item.source_country || typeof item.source_country !== "string") {
-        console.warn(`뉴스 항목 ${index + 1}: source_country가 없거나 유효하지 않음`, { title: item.title });
+        log.warn("뉴스 항목 source_country가 없거나 유효하지 않음", { index: index + 1, title: item.title });
         return false;
       }
 
       if (!item.source_media || typeof item.source_media !== "string") {
-        console.warn(`뉴스 항목 ${index + 1}: source_media가 없거나 유효하지 않음`, { title: item.title });
+        log.warn("뉴스 항목 source_media가 없거나 유효하지 않음", { index: index + 1, title: item.title });
         return false;
       }
 
@@ -538,7 +542,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
       if (item.news_category !== null && item.news_category !== undefined) {
         const validNewsCategories: NewsTopicCategory[] = ["과학", "사회", "정치", "경제", "스포츠", "문화", "기술", "건강", "환경", "국제", "기타"];
         if (typeof item.news_category !== "string" || !validNewsCategories.includes(item.news_category as NewsTopicCategory)) {
-          console.warn(`뉴스 항목 ${index + 1}: 유효하지 않은 news_category`, { title: item.title, news_category: item.news_category });
+          log.warn("뉴스 항목 유효하지 않은 news_category", { index: index + 1, title: item.title, news_category: item.news_category });
           // 유효하지 않은 경우 null로 설정하여 계속 진행
           item.news_category = null;
         }

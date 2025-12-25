@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createUser, getUserByEmail } from "@/lib/db/users";
 import { z } from "zod";
 import { applyRateLimit, RATE_LIMIT_CONFIGS } from "@/lib/utils/rate-limit-helper";
+import { log } from "@/lib/utils/logger";
 
 const registerSchema = z.object({
   email: z.string().email("유효한 이메일 주소를 입력해주세요."),
@@ -38,7 +39,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "입력값이 올바르지 않습니다.", details: error.issues }, { status: 400 });
     }
 
-    console.error("Registration error:", error);
+    log.error("Registration error", error instanceof Error ? error : new Error(String(error)));
     return NextResponse.json({ error: "회원가입 중 오류가 발생했습니다." }, { status: 500 });
   }
 }

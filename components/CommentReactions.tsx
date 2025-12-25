@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useCsrfToken } from "@/lib/hooks/useCsrfToken";
+import { clientLog } from "@/lib/utils/client-logger";
 
 interface CommentReactionsProps {
   commentId: string;
@@ -28,7 +29,7 @@ export default function CommentReactions({ commentId }: CommentReactionsProps) {
           setUserReaction(data.userReaction || null);
         }
       } catch (error) {
-        console.error("Failed to load comment reactions:", error);
+        clientLog.error("Failed to load comment reactions", error instanceof Error ? error : new Error(String(error)), { commentId });
       } finally {
         setIsInitialLoading(false);
       }
@@ -64,7 +65,7 @@ export default function CommentReactions({ commentId }: CommentReactionsProps) {
         alert(error.error || "반응을 저장하는데 실패했습니다.");
       }
     } catch (error) {
-      console.error("Failed to set comment reaction:", error);
+      clientLog.error("Failed to set comment reaction", error instanceof Error ? error : new Error(String(error)), { commentId, reactionType });
       alert("오류가 발생했습니다.");
     } finally {
       setIsLoading(false);

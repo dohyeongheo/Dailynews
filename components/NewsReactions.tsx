@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useCsrfToken } from "@/lib/hooks/useCsrfToken";
+import { clientLog } from "@/lib/utils/client-logger";
 
 interface NewsReactionsProps {
   newsId: string;
@@ -28,7 +29,7 @@ export default function NewsReactions({ newsId }: NewsReactionsProps) {
           setUserReaction(data.userReaction || null);
         }
       } catch (error) {
-        console.error("Failed to load reactions:", error);
+        clientLog.error("Failed to load reactions", error instanceof Error ? error : new Error(String(error)), { newsId });
       } finally {
         setIsInitialLoading(false);
       }
@@ -71,7 +72,7 @@ export default function NewsReactions({ newsId }: NewsReactionsProps) {
         alert(error.error || "반응을 저장하는데 실패했습니다.");
       }
     } catch (error) {
-      console.error("Failed to set reaction:", error);
+      clientLog.error("Failed to set reaction", error instanceof Error ? error : new Error(String(error)), { newsId, reactionType });
       alert("오류가 발생했습니다.");
     } finally {
       setIsLoading(false);

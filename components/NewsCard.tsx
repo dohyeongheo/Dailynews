@@ -3,6 +3,7 @@
 import { memo, useState, useEffect } from "react";
 import Link from "next/link";
 import type { News } from "@/types/news";
+import { clientLog } from "@/lib/utils/client-logger";
 
 interface NewsCardProps {
   news: News;
@@ -35,7 +36,7 @@ function NewsCard({ news, showOriginalLink = true, initialBookmarked = false }: 
           }
         }
       } catch (error) {
-        console.error("Failed to check bookmark status:", error);
+        clientLog.error("Failed to check bookmark status", error instanceof Error ? error : new Error(String(error)), { newsId: news.id });
       }
     }
 
@@ -47,7 +48,7 @@ function NewsCard({ news, showOriginalLink = true, initialBookmarked = false }: 
           setViewCount(data.viewCount || 0);
         }
       } catch (error) {
-        console.error("Failed to load view count:", error);
+        clientLog.error("Failed to load view count", error instanceof Error ? error : new Error(String(error)), { newsId: news.id });
         setViewCount(0);
       }
     }
@@ -86,7 +87,7 @@ function NewsCard({ news, showOriginalLink = true, initialBookmarked = false }: 
         alert(data.error || "북마크 처리 중 오류가 발생했습니다.");
       }
     } catch (error) {
-      console.error("Bookmark toggle error:", error);
+      clientLog.error("Bookmark toggle error", error instanceof Error ? error : new Error(String(error)), { newsId: news.id });
       alert("북마크 처리 중 오류가 발생했습니다.");
     }
   };

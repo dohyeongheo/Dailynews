@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAndSaveNewsAction } from "@/lib/actions";
-import { checkRateLimit } from "@/lib/utils/rate-limit-redis";
+import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { auth } from "@/auth";
+import { log } from "@/lib/utils/logger";
 
 export const maxDuration = 300; // Vercel Pro 플랜 최대 타임아웃 (초)
 
@@ -50,7 +51,7 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
     if (session?.user?.role === "admin") {
       isAuthenticated = true;
       authMethod = "session";
-      console.log("[Manual Fetch] 관리자 세션 인증 성공");
+      log.info("Manual Fetch 관리자 세션 인증 성공");
     }
 
     // 2. 비밀번호 확인 (세션 인증 실패 시)
@@ -58,7 +59,7 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
       const expectedPassword = process.env.MANUAL_FETCH_PASSWORD;
 
       if (!expectedPassword) {
-        console.error("[Manual Fetch] MANUAL_FETCH_PASSWORD 환경 변수가 설정되지 않았습니다.");
+        log.error("Manual Fetch MANUAL_FETCH_PASSWORD 환경 변수가 설정되지 않음");
         return NextResponse.json(
           {
             success: false,
@@ -80,19 +81,18 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
 
           if (!text || text.trim() === "") {
             // 본문이 비어있음 - 정상적인 경우일 수 있음
-            console.log("[Manual Fetch] POST 요청 본문이 비어있습니다.");
+            log.debug("Manual Fetch POST 요청 본문이 비어있음");
           } else {
             try {
               const json = JSON.parse(text);
               providedPassword = json?.password || null;
 
               if (!providedPassword) {
-                console.warn("[Manual Fetch] POST 요청 본문에 'password' 필드가 없습니다.");
+                log.warn("Manual Fetch POST 요청 본문에 password 필드가 없음");
               }
             } catch (parseError) {
               // JSON 파싱 실패 - 명확한 에러 로깅
-              console.error("[Manual Fetch] POST 요청 본문 JSON 파싱 실패:", {
-                error: parseError instanceof Error ? parseError.message : String(parseError),
+              log.error("Manual Fetch POST 요청 본문 JSON 파싱 실패", parseError instanceof Error ? parseError : new Error(String(parseError)), {
                 bodyPreview: text.substring(0, 100), // 처음 100자만 로깅
               });
               // JSON 파싱 실패는 인증 실패로 처리하지 않고, providedPassword는 null로 유지
@@ -100,9 +100,7 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
           }
         } catch (error) {
           // request.text() 호출 실패 - 본문이 이미 소비되었거나 다른 문제
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          console.error("[Manual Fetch] POST 요청 본문 읽기 실패:", {
-            error: errorMessage,
+          log.error("Manual Fetch POST 요청 본문 읽기 실패", error instanceof Error ? error : new Error(String(error)), {
             hint: "본문이 이미 소비되었거나 요청 형식이 잘못되었을 수 있습니다.",
           });
           // 본문 읽기 실패는 인증 실패로 처리하지 않고, providedPassword는 null로 유지
@@ -113,7 +111,7 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
         isAuthenticated = true;
         authMethod = "password";
       } else if (providedPassword) {
-        console.warn("[Manual Fetch] 잘못된 비밀번호로 접근 시도");
+        log.warn("Manual Fetch 잘못된 비밀번호로 접근 시도");
       }
     }
 
@@ -130,7 +128,7 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
     // 뉴스 수집 시작
     const startTime = Date.now();
     const executionId = `manual-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    console.log("[Manual Fetch] 뉴스 수집 시작:", {
+    log.info("Manual Fetch 뉴스 수집 시작", {
       executionId,
       authMethod,
       timestamp: new Date().toISOString(),
@@ -152,7 +150,7 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
       result = await Promise.race([fetchPromise, timeoutPromise]);
     } catch (timeoutError) {
       const executionTime = Date.now() - startTime;
-      console.error("[Manual Fetch] 타임아웃 발생:", {
+      log.error("Manual Fetch 타임아웃 발생", timeoutError instanceof Error ? timeoutError : new Error(String(timeoutError)), {
         executionId,
         timeoutMs: TIMEOUT_MS,
         executionTimeMs: executionTime,
@@ -199,7 +197,7 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
       );
     }
   } catch (error) {
-    console.error("[Manual Fetch] 뉴스 수집 중 오류 발생:", error);
+    log.error("Manual Fetch 뉴스 수집 중 오류 발생", error instanceof Error ? error : new Error(String(error)));
     return NextResponse.json(
       {
         success: false,
