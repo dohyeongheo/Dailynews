@@ -23,9 +23,9 @@ export async function createComment(newsId: string, userId: string, content: str
   return data;
 }
 
-export async function getCommentsByNewsId(newsId: string) {
+export async function getCommentsByNewsId(newsId: string): Promise<any[]> {
   // 캐시에서 조회
-  const cached = await getCache<Awaited<ReturnType<typeof getCommentsByNewsId>>>(CACHE_NAMESPACES.COMMENTS_NEWS, newsId);
+  const cached = await getCache<any[]>(CACHE_NAMESPACES.COMMENTS_NEWS, newsId);
   if (cached) {
     return cached;
   }

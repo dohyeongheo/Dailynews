@@ -10,9 +10,7 @@ import { AuthError, BadRequestError, InternalServerError } from "@/lib/errors";
 import { z } from "zod";
 
 const reactionSchema = z.object({
-  reactionType: z.enum(["like", "dislike"], {
-    errorMap: () => ({ message: "reactionType은 'like' 또는 'dislike'여야 합니다." }),
-  }),
+  reactionType: z.enum(["like", "dislike"]),
 });
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
@@ -58,23 +56,27 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   })(request);
 }
 
-export const GET = withErrorHandling(async (request: NextRequest, { params }: { params: { id: string } }) => {
-  const newsId = params.id;
-  const session = await auth();
-  const userId = session?.user?.id;
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const newsId = params.id;
+    const session = await auth();
+    const userId = session?.user?.id;
 
-  const [counts, userReaction] = await Promise.all([
-    getNewsReactionCounts(newsId),
-    userId ? getUserNewsReaction(newsId, userId) : Promise.resolve(null),
-  ]);
+    const [counts, userReaction] = await Promise.all([
+      getNewsReactionCounts(newsId),
+      userId ? getUserNewsReaction(newsId, userId) : Promise.resolve(null),
+    ]);
 
-  const response = createSuccessResponse({
-    counts,
-    userReaction,
-  });
+    const response = createSuccessResponse({
+      counts,
+      userReaction,
+    });
 
-  // 캐시 헤더 설정 (60초 - 반응은 자주 변경될 수 있으므로 짧은 TTL)
-  response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
+    // 캐시 헤더 설정 (60초 - 반응은 자주 변경될 수 있으므로 짧은 TTL)
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=120');
 
-  return response;
-});
+    return response;
+  } catch (error) {
+    return createErrorResponse(error);
+  }
+}

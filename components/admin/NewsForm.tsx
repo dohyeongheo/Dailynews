@@ -129,7 +129,12 @@ export default function NewsForm({ news, onSuccess, onCancel }: NewsFormProps) {
           <select
             id="news_category"
             value={formData.news_category || ""}
-            onChange={(e) => setFormData({ ...formData, news_category: e.target.value || null as NewsTopicCategory | null })}
+            onChange={(e) => {
+              const value = e.target.value;
+              const validCategories: NewsTopicCategory[] = ["과학", "사회", "정치", "경제", "스포츠", "문화", "기술", "건강", "환경", "국제", "기타"];
+              const newsCategory: NewsTopicCategory | null = value && validCategories.includes(value as NewsTopicCategory) ? (value as NewsTopicCategory) : null;
+              setFormData({ ...formData, news_category: newsCategory });
+            }}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">선택 안 함</option>

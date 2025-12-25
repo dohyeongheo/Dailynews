@@ -9,9 +9,7 @@ import { AuthError, InternalServerError } from "@/lib/errors";
 import { z } from "zod";
 
 const reactionSchema = z.object({
-  reactionType: z.enum(["like", "dislike"], {
-    errorMap: () => ({ message: "reactionType은 'like' 또는 'dislike'여야 합니다." }),
-  }),
+  reactionType: z.enum(["like", "dislike"]),
 });
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
@@ -57,18 +55,22 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   })(request);
 }
 
-export const GET = withErrorHandling(async (request: NextRequest, { params }: { params: { id: string } }) => {
-  const commentId = params.id;
-  const session = await auth();
-  const userId = session?.user?.id;
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    const commentId = params.id;
+    const session = await auth();
+    const userId = session?.user?.id;
 
-  const [counts, userReaction] = await Promise.all([
-    getCommentReactionCounts(commentId),
-    userId ? getUserCommentReaction(commentId, userId) : Promise.resolve(null),
-  ]);
+    const [counts, userReaction] = await Promise.all([
+      getCommentReactionCounts(commentId),
+      userId ? getUserCommentReaction(commentId, userId) : Promise.resolve(null),
+    ]);
 
-  return createSuccessResponse({
-    counts,
-    userReaction,
-  });
-});
+    return createSuccessResponse({
+      counts,
+      userReaction,
+    });
+  } catch (error) {
+    return createErrorResponse(error);
+  }
+}
