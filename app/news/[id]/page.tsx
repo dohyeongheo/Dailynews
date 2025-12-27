@@ -3,6 +3,7 @@ import { incrementViewCount, getViewCount } from "@/lib/db/views";
 import RelatedNews from "@/components/RelatedNews";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
+import Image from "next/image";
 
 // 페이지 캐싱 설정: 300초마다 재검증 (5분)
 export const revalidate = 300;
@@ -77,6 +78,23 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
               <span>조회수 {viewCount}</span>
             </div>
           </header>
+
+          {/* AI 생성 이미지 표시 (image_url이 있을 때만) */}
+          {news.image_url && (
+            <div className="mb-8">
+              <div className="relative w-full h-auto rounded-lg overflow-hidden shadow-md">
+                <Image
+                  src={news.image_url}
+                  alt={news.title}
+                  width={1024}
+                  height={1024}
+                  className="w-full h-auto object-cover"
+                  priority
+                  unoptimized // Vercel Blob은 이미 최적화되어 있으므로
+                />
+              </div>
+            </div>
+          )}
 
           <div className="prose max-w-none mb-10 text-gray-800 leading-relaxed whitespace-pre-wrap">{news.content_translated || news.content}</div>
         </article>

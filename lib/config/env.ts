@@ -21,6 +21,12 @@ const envSchema = z.object({
   CRON_SECRET: z.string().optional(),
   ADMIN_PASSWORD: z.string().optional(),
 
+  // AI 이미지 생성 API 설정
+  IMAGE_GENERATION_API: z.enum(["replicate", "huggingface", "deepai", "none"]).default("none"),
+  REPLICATE_API_TOKEN: z.string().optional(),
+  HUGGINGFACE_API_KEY: z.string().optional(),
+  DEEPAI_API_KEY: z.string().optional(),
+
   // Node 환경
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
@@ -43,6 +49,10 @@ function validateEnv(): Env {
       MANUAL_FETCH_PASSWORD: process.env.MANUAL_FETCH_PASSWORD,
       CRON_SECRET: process.env.CRON_SECRET,
       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+      IMAGE_GENERATION_API: (process.env.IMAGE_GENERATION_API as "replicate" | "huggingface" | "deepai" | "none") || "none",
+      REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN,
+      HUGGINGFACE_API_KEY: process.env.HUGGINGFACE_API_KEY,
+      DEEPAI_API_KEY: process.env.DEEPAI_API_KEY,
       NODE_ENV: process.env.NODE_ENV || "development",
     });
   } catch (error) {

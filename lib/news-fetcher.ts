@@ -1,7 +1,12 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { insertNewsBatch } from "./db/news";
+import { insertNewsBatch, updateNewsImageUrl } from "./db/news";
+import * as supabaseNews from "./db/supabase-news";
 import type { NewsInput, GeminiNewsResponse, NewsCategory, NewsTopicCategory } from "@/types/news";
 import { log } from "./utils/logger";
+import { generateImagePrompt } from "./image-generator/prompt-generator";
+import { generateAIImage } from "./image-generator/ai-image-generator";
+import { uploadNewsImage } from "./storage/image-storage";
+import { getEnv } from "./config/env";
 
 /**
  * Gemini AI 클라이언트를 지연 초기화합니다.
@@ -290,8 +295,21 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<NewsInput> {
       // content가 이미 한국어인 경우
       contentTranslated = null;
     }
+  } else if (newsItem.category === "한국뉴스") {
+    // 한국 뉴스인 경우: content가 한국어가 아니면 무조건 번역
+    if (!isKorean(content)) {
+      // content가 한국어가 아니면 번역 (content_translated가 있어도 재번역)
+      log.debug("한국 뉴스 내용 번역 중 (원문이 한국어가 아님)", {
+        contentPreview: content.substring(0, 50),
+        hasContentTranslated: !!contentTranslated,
+      });
+      contentTranslated = await translateToKorean(content);
+    } else {
+      // content가 이미 한국어인 경우 content_translated를 null로 유지
+      contentTranslated = null;
+    }
   } else {
-    // 다른 카테고리: content_translated가 없거나 비어있고, content가 한국어가 아니면 번역
+    // 관련뉴스 등 다른 카테고리: content_translated가 없거나 비어있고, content가 한국어가 아니면 번역
     if ((!contentTranslated || contentTranslated.trim() === "") && !isKorean(content)) {
       log.debug("내용 번역 중", { contentPreview: content.substring(0, 50) });
       contentTranslated = await translateToKorean(content);
@@ -628,6 +646,53 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 }
 
 /**
+ * 뉴스에 대한 이미지를 생성하고 저장합니다.
+ * 비동기로 처리하여 뉴스 저장 속도에 영향 최소화
+ */
+async function generateImageForNews(newsId: string, news: NewsInput): Promise<void> {
+  try {
+    const { IMAGE_GENERATION_API } = getEnv();
+
+    // 이미지 생성 API가 설정되지 않은 경우 스킵
+    if (IMAGE_GENERATION_API === "none") {
+      log.debug("이미지 생성 API가 설정되지 않아 스킵", { newsId });
+      return;
+    }
+
+    // 타임아웃 설정 (30초)
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("이미지 생성 타임아웃")), 30000);
+    });
+
+    const imageGenerationPromise = (async () => {
+      // 1. 프롬프트 생성
+      const prompt = await generateImagePrompt(news);
+      log.debug("이미지 프롬프트 생성 완료", { newsId, promptLength: prompt.length });
+
+      // 2. AI 이미지 생성
+      const imageBuffer = await generateAIImage(prompt);
+      log.debug("AI 이미지 생성 완료", { newsId, imageSize: imageBuffer.length });
+
+      // 3. Vercel Blob Storage에 업로드
+      const imageUrl = await uploadNewsImage(newsId, imageBuffer);
+      log.debug("이미지 업로드 완료", { newsId, imageUrl });
+
+      // 4. DB에 image_url 업데이트
+      await updateNewsImageUrl(newsId, imageUrl);
+      log.info("뉴스 이미지 생성 및 저장 완료", { newsId, imageUrl });
+    })();
+
+    await Promise.race([imageGenerationPromise, timeoutPromise]);
+  } catch (error) {
+    // 이미지 생성 실패 시 로깅만 하고 계속 진행 (뉴스 저장은 이미 성공)
+    log.error("뉴스 이미지 생성 실패", error instanceof Error ? error : new Error(String(error)), {
+      newsId,
+      newsTitle: news.title.substring(0, 50),
+    });
+  }
+}
+
+/**
  * 수집한 뉴스를 로컬 데이터베이스에 저장합니다.
  */
 export async function saveNewsToDatabase(newsItems: NewsInput[]): Promise<{ success: number; failed: number }> {
@@ -640,7 +705,35 @@ export async function saveNewsToDatabase(newsItems: NewsInput[]): Promise<{ succ
       return { success: 0, failed: newsItems.length };
     }
 
-    return result;
+    // 저장된 뉴스에 대해 이미지 생성 (비동기, 에러 발생해도 뉴스 저장은 성공 처리)
+    if (result.savedNewsIds && result.savedNewsIds.length > 0) {
+      // 이미지 생성을 비동기로 처리 (await하지 않음)
+      Promise.all(
+        result.savedNewsIds.map(async (newsId) => {
+          // 저장된 뉴스 정보 조회 (캐시 우회를 위해 supabaseNews 직접 사용)
+          const savedNews = await supabaseNews.getNewsById(newsId);
+          if (savedNews) {
+            // 원본 NewsInput 형식으로 변환
+            const newsInput: NewsInput = {
+              published_date: savedNews.published_date,
+              source_country: savedNews.source_country,
+              source_media: savedNews.source_media,
+              title: savedNews.title,
+              content: savedNews.content,
+              content_translated: savedNews.content_translated || null,
+              category: savedNews.category,
+              news_category: savedNews.news_category || null,
+              original_link: savedNews.original_link,
+            };
+            await generateImageForNews(newsId, newsInput);
+          }
+        })
+      ).catch((error) => {
+        log.error("이미지 생성 배치 처리 중 오류", error instanceof Error ? error : new Error(String(error)));
+      });
+    }
+
+    return { success: result.success, failed: result.failed };
   } catch (error) {
     log.error("Error in saveNewsToDatabase", error);
     return { success: 0, failed: newsItems.length };

@@ -12,6 +12,7 @@ export interface News {
   category: NewsCategory;
   news_category: NewsTopicCategory | null;
   original_link: string;
+  image_url: string | null;
   created_at: string;
 }
 

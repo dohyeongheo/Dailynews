@@ -119,7 +119,7 @@ async function checkDuplicateNews(news: NewsInput): Promise<boolean> {
 /**
  * 뉴스를 Supabase 데이터베이스에 저장
  */
-export async function insertNews(news: NewsInput): Promise<{ success: boolean; error?: string }> {
+export async function insertNews(news: NewsInput): Promise<{ success: boolean; error?: string; id?: string | null }> {
   try {
     // 중복 체크 (original_link 또는 텍스트 유사도 기반)
     const isDuplicate = await checkDuplicateNews(news);
@@ -131,17 +131,21 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
       };
     }
 
-    const { error } = await supabaseServer.from("news").insert({
-      published_date: news.published_date,
-      source_country: news.source_country,
-      source_media: news.source_media,
-      title: news.title,
-      content: news.content,
-      content_translated: news.content_translated || null,
-      category: news.category,
-      news_category: news.news_category || null,
-      original_link: news.original_link,
-    });
+    const { data, error } = await supabaseServer
+      .from("news")
+      .insert({
+        published_date: news.published_date,
+        source_country: news.source_country,
+        source_media: news.source_media,
+        title: news.title,
+        content: news.content,
+        content_translated: news.content_translated || null,
+        category: news.category,
+        news_category: news.news_category || null,
+        original_link: news.original_link,
+      })
+      .select("id")
+      .single();
 
     if (error) {
       // 유니크 제약 조건 위반인 경우 중복으로 처리
@@ -160,7 +164,7 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
       };
     }
 
-    return { success: true };
+    return { success: true, id: data?.id || null };
   } catch (error) {
     log.error("Error inserting news", error instanceof Error ? error : new Error(String(error)));
     return {
@@ -174,9 +178,10 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
  * 여러 뉴스를 배치로 Supabase에 저장
  * 성능 개선: 병렬 처리로 저장 시간 단축 (최대 10개씩 동시 처리)
  */
-export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success: number; failed: number }> {
+export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success: number; failed: number; savedNewsIds: string[] }> {
   let successCount = 0;
   let failedCount = 0;
+  const savedNewsIds: string[] = [];
 
   // 배치 크기: 한 번에 처리할 뉴스 개수
   const BATCH_SIZE = 10;
@@ -192,6 +197,9 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
     for (const result of results) {
       if (result.status === "fulfilled" && result.value.success) {
         successCount++;
+        if (result.value.id) {
+          savedNewsIds.push(result.value.id);
+        }
       } else {
         failedCount++;
         if (result.status === "rejected") {
@@ -214,7 +222,7 @@ export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success
     }
   }
 
-  return { success: successCount, failed: failedCount };
+  return { success: successCount, failed: failedCount, savedNewsIds };
 }
 
 /**
@@ -261,6 +269,7 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
       original_link: item.original_link || "",
+      image_url: item.image_url || null,
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));
 
@@ -316,6 +325,7 @@ export async function getAllNews(limit: number = 30, offset: number = 0): Promis
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
       original_link: item.original_link || "",
+      image_url: item.image_url || null,
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));
 
@@ -507,6 +517,7 @@ export async function getNewsById(id: string): Promise<News | null> {
       category: data.category as NewsCategory,
       news_category: data.news_category || null,
       original_link: data.original_link || "",
+      image_url: data.image_url || null,
       created_at: data.created_at ? new Date(data.created_at).toISOString() : new Date().toISOString(),
     };
   } catch (error) {
@@ -530,6 +541,32 @@ export async function deleteNews(id: string): Promise<boolean> {
     return true;
   } catch (error) {
     log.error("deleteNews 예외 발생", error instanceof Error ? error : new Error(String(error)), { id });
+    return false;
+  }
+}
+
+/**
+ * 뉴스의 image_url 업데이트
+ */
+export async function updateNewsImageUrl(newsId: string, imageUrl: string): Promise<boolean> {
+  try {
+    const { error } = await supabaseServer
+      .from("news")
+      .update({ image_url: imageUrl })
+      .eq("id", newsId);
+
+    if (error) {
+      log.error("updateNewsImageUrl Supabase 에러 발생", new Error(error.message), {
+        newsId,
+        errorCode: error.code,
+      });
+      return false;
+    }
+
+    log.debug("뉴스 image_url 업데이트 완료", { newsId, imageUrl });
+    return true;
+  } catch (error) {
+    log.error("updateNewsImageUrl 예외 발생", error instanceof Error ? error : new Error(String(error)), { newsId });
     return false;
   }
 }
@@ -572,6 +609,7 @@ export async function getRelatedNews(currentNewsId: string, category: NewsCatego
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
       original_link: item.original_link || "",
+      image_url: item.image_url || null,
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));
   } catch (error) {

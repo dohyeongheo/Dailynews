@@ -5,14 +5,14 @@ import { getCache, setCache, deleteCache, invalidateNewsCache, invalidateCategor
 /**
  * 뉴스를 데이터베이스에 저장
  */
-export async function insertNews(news: NewsInput): Promise<{ success: boolean; error?: string }> {
+export async function insertNews(news: NewsInput): Promise<{ success: boolean; error?: string; id?: string | null }> {
   return await supabaseNews.insertNews(news);
 }
 
 /**
  * 여러 뉴스를 배치로 저장
  */
-export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success: number; failed: number }> {
+export async function insertNewsBatch(newsItems: NewsInput[]): Promise<{ success: number; failed: number; savedNewsIds: string[] }> {
   const result = await supabaseNews.insertNewsBatch(newsItems);
 
   // 뉴스 추가 시 관련 캐시 무효화
@@ -98,6 +98,20 @@ export async function deleteNews(id: string): Promise<boolean> {
   // 삭제 성공 시 관련 캐시 무효화
   if (result) {
     await invalidateNewsCache(id);
+  }
+
+  return result;
+}
+
+/**
+ * 뉴스의 image_url 업데이트
+ */
+export async function updateNewsImageUrl(newsId: string, imageUrl: string): Promise<boolean> {
+  const result = await supabaseNews.updateNewsImageUrl(newsId, imageUrl);
+
+  // 업데이트 성공 시 관련 캐시 무효화
+  if (result) {
+    await invalidateNewsCache(newsId);
   }
 
   return result;
