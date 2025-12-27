@@ -32,19 +32,7 @@
 
 **참고**: 이 애플리케이션은 서버 사이드에서 Service Role Key를 사용하므로, RLS를 활성화해도 서버 사이드 로직에는 영향이 없습니다. RLS는 anon key로의 직접 접근을 차단하여 보안을 강화합니다.
 
-### 1.4 함수 보안 설정 (Function Search Path)
-
-보안을 위해 함수의 `search_path`를 설정해야 합니다:
-
-1. Supabase 대시보드에서 "SQL Editor" 메뉴 클릭
-2. "New query" 클릭
-3. `supabase/migrations/fix_function_search_path.sql` 파일의 내용을 복사하여 붙여넣기
-4. "Run" 버튼 클릭하여 실행
-5. 함수 보안 설정 확인
-
-**참고**: `search_path`를 명시적으로 설정하면 SQL injection 공격을 방지할 수 있습니다.
-
-### 1.5 API 키 확인
+### 1.4 API 키 확인
 
 1. Supabase 대시보드에서 "Project Settings" > "API" 메뉴 클릭
 2. 다음 값들을 복사하여 저장:
@@ -89,21 +77,71 @@ git push -u origin main
 
 ### 3.2 환경 변수 설정
 
-Vercel 프로젝트 설정에서 "Environment Variables" 섹션으로 이동하여 다음 변수들을 추가:
+Vercel 대시보드에서 환경 변수를 설정합니다:
 
-```
-GOOGLE_GEMINI_API_KEY=your_gemini_api_key
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-DB_TYPE=supabase
-```
+1. **Settings** > **Environment Variables** 메뉴 클릭
+2. **"Add New"** 또는 **"Add"** 버튼 클릭하여 다음 환경 변수들을 하나씩 추가:
 
-**중요**:
-- Production, Preview, Development 환경 모두에 설정
-- `SUPABASE_SERVICE_ROLE_KEY`는 절대 공개하지 마세요
+#### 필수 환경 변수
 
-**자세한 설정 방법**: `VERCEL_ENV_SETUP.md` 파일을 참고하세요.
+- **GOOGLE_GEMINI_API_KEY**
+  - Key: `GOOGLE_GEMINI_API_KEY`
+  - Value: Google Gemini API 키 (예: `AIza...`)
+  - Environment: `Production`, `Preview`, `Development` 모두 선택
+
+- **NEXT_PUBLIC_SUPABASE_URL**
+  - Key: `NEXT_PUBLIC_SUPABASE_URL`
+  - Value: Supabase 프로젝트 URL (예: `https://xxxxx.supabase.co`)
+  - Environment: `Production`, `Preview`, `Development` 모두 선택
+
+- **NEXT_PUBLIC_SUPABASE_ANON_KEY**
+  - Key: `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - Value: Supabase anon public key
+  - Environment: `Production`, `Preview`, `Development` 모두 선택
+
+- **SUPABASE_SERVICE_ROLE_KEY**
+  - Key: `SUPABASE_SERVICE_ROLE_KEY`
+  - Value: Supabase service_role key (⚠️ 비밀 유지 필요)
+  - Environment: `Production`, `Preview`, `Development` 모두 선택
+
+- **BLOB_READ_WRITE_TOKEN**
+  - Key: `BLOB_READ_WRITE_TOKEN`
+  - Value: Vercel Blob Storage 토큰
+  - Environment: `Production`, `Preview`, `Development` 모두 선택
+
+#### 선택적 환경 변수
+
+- **ADMIN_PASSWORD**: 관리자 페이지 접속용 비밀번호
+- **MANUAL_FETCH_PASSWORD**: 수동 뉴스 수집용 비밀번호
+- **CRON_SECRET**: Cron Job 인증용 Secret
+- **IMAGE_GENERATION_API**: 이미지 생성 API 선택 (`gemini`, `replicate`, `huggingface`, `deepai`, `none`)
+- **REPLICATE_API_TOKEN**: Replicate API 토큰 (IMAGE_GENERATION_API가 `replicate`인 경우)
+- **HUGGINGFACE_API_KEY**: Hugging Face API 키 (IMAGE_GENERATION_API가 `huggingface`인 경우)
+- **DEEPAI_API_KEY**: DeepAI API 키 (IMAGE_GENERATION_API가 `deepai`인 경우)
+- **GEMINI_USE_CONTEXT_CACHING**: Gemini Context Caching 사용 여부 (`true` 또는 `false`, 기본값: `true`)
+- **GEMINI_NEWS_COLLECTION_MODEL**: 뉴스 수집 모델 (`flash` 또는 `pro`, 기본값: `pro`)
+- **GEMINI_TRANSLATION_MODEL**: 번역 모델 (`flash` 또는 `pro`, 기본값: `flash`)
+
+3. 각 환경 변수마다 **Environment** 체크박스에서 다음 중 선택:
+   - Production: 프로덕션 배포에 사용
+   - Preview: 프리뷰 배포에 사용
+   - Development: 개발 환경에 사용
+   - 일반적으로 모든 환경에 동일하게 설정하는 것을 권장
+
+#### Supabase API 키 확인 방법
+
+1. Supabase 프로젝트 접속
+2. **Project Settings** > **API** 메뉴 클릭
+3. 다음 값들을 복사:
+   - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
+   - **anon public** key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - **service_role** key → `SUPABASE_SERVICE_ROLE_KEY` (⚠️ 비밀 유지)
+
+#### Google Gemini API 키 확인 방법
+
+1. [Google AI Studio](https://makersuite.google.com/app/apikey) 접속
+2. API 키 생성 또는 기존 키 확인
+3. 생성된 키를 `GOOGLE_GEMINI_API_KEY`로 설정
 
 ### 3.3 배포 실행
 

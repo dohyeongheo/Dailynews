@@ -24,10 +24,10 @@ async function main() {
 
     // 뉴스 수집 (최대 5개)
     const newsItems = await fetchNewsFromGemini();
-    
+
     // 5개로 제한
     const limitedNewsItems = newsItems.slice(0, 5);
-    
+
     log.info("뉴스 수집 완료", {
       total: newsItems.length,
       limited: limitedNewsItems.length,

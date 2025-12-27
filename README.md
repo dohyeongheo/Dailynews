@@ -241,8 +241,10 @@ ADMIN_PASSWORD=your_secure_password_here
 
 ## 문서
 
+- [배포 가이드](DEPLOYMENT.md) - Supabase 및 Vercel 배포 가이드
 - [API 문서](docs/API.md) - API 엔드포인트 상세 문서
 - [아키텍처 문서](docs/ARCHITECTURE.md) - 시스템 아키텍처 및 데이터 흐름
+- [PowerShell 인코딩 가이드](docs/POWERSHELL_ENCODING.md) - Windows PowerShell 한글 인코딩 문제 해결
 
 ## 향후 계획
 
