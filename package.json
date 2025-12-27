@@ -13,7 +13,7 @@
     "test:coverage": "jest --coverage",
     "analyze": "node scripts/analyze-bundle.js",
     "setup:encoding": "powershell -ExecutionPolicy Bypass -File scripts/setup-powershell-encoding.ps1",
-    "fetch-news": "tsx scripts/fetch-news.ts"
+    "fetch-news": "npx tsx scripts/fetch-news.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
