@@ -39,11 +39,39 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
     });
   };
 
+  // 카테고리별 색상 매핑
+  const getCategoryColor = (category: string | null) => {
+    if (!category) return "bg-gray-100 text-gray-700";
+
+    const colorMap: Record<string, string> = {
+      정치: "bg-red-100 text-red-700 border-red-200",
+      경제: "bg-blue-100 text-blue-700 border-blue-200",
+      사회: "bg-green-100 text-green-700 border-green-200",
+      과학: "bg-purple-100 text-purple-700 border-purple-200",
+      스포츠: "bg-orange-100 text-orange-700 border-orange-200",
+      문화: "bg-pink-100 text-pink-700 border-pink-200",
+      기술: "bg-indigo-100 text-indigo-700 border-indigo-200",
+      건강: "bg-teal-100 text-teal-700 border-teal-200",
+      환경: "bg-emerald-100 text-emerald-700 border-emerald-200",
+      국제: "bg-cyan-100 text-cyan-700 border-cyan-200",
+      기타: "bg-gray-100 text-gray-700 border-gray-200",
+    };
+
+    return colorMap[category] || "bg-gray-100 text-gray-700 border-gray-200";
+  };
+
   return (
     <article className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       <Link href={`/news/${news.id}`} className="block p-4 sm:p-6">
         <div className="flex items-start justify-between mb-3">
           <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2">
+              {news.news_category && (
+                <span className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${getCategoryColor(news.news_category)}`}>
+                  {news.news_category}
+                </span>
+              )}
+            </div>
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 transition-colors">
               {news.title}
             </h2>
@@ -51,12 +79,6 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
               <span className="font-medium text-blue-600">{news.source_media}</span>
               <span>•</span>
               <span>{formatDate(news.published_date)}</span>
-              {news.news_category && (
-                <>
-                  <span>•</span>
-                  <span className="px-2 py-0.5 bg-gray-100 rounded text-gray-600">{news.news_category}</span>
-                </>
-              )}
             </div>
           </div>
         </div>
