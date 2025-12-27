@@ -85,13 +85,19 @@ export function getEnv(): Env {
 
 /**
  * 환경 변수 초기화 (앱 시작 시 호출)
+ * 
+ * 주의: 이 함수는 초기화 단계에서 호출되므로 log 유틸리티를 사용할 수 없습니다.
+ * 순환 참조를 피하기 위해 console.log를 사용합니다.
  */
 export function initEnv(): void {
   try {
     validatedEnv = validateEnv();
+    // 초기화 단계에서는 log 유틸리티가 아직 사용 불가능하므로 console.log 사용
     console.log("[Env] 환경 변수 검증 완료");
   } catch (error) {
-    console.error("[Env] 환경 변수 검증 실패:", error);
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    // 초기화 단계에서는 log 유틸리티가 아직 사용 불가능하므로 console.error 사용
+    console.error("[Env] 환경 변수 검증 실패:", errorObj);
     throw error;
   }
 }

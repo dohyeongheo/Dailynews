@@ -234,7 +234,7 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
 
     const { data, error } = await supabaseServer
       .from("news")
-      .select("*")
+      .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
       .eq("category", category)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);

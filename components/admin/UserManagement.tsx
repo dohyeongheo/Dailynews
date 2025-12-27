@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { clientLog } from "@/lib/utils/client-logger";
+import { useToast } from "@/components/ToastProvider";
 
 interface User {
   id: string;
@@ -12,6 +13,7 @@ interface User {
 }
 
 export default function UserManagement() {
+  const { toast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
@@ -52,10 +54,10 @@ export default function UserManagement() {
 
       if (res.ok) {
         setUsers(users.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
-        alert("권한이 변경되었습니다.");
+        toast.showSuccess("권한이 변경되었습니다.");
       } else {
         const data = await res.json();
-        alert("권한 변경에 실패했습니다: " + (data.error || "알 수 없는 오류"));
+        toast.showError("권한 변경에 실패했습니다: " + (data.error || "알 수 없는 오류"));
       }
     } catch (error) {
       clientLog.error("Failed to update user role", error instanceof Error ? error : new Error(String(error)), { userId, newRole });

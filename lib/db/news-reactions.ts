@@ -39,7 +39,11 @@ export async function setNewsReaction(newsId: string, userId: string, reactionTy
 
     if (existing === reactionType) {
       // 같은 반응이면 삭제 (토글)
-      const { error } = await (supabaseServer.from("news_reactions") as any).delete().eq("news_id", newsId).eq("user_id", userId);
+      const { error } = await supabaseServer
+        .from("news_reactions")
+        .delete()
+        .eq("news_id", newsId)
+        .eq("user_id", userId);
 
       if (error) {
         log.error("Error removing news reaction", new Error(error.message), { newsId, userId, errorCode: error.code });
@@ -49,7 +53,8 @@ export async function setNewsReaction(newsId: string, userId: string, reactionTy
     }
 
     // 반응 추가/업데이트
-    const { error } = await (supabaseServer.from("news_reactions") as any)
+    const { error } = await supabaseServer
+      .from("news_reactions")
       .upsert(
         {
           news_id: newsId,
@@ -80,15 +85,23 @@ export async function setNewsReaction(newsId: string, userId: string, reactionTy
  */
 export async function getNewsReactionCounts(newsId: string): Promise<{ likes: number; dislikes: number }> {
   try {
-    const { data, error } = await (supabaseServer.from("news_reactions") as any).select("reaction_type").eq("news_id", newsId);
+    const { data, error } = await supabaseServer
+      .from("news_reactions")
+      .select("reaction_type")
+      .eq("news_id", newsId);
 
     if (error) {
       log.error("Error getting news reaction counts", new Error(error.message), { newsId, errorCode: error.code });
       return { likes: 0, dislikes: 0 };
     }
 
-    const likes = data?.filter((r: any) => r.reaction_type === "like").length || 0;
-    const dislikes = data?.filter((r: any) => r.reaction_type === "dislike").length || 0;
+    if (!data) {
+      return { likes: 0, dislikes: 0 };
+    }
+
+    const reactions = data as Array<{ reaction_type: "like" | "dislike" }>;
+    const likes = reactions.filter((r) => r.reaction_type === "like").length;
+    const dislikes = reactions.filter((r) => r.reaction_type === "dislike").length;
 
     return { likes, dislikes };
   } catch (error) {

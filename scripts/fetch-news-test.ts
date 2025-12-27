@@ -14,8 +14,10 @@ async function main() {
       getEnv();
       log.info("환경 변수 검증 완료");
     } catch (envError) {
-      log.error("환경 변수 검증 실패", envError instanceof Error ? envError : new Error(String(envError)));
-      console.error("❌ 환경 변수 검증 실패:", envError instanceof Error ? envError.message : String(envError));
+      const errorObj = envError instanceof Error ? envError : new Error(String(envError));
+      log.error("환경 변수 검증 실패", errorObj);
+      // 사용자에게 보여줄 메시지는 console.error 유지 (GitHub Actions 로그 출력용)
+      console.error("❌ 환경 변수 검증 실패:", errorObj.message);
       process.exit(1);
     }
 
@@ -33,10 +35,12 @@ async function main() {
       limited: limitedNewsItems.length,
     });
 
+    // 사용자에게 보여줄 메시지는 console.log 유지 (GitHub Actions 로그 출력용)
     console.log(`📰 수집된 뉴스: ${newsItems.length}개`);
     console.log(`🔢 테스트용 제한: ${limitedNewsItems.length}개`);
 
     if (limitedNewsItems.length === 0) {
+      log.error("수집된 뉴스가 없음", undefined, { total: newsItems.length });
       console.error("❌ 수집된 뉴스가 없습니다.");
       process.exit(1);
     }
@@ -58,6 +62,7 @@ async function main() {
         executionTimeSec: (executionTime / 1000).toFixed(2),
       });
 
+      // 사용자에게 보여줄 메시지는 console.log 유지 (GitHub Actions 로그 출력용)
       console.log(`\n✅ 테스트 완료!`);
       console.log(`✅ 성공: ${result.success}개`);
       console.log(`❌ 실패: ${result.failed}개`);
@@ -75,6 +80,7 @@ async function main() {
         executionTimeMs: executionTime,
       });
 
+      // 사용자에게 보여줄 메시지는 console.error 유지 (GitHub Actions 로그 출력용)
       console.error(`❌ 뉴스 수집 테스트 실패`);
       console.error(`성공: ${result.success}개`);
       console.error(`실패: ${result.failed}개`);
@@ -83,14 +89,15 @@ async function main() {
       process.exit(1);
     }
   } catch (error) {
-    log.error("뉴스 수집 테스트 스크립트 오류", error instanceof Error ? error : new Error(String(error)));
-    console.error("❌ 오류 발생:", error instanceof Error ? error.message : String(error));
-    if (error instanceof Error && error.stack) {
-      console.error("스택 트레이스:", error.stack);
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    log.error("뉴스 수집 테스트 스크립트 오류", errorObj);
+    // 사용자에게 보여줄 메시지는 console.error 유지 (GitHub Actions 로그 출력용)
+    console.error("❌ 오류 발생:", errorObj.message);
+    if (errorObj.stack) {
+      console.error("스택 트레이스:", errorObj.stack);
     }
     process.exit(1);
   }
 }
 
 main();
-

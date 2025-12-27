@@ -18,6 +18,7 @@ async function main() {
 
     const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
     if (missingVars.length > 0) {
+      log.error("필수 환경 변수가 설정되지 않음", undefined, { missingVars });
       console.error("❌ 필수 환경 변수가 설정되지 않았습니다:");
       missingVars.forEach((varName) => console.error(`   - ${varName}`));
       console.error("\nGitHub Secrets에 다음 변수들을 설정하세요:");
@@ -44,6 +45,7 @@ async function main() {
         executionTimeSec: (executionTime / 1000).toFixed(2),
       });
 
+      // 사용자에게 보여줄 메시지는 console.log 유지 (GitHub Actions 로그 출력용)
       console.log(`✅ 성공: ${result.success}개`);
       console.log(`❌ 실패: ${result.failed}개`);
       console.log(`📊 전체: ${result.total}개`);
@@ -59,6 +61,7 @@ async function main() {
         executionTimeMs: executionTime,
       });
 
+      // 사용자에게 보여줄 메시지는 console.error 유지 (GitHub Actions 로그 출력용)
       console.error(`❌ 뉴스 수집 실패`);
       console.error(`성공: ${result.success}개`);
       console.error(`실패: ${result.failed}개`);
@@ -67,10 +70,12 @@ async function main() {
       process.exit(1);
     }
   } catch (error) {
-    log.error("뉴스 수집 스크립트 오류", error instanceof Error ? error : new Error(String(error)));
-    console.error("❌ 오류 발생:", error instanceof Error ? error.message : String(error));
-    if (error instanceof Error && error.stack) {
-      console.error("스택 트레이스:", error.stack);
+    const errorObj = error instanceof Error ? error : new Error(String(error));
+    log.error("뉴스 수집 스크립트 오류", errorObj);
+    // 사용자에게 보여줄 메시지는 console.error 유지 (GitHub Actions 로그 출력용)
+    console.error("❌ 오류 발생:", errorObj.message);
+    if (errorObj.stack) {
+      console.error("스택 트레이스:", errorObj.stack);
     }
     process.exit(1);
   }

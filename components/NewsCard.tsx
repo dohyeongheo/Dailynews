@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import CategoryBadge from "@/components/CategoryBadge";
 import type { News } from "@/types/news";
@@ -9,7 +10,7 @@ interface NewsCardProps {
   showOriginalLink?: boolean;
 }
 
-function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
+const NewsCard = React.memo(function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("ko-KR", {
@@ -66,6 +67,6 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
       </Link>
     </article>
   );
-}
+});
 
 export default NewsCard;

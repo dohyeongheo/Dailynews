@@ -11,7 +11,7 @@
 ### 1.1 로깅 시스템 통일
 
 #### 작업 1.1.1: alert() → Toast 시스템 변경
-**예상 시간:** 1시간  
+**예상 시간:** 1시간
 **우선순위:** 높음
 
 **대상 파일:**
@@ -40,7 +40,7 @@ toast.success("삭제 완료");
 ---
 
 #### 작업 1.1.2: console.log → 구조화된 로깅 변경
-**예상 시간:** 4-5시간  
+**예상 시간:** 4-5시간
 **우선순위:** 높음
 
 **대상 파일:**
@@ -83,7 +83,7 @@ log.error("오류 발생", error instanceof Error ? error : new Error(String(err
 ---
 
 #### 작업 1.1.3: 프로덕션 로그 레벨 관리
-**예상 시간:** 30분  
+**예상 시간:** 30분
 **우선순위:** 중간
 
 **작업 내용:**
@@ -101,7 +101,7 @@ log.error("오류 발생", error instanceof Error ? error : new Error(String(err
 ### 1.2 타입 안전성 강화
 
 #### 작업 1.2.1: as any 제거
-**예상 시간:** 2-3시간  
+**예상 시간:** 2-3시간
 **우선순위:** 높음
 
 **대상 파일:**
@@ -139,7 +139,7 @@ const { data, error } = await supabaseServer
 ---
 
 #### 작업 1.2.2: API 응답 타입 검증 추가
-**예상 시간:** 3-4시간  
+**예상 시간:** 3-4시간
 **우선순위:** 높음
 
 **대상 파일:**
@@ -174,7 +174,7 @@ const result = NewsResponseSchema.parse(await response.json());
 ---
 
 #### 작업 1.2.3: Promise<any> → 구체적 타입 지정
-**예상 시간:** 1-2시간  
+**예상 시간:** 1-2시간
 **우선순위:** 중간
 
 **대상 파일:**
@@ -213,7 +213,7 @@ export async function generateContentWithCaching(
 ### 1.3 에러 핸들링 일관성
 
 #### 작업 1.3.1: 모든 에러를 AppError 계층으로 변환
-**예상 시간:** 4-5시간  
+**예상 시간:** 4-5시간
 **우선순위:** 높음
 
 **대상 파일:**
@@ -251,7 +251,7 @@ catch (error) {
 ---
 
 #### 작업 1.3.2: 사용자 메시지 개선
-**예상 시간:** 2-3시간  
+**예상 시간:** 2-3시간
 **우선순위:** 중간
 
 **작업 내용:**
@@ -268,7 +268,7 @@ catch (error) {
 ---
 
 #### 작업 1.3.3: 재시도 로직 표준화
-**예상 시간:** 2-3시간  
+**예상 시간:** 2-3시간
 **우선순위:** 중간
 
 **작업 내용:**
@@ -305,7 +305,7 @@ const result = await retryWithBackoff(
 ### 2.1 성능 최적화
 
 #### 작업 2.1.1: DB 쿼리 최적화 - 필요한 필드만 선택
-**예상 시간:** 2-3시간  
+**예상 시간:** 2-3시간
 **우선순위:** 중간
 
 **대상 파일:**
@@ -335,7 +335,7 @@ const result = await retryWithBackoff(
 ---
 
 #### 작업 2.1.2: React 컴포넌트 최적화 - React.memo 적용
-**예상 시간:** 2-3시간  
+**예상 시간:** 2-3시간
 **우선순위:** 중간
 
 **대상 파일:**
@@ -371,7 +371,7 @@ export default React.memo(NewsCard);
 ---
 
 #### 작업 2.1.3: 캐시 전략 개선 - API 라우트에 캐시 헤더 추가
-**예상 시간:** 1-2시간  
+**예상 시간:** 1-2시간
 **우선순위:** 중간
 
 **대상 파일:**
@@ -387,7 +387,7 @@ export default React.memo(NewsCard);
 // ✅ 개선
 export async function GET(request: NextRequest) {
   const data = await getNewsByCategory(category);
-  
+
   return NextResponse.json(data, {
     headers: {
       'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
@@ -407,7 +407,7 @@ export async function GET(request: NextRequest) {
 ### 2.2 코드 중복 제거
 
 #### 작업 2.2.1: 날짜 포맷팅 로직 통합
-**예상 시간:** 1-2시간  
+**예상 시간:** 1-2시간
 **우선순위:** 낮음
 
 **작업 내용:**
@@ -436,7 +436,7 @@ export function formatNewsDate(dateString: string): string {
 ---
 
 #### 작업 2.2.2: 뉴스 데이터 변환 로직 통합
-**예상 시간:** 2-3시간  
+**예상 시간:** 2-3시간
 **우선순위:** 낮음
 
 **작업 내용:**
@@ -452,7 +452,7 @@ export function formatNewsDate(dateString: string): string {
 ---
 
 #### 작업 2.2.3: 에러 메시지 포맷팅 통합
-**예상 시간:** 1-2시간  
+**예상 시간:** 1-2시간
 **우선순위:** 낮음
 
 **작업 내용:**
@@ -468,7 +468,7 @@ export function formatNewsDate(dateString: string): string {
 ### 2.3 테스트 커버리지 향상
 
 #### 작업 2.3.1: 통합 테스트 추가
-**예상 시간:** 6-8시간  
+**예상 시간:** 6-8시간
 **우선순위:** 중간
 
 **작업 내용:**
@@ -485,7 +485,7 @@ export function formatNewsDate(dateString: string): string {
 ---
 
 #### 작업 2.3.2: E2E 테스트 추가 (Playwright)
-**예상 시간:** 8-10시간  
+**예상 시간:** 8-10시간
 **우선순위:** 낮음
 
 **작업 내용:**

@@ -5,10 +5,12 @@ import { getAllNewsAction, searchNewsAction } from "@/lib/actions";
 import type { News } from "@/types/news";
 import NewsForm from "./NewsForm";
 import { clientLog } from "@/lib/utils/client-logger";
+import { useToast } from "@/components/ToastProvider";
 
 const PAGE_SIZE = 20;
 
 export default function NewsManagement() {
+  const { toast } = useToast();
   const [news, setNews] = useState<News[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -141,7 +143,7 @@ export default function NewsManagement() {
 
   async function handleDeleteSelected() {
     if (selectedIds.size === 0) {
-      alert("삭제할 뉴스를 선택해주세요.");
+      toast.showWarning("삭제할 뉴스를 선택해주세요.");
       return;
     }
 
@@ -160,7 +162,7 @@ export default function NewsManagement() {
 
       if (successCount === selectedIds.size) {
         setSelectedIds(new Set());
-        alert(`${successCount}개의 뉴스가 삭제되었습니다.`);
+        toast.showSuccess(`${successCount}개의 뉴스가 삭제되었습니다.`);
         // 목록 새로고침
         if (isSearchMode && searchQuery.trim()) {
           handleSearch();
@@ -168,7 +170,7 @@ export default function NewsManagement() {
           loadNews();
         }
       } else {
-        alert(`${successCount}/${selectedIds.size}개의 뉴스가 삭제되었습니다.`);
+        toast.showWarning(`${successCount}/${selectedIds.size}개의 뉴스가 삭제되었습니다.`);
         setSelectedIds(new Set());
         // 목록 새로고침
         if (isSearchMode && searchQuery.trim()) {
@@ -179,6 +181,7 @@ export default function NewsManagement() {
       }
     } catch (error) {
       clientLog.error("Failed to delete news", error instanceof Error ? error : new Error(String(error)), { selectedCount: selectedIds.size });
+      toast.showError("뉴스 삭제 중 오류가 발생했습니다.");
     } finally {
       setIsDeleting(false);
     }
@@ -368,6 +371,7 @@ export default function NewsManagement() {
                           fetch(`/api/admin/news/${item.id}`, { method: 'DELETE' })
                             .then((res) => {
                               if (res.ok) {
+                                toast.showSuccess("뉴스가 삭제되었습니다.");
                                 if (isSearchMode && searchQuery.trim()) {
                                   handleSearch();
                                 } else {
@@ -375,12 +379,12 @@ export default function NewsManagement() {
                                 }
                               } else {
                                 res.json().then((data) => {
-                                  alert("삭제 실패: " + (data.error || "알 수 없는 오류"));
+                                  toast.showError("삭제 실패: " + (data.error || "알 수 없는 오류"));
                                 });
                               }
                             })
                             .catch((error) => {
-                              alert("삭제 중 오류가 발생했습니다.");
+                              toast.showError("삭제 중 오류가 발생했습니다.");
                               clientLog.error("Failed to delete news", error, { newsId: item.id });
                             });
                         }

@@ -90,7 +90,7 @@ export async function generateContentWithCaching(
   model: GenerativeModel,
   prompt: string,
   cacheKey?: string
-): Promise<any> {
+): Promise<GenerateContentResult> {
   const env = getEnv();
 
   // Context Caching이 비활성화되었거나 캐시 키가 없으면 일반 호출

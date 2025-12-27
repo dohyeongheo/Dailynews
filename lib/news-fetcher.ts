@@ -222,11 +222,18 @@ function parseQuotaError(error: unknown): { limit?: number; retryAfter?: number;
 
   // 에러 객체에서 retryDelay 정보 추출 시도
   if (typeof error === "object" && error !== null) {
-    const errorObj = error as any;
+    interface ErrorWithDetails {
+      errorDetails?: Array<{
+        "@type"?: string;
+        retryDelay?: string | number;
+        violations?: Array<{ subject?: string; description?: string }>;
+      }>;
+    }
+    const errorObj = error as ErrorWithDetails;
     if (errorObj.errorDetails) {
       for (const detail of errorObj.errorDetails) {
         if (detail["@type"] === "type.googleapis.com/google.rpc.RetryInfo" && detail.retryDelay) {
-          const retryDelay = parseFloat(detail.retryDelay);
+          const retryDelay = typeof detail.retryDelay === "string" ? parseFloat(detail.retryDelay) : detail.retryDelay;
           if (!isNaN(retryDelay)) {
             result.retryAfter = Math.ceil(retryDelay);
           }
