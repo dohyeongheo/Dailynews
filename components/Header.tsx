@@ -1,27 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
 
 export default function Header() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchType, setSearchType] = useState<"title" | "content" | "all">("all");
+  const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const { data: session } = useSession();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      const params = new URLSearchParams({
-        q: searchQuery.trim(),
-        type: searchType,
-      });
-      router.push(`/search?${params.toString()}`);
+  useEffect(() => {
+    // 관리자 인증 상태 확인
+    checkAdminAuth();
+  }, []);
+
+  async function checkAdminAuth() {
+    try {
+      const response = await fetch('/api/admin/auth');
+      const data = await response.json();
+      setIsAdmin(data.success && data.data.authenticated);
+    } catch (err) {
+      setIsAdmin(false);
     }
-  };
+  }
 
   const isCategoryActive = (category: string) => {
     return pathname === `/category/${encodeURIComponent(category)}`;
@@ -39,10 +40,29 @@ export default function Header() {
             {/* 왼쪽: 로고 및 텍스트 */}
             <div className="flex items-center gap-3 flex-shrink-0">
               <Link href="/" className={`flex items-center gap-2 transition-opacity ${isHomeActive ? "opacity-100" : "hover:opacity-80"}`}>
-                <div className="w-8 h-8 bg-[#ff9900] rounded flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-bold text-sm">DN</span>
+                <div className="w-10 h-10 flex items-center justify-center flex-shrink-0 relative">
+                  <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-lg">
+                    <defs>
+                      <linearGradient id="logoGradient" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#ff9900"/>
+                        <stop offset="0.5" stopColor="#ff7700"/>
+                        <stop offset="1" stopColor="#ff5500"/>
+                      </linearGradient>
+                      <filter id="glow">
+                        <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                        <feMerge>
+                          <feMergeNode in="coloredBlur"/>
+                          <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                      </filter>
+                    </defs>
+                    <rect width="40" height="40" rx="10" fill="url(#logoGradient)" filter="url(#glow)"/>
+                    <path d="M10 12h20M10 18h20M10 24h14" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <circle cx="30" cy="24" r="3.5" fill="white" opacity="0.95"/>
+                    <path d="M28 22l4 4M32 22l-4 4" stroke="url(#logoGradient)" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
                 </div>
-                <span className="text-lg font-semibold whitespace-nowrap">Daily News</span>
+                <span className="text-xl font-bold whitespace-nowrap bg-gradient-to-r from-[#ff9900] via-[#ff7700] to-[#ff5500] bg-clip-text text-transparent drop-shadow-sm">Daily News</span>
               </Link>
             </div>
 
@@ -75,38 +95,12 @@ export default function Header() {
               </Link>
             </nav>
 
-            {/* 오른쪽: 로그인/관리자 메뉴 */}
+            {/* 오른쪽: 관리자 메뉴 */}
             <div className="flex items-center gap-3">
-              {session ? (
-                <>
-                  <Link href="/bookmarks" className="text-sm text-gray-300 hover:text-white">
-                    북마크
-                  </Link>
-                  <span className="text-sm text-gray-300">{session.user?.name}님</span>
-                  {session.user?.role === "admin" && (
-                    <Link href="/admin" className="text-sm text-yellow-500 hover:text-yellow-400 font-medium">
-                      관리자
-                    </Link>
-                  )}
-                  <button
-                    onClick={() => {
-                      // 로그아웃 후 홈으로 이동
-                      signOut({ callbackUrl: "/" });
-                    }}
-                    className="text-sm text-gray-300 hover:text-white"
-                  >
-                    로그아웃
-                  </button>
-                </>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Link href="/auth/register" className="text-sm font-medium text-gray-300 hover:text-white transition-colors">
-                    회원가입
-                  </Link>
-                  <Link href="/auth/signin" className="text-sm font-medium bg-[#3a4553] hover:bg-[#48576d] px-3 py-1.5 rounded transition-colors">
-                    로그인
-                  </Link>
-                </div>
+              {isAdmin && (
+                <Link href="/admin" className="text-sm text-yellow-500 hover:text-yellow-400 font-medium">
+                  관리자
+                </Link>
               )}
             </div>
           </div>
@@ -116,33 +110,37 @@ export default function Header() {
             {/* 모바일 첫 번째 줄: 로고 */}
             <div className="flex items-center justify-between h-14 py-2">
               <Link href="/" className={`flex items-center gap-2 transition-opacity flex-shrink-0 ${isHomeActive ? "opacity-100" : "hover:opacity-80"}`}>
-                <div className="w-7 h-7 bg-[#ff9900] rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-xs">DN</span>
+                <div className="w-9 h-9 flex items-center justify-center relative">
+                  <svg width="36" height="36" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-lg">
+                    <defs>
+                      <linearGradient id="logoGradientMobile" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+                        <stop stopColor="#ff9900"/>
+                        <stop offset="0.5" stopColor="#ff7700"/>
+                        <stop offset="1" stopColor="#ff5500"/>
+                      </linearGradient>
+                      <filter id="glowMobile">
+                        <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+                        <feMerge>
+                          <feMergeNode in="coloredBlur"/>
+                          <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                      </filter>
+                    </defs>
+                    <rect width="40" height="40" rx="10" fill="url(#logoGradientMobile)" filter="url(#glowMobile)"/>
+                    <path d="M10 12h20M10 18h20M10 24h14" stroke="white" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"/>
+                    <circle cx="30" cy="24" r="3.5" fill="white" opacity="0.95"/>
+                    <path d="M28 22l4 4M32 22l-4 4" stroke="url(#logoGradientMobile)" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
                 </div>
-                <span className="text-base font-semibold">Daily News</span>
+                <span className="text-lg font-bold bg-gradient-to-r from-[#ff9900] via-[#ff7700] to-[#ff5500] bg-clip-text text-transparent drop-shadow-sm">Daily News</span>
               </Link>
 
-              {/* 모바일 로그인 버튼 */}
+              {/* 모바일 관리자 메뉴 */}
               <div className="flex items-center gap-2">
-                {session ? (
-                  <button
-                    onClick={() => {
-                      // 모바일에서도 동일하게 홈으로 리다이렉트
-                      signOut({ callbackUrl: "/" });
-                    }}
-                    className="text-xs text-gray-300 border border-gray-600 px-2 py-1 rounded"
-                  >
-                    로그아웃
-                  </button>
-                ) : (
-                  <div className="flex items-center gap-1.5">
-                    <Link href="/auth/register" className="text-xs font-medium text-gray-300 hover:text-white px-2 py-1">
-                      가입
-                    </Link>
-                    <Link href="/auth/signin" className="text-xs font-medium bg-[#3a4553] px-2 py-1 rounded">
-                      로그인
-                    </Link>
-                  </div>
+                {isAdmin && (
+                  <Link href="/admin" className="text-xs text-yellow-500 hover:text-yellow-400 font-medium px-2 py-1">
+                    관리자
+                  </Link>
                 )}
               </div>
             </div>
@@ -168,35 +166,6 @@ export default function Header() {
         </div>
       </div>
 
-      {/* 두 번째 줄: 검색 기능 */}
-      <div className="bg-[#232f3e] border-b border-[#3a4553]">
-        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-2.5 sm:py-3">
-          <form onSubmit={handleSubmit} className="flex gap-2 max-w-2xl mx-auto">
-            <select
-              value={searchType}
-              onChange={(e) => setSearchType(e.target.value as "title" | "content" | "all")}
-              className="px-2 sm:px-3 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ff9900] focus:border-transparent text-gray-900 text-xs sm:text-sm flex-shrink-0"
-            >
-              <option value="all">제목 + 내용</option>
-              <option value="title">제목</option>
-              <option value="content">내용</option>
-            </select>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="뉴스 검색..."
-              className="flex-1 min-w-0 px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#ff9900] focus:border-transparent text-gray-900 placeholder-gray-500 text-sm"
-            />
-            <button
-              type="submit"
-              className="px-4 sm:px-6 py-2 bg-[#ff9900] text-white rounded-md hover:bg-[#e68900] transition-colors font-medium text-xs sm:text-sm whitespace-nowrap flex-shrink-0"
-            >
-              검색
-            </button>
-          </form>
-        </div>
-      </div>
     </header>
   );
 }

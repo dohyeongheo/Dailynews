@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { createClient } from "@/lib/supabase/server";
 import { z } from "zod";
 import { log } from "@/lib/utils/logger";
@@ -49,7 +48,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         updateData.source_media = validatedData.source_media;
       }
       if (validatedData.original_link !== undefined) {
-        updateData.original_link = validatedData.original_link || "#";
+        updateData.original_link = validatedData.original_link || "";
       }
       if (validatedData.published_date) {
         updateData.published_date = validatedData.published_date;
@@ -63,6 +62,25 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       }
 
       return createSuccessResponse({ success: true }, "뉴스가 수정되었습니다.");
+    })
+  )(request);
+}
+
+/**
+ * 뉴스 삭제
+ */
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+  return withAdmin(
+    withErrorHandling(async (req: NextRequest) => {
+      const supabase = createClient();
+      const { error } = await supabase.from("news").delete().eq("id", params.id);
+
+      if (error) {
+        log.error("Delete news error", new Error(error.message), { id: params.id, errorCode: error.code });
+        return createErrorResponse(new Error(error.message), 500);
+      }
+
+      return createSuccessResponse({ success: true }, "뉴스가 삭제되었습니다.");
     })
   )(request);
 }

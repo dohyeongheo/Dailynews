@@ -19,6 +19,7 @@ const envSchema = z.object({
   // 선택적 환경 변수
   MANUAL_FETCH_PASSWORD: z.string().optional(),
   CRON_SECRET: z.string().optional(),
+  ADMIN_PASSWORD: z.string().optional(),
 
   // Node 환경
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
@@ -41,6 +42,7 @@ function validateEnv(): Env {
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
       MANUAL_FETCH_PASSWORD: process.env.MANUAL_FETCH_PASSWORD,
       CRON_SECRET: process.env.CRON_SECRET,
+      ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
       NODE_ENV: process.env.NODE_ENV || "development",
     });
   } catch (error) {

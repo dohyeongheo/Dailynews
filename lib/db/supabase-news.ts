@@ -2,23 +2,117 @@ import { supabaseServer } from "../supabase/server";
 import type { News, NewsInput, NewsCategory } from "@/types/news";
 import { log } from "../utils/logger";
 import type { NewsRow } from "../types/supabase";
+import { calculateNewsSimilarity, similarityToPercent } from "../utils/text-similarity";
 
 /**
  * original_link로 중복 뉴스 확인
  */
-async function checkDuplicateNews(originalLink: string): Promise<boolean> {
+async function checkDuplicateNewsByLink(originalLink: string): Promise<boolean> {
   try {
     const { data, error } = await supabaseServer.from("news").select("id").eq("original_link", originalLink).limit(1);
 
     if (error) {
-      log.error("Error checking duplicate news", error instanceof Error ? error : new Error(String(error)));
+      log.error("Error checking duplicate news by link", error instanceof Error ? error : new Error(String(error)));
       return false; // 에러 발생 시 중복이 아닌 것으로 간주하고 진행
     }
 
     return (data && data.length > 0) || false;
   } catch (error) {
-    log.error("Error checking duplicate news", error instanceof Error ? error : new Error(String(error)));
+    log.error("Error checking duplicate news by link", error instanceof Error ? error : new Error(String(error)));
     return false;
+  }
+}
+
+/**
+ * 텍스트 유사도 기반으로 중복 뉴스 확인
+ * 최근 7일간의 뉴스와 비교하여 유사도 85% 이상이면 중복으로 판단
+ */
+async function checkDuplicateNewsBySimilarity(news: NewsInput): Promise<{ isDuplicate: boolean; similarity?: number; matchedNewsId?: string }> {
+  try {
+    // 최근 7일간의 뉴스 조회 (published_date 기준)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
+
+    const { data, error } = await supabaseServer
+      .from("news")
+      .select("id, title, content, content_translated, published_date")
+      .gte("published_date", sevenDaysAgoStr)
+      .order("published_date", { ascending: false });
+
+    if (error) {
+      log.error("Error fetching recent news for similarity check", error instanceof Error ? error : new Error(String(error)));
+      return { isDuplicate: false }; // 에러 발생 시 중복이 아닌 것으로 간주하고 진행
+    }
+
+    if (!data || data.length === 0) {
+      return { isDuplicate: false };
+    }
+
+    const SIMILARITY_THRESHOLD = 0.85; // 85% 이상이면 중복으로 판단
+
+    // 각 기존 뉴스와 유사도 계산
+    for (const existingNews of data) {
+      const existingContent = existingNews.content_translated || existingNews.content || "";
+      const newContent = news.content_translated || news.content || "";
+
+      const similarity = calculateNewsSimilarity(
+        existingNews.title || "",
+        existingContent,
+        news.title,
+        newContent
+      );
+
+      // 유사도가 임계값 이상이면 중복으로 판단
+      if (similarity >= SIMILARITY_THRESHOLD) {
+        log.info("중복 뉴스 감지 (유사도 기반)", {
+          newTitle: news.title.substring(0, 50),
+          existingTitle: existingNews.title?.substring(0, 50),
+          similarity: similarityToPercent(similarity),
+          existingNewsId: existingNews.id,
+        });
+        return {
+          isDuplicate: true,
+          similarity,
+          matchedNewsId: existingNews.id,
+        };
+      }
+    }
+
+    return { isDuplicate: false };
+  } catch (error) {
+    log.error("Error checking duplicate news by similarity", error instanceof Error ? error : new Error(String(error)));
+    return { isDuplicate: false }; // 에러 발생 시 중복이 아닌 것으로 간주하고 진행
+  }
+}
+
+/**
+ * 중복 뉴스 확인 (original_link 또는 텍스트 유사도 기반)
+ */
+async function checkDuplicateNews(news: NewsInput): Promise<boolean> {
+  try {
+    // original_link가 유효한 URL인 경우, original_link로 먼저 체크
+    if (news.original_link && news.original_link.trim() !== "") {
+      try {
+        // URL 형식 검증
+        new URL(news.original_link);
+        const isDuplicateByLink = await checkDuplicateNewsByLink(news.original_link);
+        if (isDuplicateByLink) {
+          log.info("중복 뉴스 감지 (original_link)", { originalLink: news.original_link });
+          return true;
+        }
+      } catch {
+        // 유효하지 않은 URL이면 무시하고 유사도 체크로 진행
+        log.debug("original_link가 유효한 URL 형식이 아님, 유사도 체크로 진행", { originalLink: news.original_link });
+      }
+    }
+
+    // original_link가 없거나 유효하지 않은 경우, 텍스트 유사도로 체크
+    const similarityResult = await checkDuplicateNewsBySimilarity(news);
+    return similarityResult.isDuplicate;
+  } catch (error) {
+    log.error("Error checking duplicate news", error instanceof Error ? error : new Error(String(error)));
+    return false; // 에러 발생 시 중복이 아닌 것으로 간주하고 진행
   }
 }
 
@@ -27,8 +121,8 @@ async function checkDuplicateNews(originalLink: string): Promise<boolean> {
  */
 export async function insertNews(news: NewsInput): Promise<{ success: boolean; error?: string }> {
   try {
-    // 중복 체크
-    const isDuplicate = await checkDuplicateNews(news.original_link);
+    // 중복 체크 (original_link 또는 텍스트 유사도 기반)
+    const isDuplicate = await checkDuplicateNews(news);
     if (isDuplicate) {
       log.info("중복 뉴스 건너뜀", { originalLink: news.original_link });
       return {

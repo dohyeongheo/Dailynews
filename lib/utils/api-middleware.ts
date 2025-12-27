@@ -4,18 +4,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import type { Session } from 'next-auth';
 import { applyRateLimit, type RATE_LIMIT_CONFIGS } from './rate-limit-helper';
 import { createErrorResponse } from './api-response';
 import { AuthError, AuthorizationError, type AppError } from '@/lib/errors';
 import { toAppError } from '@/lib/errors';
 import { ErrorType } from '@/lib/errors';
-
-/**
- * 인증된 요청 핸들러 타입
- */
-type AuthenticatedHandler = (request: NextRequest, session: Session) => Promise<NextResponse>;
+import { isAdminAuthenticated } from './admin-auth';
 
 /**
  * 일반 요청 핸들러 타입
@@ -30,26 +24,6 @@ type RateLimitConfig = {
   windowMs: number;
 };
 
-/**
- * 인증이 필요한 미들웨어
- * 세션이 없으면 401 에러 반환
- */
-export function withAuth(handler: AuthenticatedHandler): Handler {
-  return async (request: NextRequest) => {
-    try {
-      const session = await auth();
-
-      if (!session || !session.user) {
-        return createErrorResponse(new AuthError('인증이 필요합니다.'), 401);
-      }
-
-      return await handler(request, session);
-    } catch (error) {
-      const appError = toAppError(error, ErrorType.AUTH_ERROR);
-      return createErrorResponse(appError);
-    }
-  };
-}
 
 /**
  * Rate Limiting 미들웨어
@@ -70,16 +44,21 @@ export function withRateLimit(config: RateLimitConfig): (handler: Handler) => Ha
 
 /**
  * 관리자 권한이 필요한 미들웨어
- * 세션이 없거나 관리자가 아니면 403 에러 반환
+ * 관리자 인증이 없으면 401 에러 반환
  */
-export function withAdmin(handler: AuthenticatedHandler): Handler {
-  return withAuth(async (request: NextRequest, session: Session) => {
-    if (session.user.role !== 'admin') {
-      return createErrorResponse(new AuthorizationError('관리자 권한이 필요합니다.'), 403);
-    }
+export function withAdmin(handler: Handler): Handler {
+  return async (request: NextRequest) => {
+    try {
+      if (!isAdminAuthenticated(request)) {
+        return createErrorResponse(new AuthError('관리자 인증이 필요합니다.'), 401);
+      }
 
-    return await handler(request, session);
-  });
+      return await handler(request);
+    } catch (error) {
+      const appError = toAppError(error, ErrorType.AUTH_ERROR);
+      return createErrorResponse(appError);
+    }
+  };
 }
 
 /**
@@ -108,19 +87,10 @@ export function combine(...middlewares: Array<(handler: Handler) => Handler>): (
 }
 
 /**
- * 인증 + Rate Limiting 조합
- */
-export function withAuthAndRateLimit(config: RateLimitConfig): (handler: AuthenticatedHandler) => Handler {
-  return (handler: AuthenticatedHandler) => {
-    return combine(withRateLimit(config), withErrorHandling)(withAuth(handler));
-  };
-}
-
-/**
  * 관리자 + Rate Limiting 조합
  */
-export function withAdminAndRateLimit(config: RateLimitConfig): (handler: AuthenticatedHandler) => Handler {
-  return (handler: AuthenticatedHandler) => {
+export function withAdminAndRateLimit(config: RateLimitConfig): (handler: Handler) => Handler {
+  return (handler: Handler) => {
     return combine(withRateLimit(config), withErrorHandling)(withAdmin(handler));
   };
 }

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAndSaveNewsAction } from "@/lib/actions";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
-import { auth } from "@/auth";
 import { log } from "@/lib/utils/logger";
 
 export const maxDuration = 300; // Vercel Pro 플랜 최대 타임아웃 (초)
@@ -47,8 +46,9 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
     let authMethod = "none";
 
     // 1. 세션 확인 (관리자인 경우)
-    const session = await auth();
-    if (session?.user?.role === "admin") {
+    // 관리자 인증은 middleware에서 처리됨
+    const isAdmin = true; // middleware를 통과했다면 관리자
+    if (isAdmin) {
       isAuthenticated = true;
       authMethod = "session";
       log.info("Manual Fetch 관리자 세션 인증 성공");

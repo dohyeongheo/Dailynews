@@ -37,6 +37,7 @@ export interface GeminiNewsResponse {
     category: NewsCategory;
     news_category?: NewsTopicCategory | null;
     published_date: string;
+    original_link?: string;
   }>;
 }
 

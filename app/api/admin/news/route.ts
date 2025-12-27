@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { insertNews } from "@/lib/db/news";
 import { z } from "zod";
 import { log } from "@/lib/utils/logger";
@@ -36,7 +35,7 @@ export const POST = withAdmin(
       published_date: validatedData.published_date,
       source_country: validatedData.source_country || "",
       source_media: validatedData.source_media || "",
-      original_link: validatedData.original_link || "#",
+      original_link: validatedData.original_link || "",
     });
 
     if (result.success) {

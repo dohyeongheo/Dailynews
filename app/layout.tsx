@@ -27,6 +27,10 @@ export const metadata: Metadata = {
 };
 
 import { Providers } from "./providers";
+import SearchBar from "@/components/SearchBar";
+
+// 동적 임포트로 성능 최적화
+const Footer = dynamic(() => import("@/components/Footer"), { ssr: true });
 
 export default function RootLayout({
   children,
@@ -35,11 +39,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="antialiased">
+      <body className="antialiased flex flex-col min-h-screen">
         <Providers>
           <ErrorBoundary>
             <Header />
-            {children}
+            <main className="flex-1">
+              {children}
+            </main>
+            <SearchBar />
+            <Footer />
           </ErrorBoundary>
         </Providers>
       </body>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getAllUsersAction } from "@/lib/actions";
 import { clientLog } from "@/lib/utils/client-logger";
 
 interface User {
@@ -24,9 +23,12 @@ export default function UserManagement() {
   async function loadUsers() {
     setIsLoading(true);
     try {
-      const res = await getAllUsersAction();
-      if (res.success && res.data) {
-        setUsers(res.data);
+      const res = await fetch('/api/admin/users');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data?.users) {
+          setUsers(data.data.users);
+        }
       }
     } catch (error) {
       clientLog.error("Failed to load users", error instanceof Error ? error : new Error(String(error)));
@@ -42,14 +44,18 @@ export default function UserManagement() {
 
     setUpdatingUserId(userId);
     try {
-      const { updateUserRoleAction } = await import("@/lib/actions");
-      const res = await updateUserRoleAction(userId, newRole);
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: newRole }),
+      });
 
-      if (res.success) {
+      if (res.ok) {
         setUsers(users.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
         alert("권한이 변경되었습니다.");
       } else {
-        alert("권한 변경에 실패했습니다: " + res.error);
+        const data = await res.json();
+        alert("권한 변경에 실패했습니다: " + (data.error || "알 수 없는 오류"));
       }
     } catch (error) {
       clientLog.error("Failed to update user role", error instanceof Error ? error : new Error(String(error)), { userId, newRole });

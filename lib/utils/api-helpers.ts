@@ -4,47 +4,9 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
-import type { Session } from 'next-auth';
 import { createErrorResponse } from './api-response';
-import { AuthError, AuthorizationError, BadRequestError, NotFoundError } from '@/lib/errors';
+import { BadRequestError, NotFoundError } from '@/lib/errors';
 import { z } from 'zod';
-
-/**
- * 인증이 필요한 요청에서 세션을 가져옴
- * 세션이 없으면 401 에러 응답 반환
- */
-export async function requireAuth(request: NextRequest): Promise<{ session: Session; response?: NextResponse }> {
-  const session = await auth();
-
-  if (!session || !session.user) {
-    return {
-      session: null as unknown as Session,
-      response: createErrorResponse(new AuthError('인증이 필요합니다.'), 401),
-    };
-  }
-
-  return { session };
-}
-
-/**
- * 관리자 권한이 필요함을 확인
- * 관리자가 아니면 403 에러 응답 반환
- */
-export function requireAdmin(session: Session): NextResponse | null {
-  if (session.user.role !== 'admin') {
-    return createErrorResponse(new AuthorizationError('관리자 권한이 필요합니다.'), 403);
-  }
-
-  return null;
-}
-
-/**
- * 요청에서 사용자 ID 추출
- */
-export function getUserId(request: NextRequest, session: Session): string {
-  return session.user.id;
-}
 
 /**
  * JSON 본문 파싱 및 검증
@@ -126,22 +88,4 @@ export function requireResource<T>(
   return { resource };
 }
 
-/**
- * 권한 확인 (작성자 또는 관리자)
- */
-export function requireOwnerOrAdmin(
-  session: Session,
-  ownerId: string,
-  message: string = '접근 권한이 없습니다.'
-): NextResponse | null {
-  const userId = session.user.id;
-  const isOwner = userId === ownerId;
-  const isAdmin = session.user.role === 'admin';
-
-  if (!isOwner && !isAdmin) {
-    return createErrorResponse(new AuthorizationError(message), 403);
-  }
-
-  return null;
-}
 

@@ -350,7 +350,8 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
       "source_media": "언론사 이름",
       "category": "태국뉴스" 또는 "관련뉴스" 또는 "한국뉴스",
       "news_category": "과학" 또는 "사회" 또는 "정치" 또는 "경제" 또는 "스포츠" 또는 "문화" 또는 "기술" 또는 "건강" 또는 "환경" 또는 "국제" 또는 "기타" (뉴스 내용을 분석하여 가장 적합한 주제 분류를 선택, 없으면 null),
-      "published_date": "${date}"
+      "published_date": "${date}",
+      "original_link": "뉴스 원문 URL (실제 뉴스 기사 링크, 없으면 빈 문자열)"
     }
   ]
 }
@@ -538,6 +539,24 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
         return false;
       }
 
+      // original_link 검증 (선택적 필드, URL 형식이거나 빈 문자열)
+      if (item.original_link !== undefined && item.original_link !== null && item.original_link !== "") {
+        if (typeof item.original_link !== "string") {
+          log.warn("뉴스 항목 original_link가 유효하지 않음", { index: index + 1, title: item.title });
+          // original_link가 유효하지 않으면 빈 문자열로 설정
+          item.original_link = "";
+        } else {
+          // URL 형식 검증 (간단한 검증)
+          try {
+            new URL(item.original_link);
+          } catch {
+            log.warn("뉴스 항목 original_link가 유효한 URL 형식이 아님", { index: index + 1, title: item.title, original_link: item.original_link });
+            // 유효하지 않은 URL이면 빈 문자열로 설정
+            item.original_link = "";
+          }
+        }
+      }
+
       // news_category 유효성 검증 (선택적 필드이지만 유효한 값이어야 함)
       if (item.news_category !== null && item.news_category !== undefined) {
         const validNewsCategories: NewsTopicCategory[] = ["과학", "사회", "정치", "경제", "스포츠", "문화", "기술", "건강", "환경", "국제", "기타"];
@@ -577,7 +596,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
         content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
         news_category: newsCategory,
-        original_link: "#", // 원문 출처는 가져오지 않으므로 항상 "#"로 설정
+        original_link: item.original_link || "", // Gemini API에서 받은 original_link 사용, 없으면 빈 문자열
       };
     });
 

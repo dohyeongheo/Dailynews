@@ -1,4 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" fill="#232f3e" rx="10"/>
-  <text x="50" y="70" font-size="60" text-anchor="middle" fill="#ff9900">DN</text>
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="iconGradient" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop stopColor="#ff9900"/>
+      <stop offset="0.5" stopColor="#ff7700"/>
+      <stop offset="1" stopColor="#ff5500"/>
+    </linearGradient>
+    <filter id="iconGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#iconGradient)" filter="url(#iconGlow)"/>
+  <path d="M16 20h32M16 28h32M16 36h24" stroke="white" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+  <circle cx="48" cy="36" r="5" fill="white" opacity="0.95"/>
+  <path d="M45 33l6 6M51 33l-6 6" stroke="url(#iconGradient)" strokeWidth="2.5" strokeLinecap="round"/>
 </svg>

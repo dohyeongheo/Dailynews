@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { getAllNewsAction, deleteNewsAction, searchNewsAction } from "@/lib/actions";
+import { getAllNewsAction, searchNewsAction } from "@/lib/actions";
 import type { News } from "@/types/news";
 import NewsForm from "./NewsForm";
 import { clientLog } from "@/lib/utils/client-logger";
@@ -152,10 +152,12 @@ export default function NewsManagement() {
 
     setIsDeleting(true);
     try {
-      const deletePromises = Array.from(selectedIds).map((id) => deleteNewsAction(id));
+      const deletePromises = Array.from(selectedIds).map((id) =>
+        fetch(`/api/admin/news/${id}`, { method: 'DELETE' })
+      );
       const results = await Promise.allSettled(deletePromises);
 
-      const successCount = results.filter((r) => r.status === "fulfilled" && r.value.success).length;
+      const successCount = results.filter((r) => r.status === "fulfilled" && r.value.ok).length;
 
       if (successCount === selectedIds.size) {
         setSelectedIds(new Set());
@@ -389,18 +391,24 @@ export default function NewsManagement() {
                     <button
                       onClick={() => {
                         if (confirm("정말로 이 뉴스를 삭제하시겠습니까?")) {
-                          const deletePromise = deleteNewsAction(item.id);
-                          deletePromise.then((res) => {
-                            if (res.success) {
-                              if (isSearchMode && searchQuery.trim()) {
-                                handleSearch();
+                          fetch(`/api/admin/news/${item.id}`, { method: 'DELETE' })
+                            .then((res) => {
+                              if (res.ok) {
+                                if (isSearchMode && searchQuery.trim()) {
+                                  handleSearch();
+                                } else {
+                                  loadNews();
+                                }
                               } else {
-                                loadNews();
+                                res.json().then((data) => {
+                                  alert("삭제 실패: " + (data.error || "알 수 없는 오류"));
+                                });
                               }
-                            } else {
-                              alert("삭제 실패: " + res.error);
-                            }
-                          });
+                            })
+                            .catch((error) => {
+                              alert("삭제 중 오류가 발생했습니다.");
+                              clientLog.error("Failed to delete news", error, { newsId: item.id });
+                            });
                         }
                       }}
                       className="text-red-600 hover:text-red-900"
