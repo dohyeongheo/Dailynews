@@ -1001,26 +1001,29 @@ export async function retryFailedTranslations(limit: number = 50): Promise<{ suc
 export async function saveNewsToDatabase(
   newsItems: NewsInput[],
   maxImageGenerationTimeMs?: number
-): Promise<{ success: number; failed: number }> {
+): Promise<{ success: number; failed: number; savedNewsIds: string[] }> {
   try {
     const result = await insertNewsBatch(newsItems);
 
     // result가 유효한지 확인
     if (!result || typeof result !== "object" || typeof result.success !== "number" || typeof result.failed !== "number") {
       log.error("Invalid result from insertNewsBatch", undefined, { result });
-      return { success: 0, failed: newsItems.length };
+      return { success: 0, failed: newsItems.length, savedNewsIds: [] };
     }
 
+    // savedNewsIds가 없는 경우 빈 배열로 초기화
+    const savedNewsIds = result.savedNewsIds || [];
+
     // 저장된 뉴스에 대해 이미지 생성 (저장된 뉴스 ID가 있는 경우)
-    if (result.success > 0 && result.savedNewsIds && result.savedNewsIds.length > 0) {
+    if (result.success > 0 && savedNewsIds.length > 0) {
       try {
         // 이미지 생성 완료를 기다림 (Cron Job과 수동 수집 모두에서 동작하도록)
         // 타임아웃이 설정된 경우 남은 시간 내에서 이미지 생성
         // 에러가 발생해도 뉴스 저장 결과에는 영향을 주지 않음
-        await generateImagesForNews(result.savedNewsIds, maxImageGenerationTimeMs);
+        await generateImagesForNews(savedNewsIds, maxImageGenerationTimeMs);
       } catch (error) {
         log.error("이미지 생성 중 오류 발생", error instanceof Error ? error : new Error(String(error)), {
-          savedNewsCount: result.savedNewsIds.length,
+          savedNewsCount: savedNewsIds.length,
           maxImageGenerationTimeMs,
         });
         // 이미지 생성 실패는 뉴스 저장 결과에 영향을 주지 않음
@@ -1036,10 +1039,10 @@ export async function saveNewsToDatabase(
       });
     }
 
-    return { success: result.success, failed: result.failed };
+    return { success: result.success, failed: result.failed, savedNewsIds };
   } catch (error) {
     log.error("Error in saveNewsToDatabase", error);
-    return { success: 0, failed: newsItems.length };
+    return { success: 0, failed: newsItems.length, savedNewsIds: [] };
   }
 }
 
@@ -1051,7 +1054,7 @@ export async function saveNewsToDatabase(
 export async function fetchAndSaveNews(
   date?: string,
   maxImageGenerationTimeMs?: number
-): Promise<{ success: number; failed: number; total: number }> {
+): Promise<{ success: number; failed: number; total: number; savedNewsIds: string[] }> {
   try {
     const newsItems = await fetchNewsFromGemini(date);
     const result = await saveNewsToDatabase(newsItems, maxImageGenerationTimeMs);
@@ -1063,6 +1066,7 @@ export async function fetchAndSaveNews(
         success: 0,
         failed: newsItems.length,
         total: newsItems.length,
+        savedNewsIds: [],
       };
     }
 
@@ -1070,6 +1074,7 @@ export async function fetchAndSaveNews(
       success: result.success || 0,
       failed: result.failed || 0,
       total: newsItems.length,
+      savedNewsIds: result.savedNewsIds || [],
     };
   } catch (error) {
     log.error("Error in fetchAndSaveNews", error);

@@ -47,11 +47,13 @@ async function main() {
     const executionTime = Date.now() - startTime;
 
     if (result.success > 0) {
+      const savedNewsIdsCount = result.savedNewsIds?.length || 0;
+      
       log.info("뉴스 수집 및 이미지 생성 테스트 성공", {
         success: result.success,
         failed: result.failed,
         total: result.total,
-        savedNewsIds: result.savedNewsIds.length,
+        savedNewsIds: savedNewsIdsCount,
         executionTimeMs: executionTime,
         executionTimeSec: (executionTime / 1000).toFixed(2),
       });
@@ -60,7 +62,7 @@ async function main() {
       console.log(`✅ 성공: ${result.success}개`);
       console.log(`❌ 실패: ${result.failed}개`);
       console.log(`📊 전체: ${result.total}개`);
-      console.log(`🖼️  저장된 뉴스 ID: ${result.savedNewsIds.length}개`);
+      console.log(`🖼️  저장된 뉴스 ID: ${savedNewsIdsCount}개`);
       console.log(`⏱️  실행 시간: ${(executionTime / 1000).toFixed(2)}초`);
 
       // 실패가 있으면 exit code 1 반환
@@ -69,14 +71,14 @@ async function main() {
       log.error("뉴스 수집 테스트 실패", undefined, {
         success: result.success,
         failed: result.failed,
-        total: result.total,
+        total,
         executionTimeMs: executionTime,
       });
 
       console.error(`❌ 뉴스 수집 테스트 실패`);
       console.error(`성공: ${result.success}개`);
       console.error(`실패: ${result.failed}개`);
-      console.error(`전체: ${result.total}개`);
+      console.error(`전체: ${total}개`);
 
       process.exit(1);
     }

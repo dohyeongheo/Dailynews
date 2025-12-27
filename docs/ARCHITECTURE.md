@@ -181,7 +181,6 @@ Dailynews/
 
 ### 인증 및 인가
 
-
 ### Rate Limiting
 
 - 수동 뉴스 수집 API: 10분에 5회 요청 제한
@@ -250,4 +249,3 @@ Dailynews/
 - Redis를 통한 Rate Limiting
 - 데이터베이스 연결 풀 최적화
 - CDN 캐싱 전략 개선
-
