@@ -20,7 +20,31 @@
 4. "Run" 버튼 클릭하여 실행
 5. 테이블 생성 확인
 
-### 1.3 API 키 확인
+### 1.3 RLS (Row Level Security) 활성화
+
+보안을 위해 RLS를 활성화해야 합니다:
+
+1. Supabase 대시보드에서 "SQL Editor" 메뉴 클릭
+2. "New query" 클릭
+3. `supabase/migrations/enable_rls.sql` 파일의 내용을 복사하여 붙여넣기
+4. "Run" 버튼 클릭하여 실행
+5. RLS 활성화 확인
+
+**참고**: 이 애플리케이션은 서버 사이드에서 Service Role Key를 사용하므로, RLS를 활성화해도 서버 사이드 로직에는 영향이 없습니다. RLS는 anon key로의 직접 접근을 차단하여 보안을 강화합니다.
+
+### 1.4 함수 보안 설정 (Function Search Path)
+
+보안을 위해 함수의 `search_path`를 설정해야 합니다:
+
+1. Supabase 대시보드에서 "SQL Editor" 메뉴 클릭
+2. "New query" 클릭
+3. `supabase/migrations/fix_function_search_path.sql` 파일의 내용을 복사하여 붙여넣기
+4. "Run" 버튼 클릭하여 실행
+5. 함수 보안 설정 확인
+
+**참고**: `search_path`를 명시적으로 설정하면 SQL injection 공격을 방지할 수 있습니다.
+
+### 1.5 API 키 확인
 
 1. Supabase 대시보드에서 "Project Settings" > "API" 메뉴 클릭
 2. 다음 값들을 복사하여 저장:

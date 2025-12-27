@@ -120,7 +120,9 @@ Vercel 환경 변수에 `MANUAL_FETCH_PASSWORD`를 설정하세요.
 
 1. [Supabase](https://supabase.com)에서 프로젝트 생성
 2. SQL Editor에서 `supabase/schema.sql` 파일의 내용을 실행하여 테이블 생성
-3. Project Settings > API에서 다음 값 확인:
+3. SQL Editor에서 `supabase/migrations/enable_rls.sql` 파일의 내용을 실행하여 RLS 활성화 (보안 강화)
+4. SQL Editor에서 `supabase/migrations/fix_function_search_path.sql` 파일의 내용을 실행하여 함수 보안 설정 (보안 강화)
+5. Project Settings > API에서 다음 값 확인:
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
    - anon public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - service_role key → `SUPABASE_SERVICE_ROLE_KEY`

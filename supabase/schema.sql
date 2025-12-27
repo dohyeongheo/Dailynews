@@ -84,8 +84,13 @@ CREATE INDEX IF NOT EXISTS idx_news_id_created_at ON news(id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_news_category_created_at ON news(category, created_at DESC);
 
 -- 6. 조회수 증가 함수
+-- search_path를 명시적으로 설정하여 SQL injection 공격 방지
 CREATE OR REPLACE FUNCTION increment_view_count(p_news_id UUID)
-RETURNS BIGINT AS $$
+RETURNS BIGINT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
 DECLARE
   v_count BIGINT;
 BEGIN
@@ -99,7 +104,7 @@ BEGIN
 
   RETURN v_count;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 -- 7. news_reactions 테이블 (뉴스 좋아요/싫어요)
 CREATE TABLE IF NOT EXISTS news_reactions (

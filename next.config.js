@@ -33,6 +33,12 @@ const nextConfig = {
         ];
       }
     }
+
+    // 참고: "Serializing big strings" 경고는 webpack의 내부 캐시 전략에서 발생하는
+    // 성능 최적화 제안입니다. 이 경고는 빌드 결과나 기능에 영향을 주지 않으며,
+    // Next.js의 자체 캐시 최적화로 인해 실제 성능 영향은 미미합니다.
+    // 이 경고는 무시해도 됩니다.
+
     return config;
   },
 };
