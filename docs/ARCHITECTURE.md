@@ -49,13 +49,13 @@ Daily News는 Next.js 14+ App Router를 기반으로 한 서버리스 뉴스 수
 ### 1. 뉴스 수집 프로세스
 
 ```
-Vercel Cron Job (매일 오전 6시)
+GitHub Actions (매일 오전 6시)
     │
     ▼
-/api/cron/fetch-news
+scripts/fetch-news.ts
     │
     ▼
-fetchAndSaveNewsAction()
+fetchAndSaveNews()
     │
     ├─► fetchNewsFromGemini()
     │       │
@@ -181,8 +181,6 @@ Dailynews/
 
 ### 인증 및 인가
 
-- **수동 뉴스 수집:** 비밀번호 인증 (`MANUAL_FETCH_PASSWORD`)
-- **Cron Job:** Vercel 내부 인증 또는 `CRON_SECRET`
 
 ### Rate Limiting
 

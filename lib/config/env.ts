@@ -17,8 +17,6 @@ const envSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY는 필수입니다."),
 
   // 선택적 환경 변수
-  MANUAL_FETCH_PASSWORD: z.string().optional(),
-  CRON_SECRET: z.string().optional(),
   ADMIN_PASSWORD: z.string().optional(),
 
   // AI 이미지 생성 API 설정
@@ -51,8 +49,6 @@ function validateEnv(): Env {
       NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
-      MANUAL_FETCH_PASSWORD: process.env.MANUAL_FETCH_PASSWORD,
-      CRON_SECRET: process.env.CRON_SECRET,
       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
       IMAGE_GENERATION_API: (process.env.IMAGE_GENERATION_API as "gemini" | "replicate" | "huggingface" | "deepai" | "none") || "none",
       REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN,

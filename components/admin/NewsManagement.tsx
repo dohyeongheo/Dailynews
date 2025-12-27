@@ -11,7 +11,6 @@ const PAGE_SIZE = 20;
 export default function NewsManagement() {
   const [news, setNews] = useState<News[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isFetching, setIsFetching] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingNews, setEditingNews] = useState<News | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -185,24 +184,6 @@ export default function NewsManagement() {
     }
   }
 
-  async function handleManualFetch() {
-    setIsFetching(true);
-    try {
-      const res = await fetch("/api/manual/fetch-news", { method: "POST" });
-      const data = await res.json();
-
-      if (data.success) {
-        alert(data.message);
-        loadNews(); // 목록 갱신
-      } else {
-        alert("뉴스 수집 실패: " + data.message);
-      }
-    } catch (error) {
-      alert("오류가 발생했습니다.");
-    } finally {
-      setIsFetching(false);
-    }
-  }
 
   const handleCreateSuccess = () => {
     setShowCreateForm(false);
@@ -264,13 +245,6 @@ export default function NewsManagement() {
           )}
           <button onClick={() => setShowCreateForm(true)} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
             뉴스 생성
-          </button>
-          <button
-            onClick={handleManualFetch}
-            disabled={isFetching}
-            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
-          >
-            {isFetching ? "수집 중..." : "뉴스 수동 수집"}
           </button>
         </div>
       </div>

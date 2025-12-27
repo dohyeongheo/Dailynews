@@ -64,11 +64,6 @@ SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 # 관리자 페이지 접속 비밀번호 (선택사항, 관리자 페이지 접속 시 필요)
 ADMIN_PASSWORD=your_admin_password
 
-# 수동 뉴스 수집 비밀번호 (선택사항)
-MANUAL_FETCH_PASSWORD=your_manual_fetch_password
-
-# Cron Job 인증용 Secret (선택사항)
-CRON_SECRET=your_cron_secret
 ```
 
 > 💡 **팁**: `.env.example` 파일을 참고하여 필요한 환경 변수를 확인할 수 있습니다.
@@ -103,24 +98,6 @@ npm run fetch-news
 
 #### 수동 뉴스 수집 (배포 서버)
 
-#### 수동 뉴스 수집 (배포 서버)
-
-필요한 경우 배포 서버에서 수동으로 뉴스 수집을 실행할 수 있습니다. 비밀번호 인증이 필요합니다.
-
-**GET 요청:**
-```bash
-curl "https://your-domain.com/api/manual/fetch-news?password=YOUR_PASSWORD"
-```
-
-**POST 요청:**
-```bash
-curl -X POST "https://your-domain.com/api/manual/fetch-news" \
-  -H "Content-Type: application/json" \
-  -d '{"password": "YOUR_PASSWORD"}'
-```
-
-**환경 변수 설정:**
-Vercel 환경 변수에 `MANUAL_FETCH_PASSWORD`를 설정하세요.
 
 ### 관리자 페이지 접속
 
@@ -210,7 +187,6 @@ ADMIN_PASSWORD=your_secure_password_here
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (필수)
    - `SUPABASE_SERVICE_ROLE_KEY` (필수)
    - `ADMIN_PASSWORD` (관리자 페이지 접속용, 선택사항)
-   - `MANUAL_FETCH_PASSWORD` (수동 뉴스 수집용 비밀번호, 선택사항)
    - `IMAGE_GENERATION_API` (이미지 생성 API 선택, 선택사항)
    - `REPLICATE_API_TOKEN`, `HUGGINGFACE_API_KEY`, `DEEPAI_API_KEY` (이미지 생성 API 토큰, 선택사항)
 4. 배포 완료!

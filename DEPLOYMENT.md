@@ -112,8 +112,6 @@ Vercel 대시보드에서 환경 변수를 설정합니다:
 #### 선택적 환경 변수
 
 - **ADMIN_PASSWORD**: 관리자 페이지 접속용 비밀번호
-- **MANUAL_FETCH_PASSWORD**: 수동 뉴스 수집용 비밀번호
-- **CRON_SECRET**: Cron Job 인증용 Secret
 - **IMAGE_GENERATION_API**: 이미지 생성 API 선택 (`gemini`, `replicate`, `huggingface`, `deepai`, `none`)
 - **REPLICATE_API_TOKEN**: Replicate API 토큰 (IMAGE_GENERATION_API가 `replicate`인 경우)
 - **HUGGINGFACE_API_KEY**: Hugging Face API 키 (IMAGE_GENERATION_API가 `huggingface`인 경우)
