@@ -45,14 +45,14 @@ async function main() {
     const result = await saveNewsToDatabase(limitedNewsItems);
 
     const executionTime = Date.now() - startTime;
+    const total = limitedNewsItems.length;
+    const savedNewsIdsCount = result.savedNewsIds?.length || 0;
 
     if (result.success > 0) {
-      const savedNewsIdsCount = result.savedNewsIds?.length || 0;
-      
       log.info("뉴스 수집 및 이미지 생성 테스트 성공", {
         success: result.success,
         failed: result.failed,
-        total: result.total,
+        total,
         savedNewsIds: savedNewsIdsCount,
         executionTimeMs: executionTime,
         executionTimeSec: (executionTime / 1000).toFixed(2),
@@ -61,7 +61,7 @@ async function main() {
       console.log(`\n✅ 테스트 완료!`);
       console.log(`✅ 성공: ${result.success}개`);
       console.log(`❌ 실패: ${result.failed}개`);
-      console.log(`📊 전체: ${result.total}개`);
+      console.log(`📊 전체: ${total}개`);
       console.log(`🖼️  저장된 뉴스 ID: ${savedNewsIdsCount}개`);
       console.log(`⏱️  실행 시간: ${(executionTime / 1000).toFixed(2)}초`);
 
