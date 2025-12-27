@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchAndSaveNewsAction } from "@/lib/actions";
 import { checkRateLimit } from "@/lib/utils/rate-limit";
 import { log } from "@/lib/utils/logger";
+import { isAdminAuthenticated } from "@/lib/utils/admin-auth";
 
 export const maxDuration = 300; // Vercel Pro 플랜 최대 타임아웃 (초)
 
@@ -46,8 +47,7 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
     let authMethod = "none";
 
     // 1. 세션 확인 (관리자인 경우)
-    // 관리자 인증은 middleware에서 처리됨
-    const isAdmin = true; // middleware를 통과했다면 관리자
+    const isAdmin = isAdminAuthenticated(request);
     if (isAdmin) {
       isAuthenticated = true;
       authMethod = "session";
@@ -76,32 +76,17 @@ async function handleRequest(request: NextRequest, method: "GET" | "POST") {
         providedPassword = searchParams.get("password");
       } else {
         try {
-          // body가 비어있을 수 있음
-          const text = await request.text();
+          // POST 요청 본문 읽기
+          const body = await request.json();
+          providedPassword = body?.password || null;
 
-          if (!text || text.trim() === "") {
-            // 본문이 비어있음 - 정상적인 경우일 수 있음
-            log.debug("Manual Fetch POST 요청 본문이 비어있음");
-          } else {
-            try {
-              const json = JSON.parse(text);
-              providedPassword = json?.password || null;
-
-              if (!providedPassword) {
-                log.warn("Manual Fetch POST 요청 본문에 password 필드가 없음");
-              }
-            } catch (parseError) {
-              // JSON 파싱 실패 - 명확한 에러 로깅
-              log.error("Manual Fetch POST 요청 본문 JSON 파싱 실패", parseError instanceof Error ? parseError : new Error(String(parseError)), {
-                bodyPreview: text.substring(0, 100), // 처음 100자만 로깅
-              });
-              // JSON 파싱 실패는 인증 실패로 처리하지 않고, providedPassword는 null로 유지
-            }
+          if (!providedPassword) {
+            log.warn("Manual Fetch POST 요청 본문에 password 필드가 없음");
           }
         } catch (error) {
-          // request.text() 호출 실패 - 본문이 이미 소비되었거나 다른 문제
-          log.error("Manual Fetch POST 요청 본문 읽기 실패", error instanceof Error ? error : new Error(String(error)), {
-            hint: "본문이 이미 소비되었거나 요청 형식이 잘못되었을 수 있습니다.",
+          // JSON 파싱 실패 또는 본문이 비어있음
+          log.debug("Manual Fetch POST 요청 본문 읽기 실패 (비어있거나 형식 오류)", {
+            error: error instanceof Error ? error.message : String(error),
           });
           // 본문 읽기 실패는 인증 실패로 처리하지 않고, providedPassword는 null로 유지
         }
