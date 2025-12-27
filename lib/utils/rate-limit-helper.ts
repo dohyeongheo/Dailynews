@@ -53,10 +53,6 @@ export const RATE_LIMIT_CONFIGS = {
     maxRequests: 10,
     windowMs: 60 * 1000, // 1분
   },
-  COMMENTS: {
-    maxRequests: 20,
-    windowMs: 60 * 1000, // 1분
-  },
   BOOKMARKS: {
     maxRequests: 30,
     windowMs: 60 * 1000, // 1분

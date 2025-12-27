@@ -110,8 +110,6 @@ export const CACHE_NAMESPACES = {
   NEWS_CATEGORY: 'news:category',
   NEWS_ID: 'news:id',
   NEWS_RELATED: 'news:related',
-  COMMENTS: 'comments',
-  COMMENTS_NEWS: 'comments:news',
 } as const;
 
 /**
@@ -135,12 +133,5 @@ export async function invalidateNewsCache(newsId?: string): Promise<void> {
  */
 export async function invalidateCategoryCache(category: string): Promise<void> {
   await deleteCache(CACHE_NAMESPACES.NEWS_CATEGORY, category);
-}
-
-/**
- * 댓글 캐시 무효화
- */
-export async function invalidateCommentCache(newsId: string): Promise<void> {
-  await deleteCache(CACHE_NAMESPACES.COMMENTS_NEWS, newsId);
 }
 

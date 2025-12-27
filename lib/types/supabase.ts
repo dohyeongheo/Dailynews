@@ -47,18 +47,6 @@ export interface BookmarkRow {
 }
 
 /**
- * comments 테이블의 행 타입
- */
-export interface CommentRow {
-  id: string;
-  news_id: string;
-  user_id: string;
-  content: string;
-  created_at: string; // TIMESTAMPTZ -> string (ISO format)
-  updated_at: string; // TIMESTAMPTZ -> string (ISO format)
-}
-
-/**
  * news_views 테이블의 행 타입
  */
 export interface NewsViewRow {
@@ -74,17 +62,6 @@ export interface NewsViewRow {
 export interface NewsReactionRow {
   id: string;
   news_id: string;
-  user_id: string;
-  reaction_type: "like" | "dislike";
-  created_at: string; // TIMESTAMPTZ -> string (ISO format)
-}
-
-/**
- * comment_reactions 테이블의 행 타입
- */
-export interface CommentReactionRow {
-  id: string;
-  comment_id: string;
   user_id: string;
   reaction_type: "like" | "dislike";
   created_at: string; // TIMESTAMPTZ -> string (ISO format)

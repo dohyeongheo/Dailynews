@@ -1,7 +1,5 @@
 import { getNewsById, getRelatedNews } from "@/lib/db/news";
-import { getCommentsByNewsId } from "@/lib/db/comments";
 import { incrementViewCount, getViewCount } from "@/lib/db/views";
-import CommentSection from "@/components/CommentSection";
 import RelatedNews from "@/components/RelatedNews";
 import { notFound } from "next/navigation";
 import { Metadata } from "next";
@@ -37,8 +35,7 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
   }
 
   // 병렬로 데이터 로드 및 조회수 증가
-  const [comments, relatedNews, _] = await Promise.all([
-    getCommentsByNewsId(params.id),
+  const [relatedNews, _] = await Promise.all([
     getRelatedNews(params.id, news.category, 5),
     incrementViewCount(params.id),
   ]);
@@ -63,8 +60,6 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
           </header>
 
           <div className="prose max-w-none mb-10 text-gray-800 leading-relaxed whitespace-pre-wrap">{news.content_translated || news.content}</div>
-
-          <CommentSection newsId={params.id} initialComments={comments} />
         </article>
 
         {/* 관련 뉴스 섹션 */}

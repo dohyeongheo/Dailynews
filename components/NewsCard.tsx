@@ -61,7 +61,7 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
           </div>
         </div>
 
-        <p className="text-sm sm:text-base text-gray-700 mb-4 line-clamp-3 whitespace-pre-wrap break-words leading-relaxed">
+        <p className="text-sm sm:text-base text-gray-700 mb-4 whitespace-pre-wrap break-words leading-relaxed">
           {news.content_translated || news.content}
         </p>
 
