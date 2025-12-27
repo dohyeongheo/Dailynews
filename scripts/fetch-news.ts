@@ -8,6 +8,26 @@ import { log } from "../lib/utils/logger";
 
 async function main() {
   try {
+    // 환경 변수 확인
+    const requiredEnvVars = [
+      "GOOGLE_GEMINI_API_KEY",
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "SUPABASE_SERVICE_ROLE_KEY",
+    ];
+
+    const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
+    if (missingVars.length > 0) {
+      console.error("❌ 필수 환경 변수가 설정되지 않았습니다:");
+      missingVars.forEach((varName) => console.error(`   - ${varName}`));
+      console.error("\nGitHub Secrets에 다음 변수들을 설정하세요:");
+      console.error("   - GOOGLE_GEMINI_API_KEY");
+      console.error("   - NEXT_PUBLIC_SUPABASE_URL");
+      console.error("   - NEXT_PUBLIC_SUPABASE_ANON_KEY");
+      console.error("   - SUPABASE_SERVICE_ROLE_KEY");
+      process.exit(1);
+    }
+
     const startTime = Date.now();
     log.info("뉴스 수집 스크립트 시작");
 

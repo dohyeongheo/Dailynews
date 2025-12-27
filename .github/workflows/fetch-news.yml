@@ -26,17 +26,37 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
+      
+      - name: Verify required secrets
+        run: |
+          if [ -z "${{ secrets.GOOGLE_GEMINI_API_KEY }}" ]; then
+            echo "❌ Error: GOOGLE_GEMINI_API_KEY is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" ]; then
+            echo "❌ Error: NEXT_PUBLIC_SUPABASE_URL is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" ]; then
+            echo "❌ Error: NEXT_PUBLIC_SUPABASE_ANON_KEY is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]; then
+            echo "❌ Error: SUPABASE_SERVICE_ROLE_KEY is not set"
+            exit 1
+          fi
+          echo "✅ All required secrets are set"
+      
       - name: Fetch and save news
         env:
           GOOGLE_GEMINI_API_KEY: ${{ secrets.GOOGLE_GEMINI_API_KEY }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          IMAGE_GENERATION_API: ${{ secrets.IMAGE_GENERATION_API }}
-          GEMINI_USE_CONTEXT_CACHING: ${{ secrets.GEMINI_USE_CONTEXT_CACHING }}
-          GEMINI_NEWS_COLLECTION_MODEL: ${{ secrets.GEMINI_NEWS_COLLECTION_MODEL }}
-          GEMINI_TRANSLATION_MODEL: ${{ secrets.GEMINI_TRANSLATION_MODEL }}
+          IMAGE_GENERATION_API: ${{ secrets.IMAGE_GENERATION_API || 'none' }}
+          GEMINI_USE_CONTEXT_CACHING: ${{ secrets.GEMINI_USE_CONTEXT_CACHING || 'true' }}
+          GEMINI_NEWS_COLLECTION_MODEL: ${{ secrets.GEMINI_NEWS_COLLECTION_MODEL || 'pro' }}
+          GEMINI_TRANSLATION_MODEL: ${{ secrets.GEMINI_TRANSLATION_MODEL || 'flash' }}
         run: npm run fetch-news
 
       - name: Upload logs on failure
