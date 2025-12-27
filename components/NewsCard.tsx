@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import CategoryBadge from "@/components/CategoryBadge";
 import type { News } from "@/types/news";
+import { formatNewsDate } from "@/lib/utils/date-format";
 
 interface NewsCardProps {
   news: News;
@@ -11,14 +12,6 @@ interface NewsCardProps {
 }
 
 const NewsCard = React.memo(function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("ko-KR", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
 
   return (
     <article className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
@@ -36,7 +29,7 @@ const NewsCard = React.memo(function NewsCard({ news, showOriginalLink = true }:
             <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
               <span className="font-medium text-blue-600">{news.source_media}</span>
               <span>•</span>
-              <span>{formatDate(news.published_date)}</span>
+              <span>{formatNewsDate(news.published_date)}</span>
             </div>
           </div>
         </div>

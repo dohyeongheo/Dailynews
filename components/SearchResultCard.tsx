@@ -11,17 +11,9 @@ interface SearchResultCardProps {
   searchType: "title" | "content" | "all";
 }
 
-export default function SearchResultCard({ news, query, searchType }: SearchResultCardProps) {
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
+import { formatNewsDateDetailed } from "@/lib/utils/date-format";
 
-    return `${year}년 ${month}월 ${day}일 ${hours}시 ${minutes}분`;
-  };
+export default function SearchResultCard({ news, query, searchType }: SearchResultCardProps) {
 
   // 카테고리별 색상 매핑
   const getCategoryColor = (category: string | null) => {
@@ -89,7 +81,7 @@ export default function SearchResultCard({ news, query, searchType }: SearchResu
           <span>{news.source_media}</span>
         </div>
         <time dateTime={news.published_date} className="text-gray-400">
-          {formatDate(news.published_date)}
+          {formatNewsDateDetailed(news.published_date)}
         </time>
       </div>
     </article>
