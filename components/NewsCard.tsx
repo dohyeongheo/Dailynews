@@ -10,7 +10,6 @@ interface NewsCardProps {
 }
 
 function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("ko-KR", {
@@ -30,13 +29,9 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
               <CategoryBadge category={news.category} type="main" className="text-xs px-2.5 py-1" />
 
               {/* 상세 카테고리 (news_category) */}
-              {news.news_category && (
-                <CategoryBadge category={news.news_category} type="topic" className="text-xs px-2.5 py-1" />
-              )}
+              {news.news_category && <CategoryBadge category={news.news_category} type="topic" className="text-xs px-2.5 py-1" />}
             </div>
-            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 transition-colors">
-              {news.title}
-            </h2>
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 transition-colors">{news.title}</h2>
             <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
               <span className="font-medium text-blue-600">{news.source_media}</span>
               <span>•</span>
@@ -45,9 +40,7 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
           </div>
         </div>
 
-        <p className="text-sm sm:text-base text-gray-700 mb-4 whitespace-pre-wrap break-words leading-relaxed">
-          {news.content_translated || news.content}
-        </p>
+        <p className="text-sm sm:text-base text-gray-700 mb-4 whitespace-pre-wrap break-words leading-relaxed">{news.content_translated || news.content}</p>
 
         <div className="flex items-center justify-end text-xs sm:text-sm text-gray-500">
           {showOriginalLink && news.original_link && news.original_link.trim() !== "" ? (
@@ -60,7 +53,12 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
             >
               원문 보기
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
               </svg>
             </a>
           ) : null}
