@@ -32,8 +32,8 @@ async function testImageUpload() {
     console.log("\n2. 더미 이미지 생성:");
     console.log(`   ✅ 더미 이미지 생성 완료 (${dummyImage.length} bytes)`);
 
-    // 3. Supabase Storage에 업로드
-    console.log("\n3. Supabase Storage 업로드:");
+    // 3. Vercel Blob에 업로드
+    console.log("\n3. Vercel Blob Storage 업로드:");
     const testNewsId = `test-${Date.now()}`;
     const imageUrl = await uploadNewsImage(testNewsId, dummyImage);
     console.log(`   ✅ 업로드 완료`);
