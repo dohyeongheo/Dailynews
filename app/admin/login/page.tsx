@@ -18,9 +18,21 @@ function AdminLoginForm() {
   async function checkAuth() {
     try {
       const response = await fetch('/api/admin/auth');
-      const data = await response.json();
 
-      if (data.success && data.data.authenticated) {
+      if (!response.ok) {
+        // 인증되지 않음 - 정상적인 경우
+        return;
+      }
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        // JSON 파싱 실패 - 무시
+        return;
+      }
+
+      if (data.success && data.data?.authenticated) {
         // 이미 로그인되어 있으면 관리자 페이지로 리다이렉트
         const redirect = searchParams.get('redirect') || '/admin';
         router.push(redirect);
@@ -42,17 +54,34 @@ function AdminLoginForm() {
         body: JSON.stringify({ password }),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        throw new Error('서버 응답을 파싱할 수 없습니다.');
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || '로그인에 실패했습니다.');
+        // 에러 응답 형식: { success: false, error: { message: string, ... } }
+        const errorMessage =
+          (data?.error && typeof data.error === 'object' && data.error.message)
+            ? data.error.message
+            : (typeof data?.error === 'string'
+                ? data.error
+                : data?.message || '로그인에 실패했습니다.');
+        throw new Error(errorMessage);
       }
 
       // 로그인 성공 시 관리자 페이지로 리다이렉트
       const redirect = searchParams.get('redirect') || '/admin';
       router.push(redirect);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '알 수 없는 오류가 발생했습니다.');
+      const errorMessage = err instanceof Error
+        ? err.message
+        : (typeof err === 'string'
+            ? err
+            : '알 수 없는 오류가 발생했습니다.');
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }

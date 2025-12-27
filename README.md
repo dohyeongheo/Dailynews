@@ -60,7 +60,18 @@ GOOGLE_GEMINI_API_KEY=your_google_gemini_api_key
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+
+# 관리자 페이지 접속 비밀번호 (선택사항, 관리자 페이지 접속 시 필요)
+ADMIN_PASSWORD=your_admin_password
+
+# 수동 뉴스 수집 비밀번호 (선택사항)
+MANUAL_FETCH_PASSWORD=your_manual_fetch_password
+
+# Cron Job 인증용 Secret (선택사항)
+CRON_SECRET=your_cron_secret
 ```
+
+> 💡 **팁**: `.env.example` 파일을 참고하여 필요한 환경 변수를 확인할 수 있습니다.
 
 ### 4. 개발 서버 실행
 
@@ -94,6 +105,45 @@ curl -X POST "https://your-domain.com/api/manual/fetch-news" \
 
 **환경 변수 설정:**
 Vercel 환경 변수에 `MANUAL_FETCH_PASSWORD`를 설정하세요.
+
+### 관리자 페이지 접속
+
+관리자 페이지(`/admin`)에 접속하려면 비밀번호 인증이 필요합니다.
+
+#### 1. 환경 변수 설정
+
+`.env.local` 파일에 `ADMIN_PASSWORD`를 설정하세요:
+
+```env
+ADMIN_PASSWORD=your_secure_password_here
+```
+
+**로컬 개발 환경:**
+- `.env.local` 파일에 `ADMIN_PASSWORD` 추가
+
+**Vercel 배포 환경:**
+1. Vercel 대시보드 → 프로젝트 선택
+2. Settings → Environment Variables
+3. `ADMIN_PASSWORD` 추가 (모든 환경에 적용)
+
+#### 2. 관리자 페이지 접속 방법
+
+1. 브라우저에서 `/admin/login` 페이지로 이동
+2. 설정한 `ADMIN_PASSWORD` 입력
+3. 로그인 성공 시 `/admin` 페이지로 자동 리다이렉트
+
+#### 3. 관리자 페이지 기능
+
+- **뉴스 관리**: 뉴스 생성, 수정, 삭제
+- **댓글 관리**: 댓글 조회 및 삭제
+- **사용자 관리**: 사용자 조회 및 역할 변경
+
+#### 4. 보안 주의사항
+
+- `ADMIN_PASSWORD`는 강력한 비밀번호로 설정하세요
+- 프로덕션 환경에서는 반드시 환경 변수로 관리하세요
+- `.env.local` 파일은 절대 Git에 커밋하지 마세요 (`.gitignore`에 포함되어 있음)
+- 세션 쿠키는 7일간 유지되며, 로그아웃 시 삭제됩니다
 
 ### 뉴스 카테고리
 
@@ -132,10 +182,11 @@ Vercel 환경 변수에 `MANUAL_FETCH_PASSWORD`를 설정하세요.
 1. GitHub에 코드 푸시
 2. [Vercel](https://vercel.com)에서 프로젝트 import
 3. 환경 변수 설정:
-   - `GOOGLE_GEMINI_API_KEY`
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `GOOGLE_GEMINI_API_KEY` (필수)
+   - `NEXT_PUBLIC_SUPABASE_URL` (필수)
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (필수)
+   - `SUPABASE_SERVICE_ROLE_KEY` (필수)
+   - `ADMIN_PASSWORD` (관리자 페이지 접속용, 선택사항)
    - `MANUAL_FETCH_PASSWORD` (수동 뉴스 수집용 비밀번호, 선택사항)
    - `CRON_SECRET` (Cron Job 인증용, 선택사항)
 4. 배포 완료!
