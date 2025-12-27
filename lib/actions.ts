@@ -153,6 +153,59 @@ export async function getNewsByCategoryPaginatedAction(
 }
 
 /**
+ * news_category(주제 카테고리)별로 뉴스를 페이지네이션으로 조회하는 Server Action
+ */
+export async function getNewsByTopicCategoryPaginatedAction(
+  newsCategory: string,
+  page: number = 1,
+  pageSize: number = 12
+): Promise<{ success: boolean; data: News[] | null; error?: string; hasMore: boolean }> {
+  try {
+    const offset = (page - 1) * pageSize;
+    const limit = pageSize + 1; // 한 개 더 가져와서 hasMore 판단
+
+    log.debug("getNewsByTopicCategoryPaginatedAction 시작", { newsCategory, page, pageSize });
+    const data = await newsDB.getNewsByTopicCategory(newsCategory, limit, offset);
+
+    if (!data || !Array.isArray(data)) {
+      log.warn("getNewsByTopicCategoryPaginatedAction 유효하지 않은 데이터 반환", { newsCategory });
+      return {
+        success: false,
+        data: null,
+        hasMore: false,
+        error: "뉴스 데이터 형식이 올바르지 않습니다.",
+      };
+    }
+
+    // 한 개 더 가져왔으므로 hasMore 판단
+    const hasMore = data.length > pageSize;
+    const newsData = hasMore ? data.slice(0, pageSize) : data;
+
+    log.debug("getNewsByTopicCategoryPaginatedAction 성공", { count: newsData.length, newsCategory, hasMore });
+
+    return {
+      success: true,
+      data: newsData,
+      hasMore,
+    };
+  } catch (error) {
+    const appError = toAppError(error, ErrorType.DATABASE_ERROR);
+    const errorMessage = getErrorMessage(appError);
+    log.error("getNewsByTopicCategoryPaginatedAction 에러 발생", error instanceof Error ? error : new Error(String(error)), {
+      newsCategory,
+      page,
+      pageSize,
+    });
+    return {
+      success: false,
+      data: null,
+      hasMore: false,
+      error: errorMessage,
+    };
+  }
+}
+
+/**
  * 검색어로 뉴스를 조회하는 Server Action
  */
 export async function searchNewsAction(

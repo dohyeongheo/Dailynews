@@ -45,6 +45,31 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
 }
 
 /**
+ * news_category(주제 카테고리)별로 뉴스 조회 (캐싱 적용)
+ */
+export async function getNewsByTopicCategory(
+  newsCategory: string,
+  limit: number = 10,
+  offset: number = 0
+): Promise<News[]> {
+  const cacheKey = `topic:${newsCategory}:${limit}:${offset}`;
+
+  // 캐시에서 조회
+  const cached = await getCache<News[]>(CACHE_NAMESPACES.NEWS_CATEGORY, cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // 캐시 미스 시 DB에서 조회
+  const news = await supabaseNews.getNewsByTopicCategory(newsCategory, limit, offset);
+
+  // 캐시에 저장 (TTL: 60초)
+  await setCache(CACHE_NAMESPACES.NEWS_CATEGORY, cacheKey, news, 60);
+
+  return news;
+}
+
+/**
  * 모든 뉴스 조회 (페이지네이션 지원)
  */
 export async function getAllNews(limit: number = 30, offset: number = 0): Promise<News[]> {

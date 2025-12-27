@@ -284,6 +284,68 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
 }
 
 /**
+ * news_category(주제 카테고리)별로 뉴스 조회
+ */
+export async function getNewsByTopicCategory(
+  newsCategory: string,
+  limit: number = 10,
+  offset: number = 0
+): Promise<News[]> {
+  try {
+    log.debug("getNewsByTopicCategory 호출", { newsCategory, limit, offset });
+
+    const { data, error } = await supabaseServer
+      .from("news")
+      .select("*")
+      .eq("news_category", newsCategory)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      log.error("getNewsByTopicCategory Supabase 에러 발생", new Error(error.message), {
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        newsCategory,
+        limit,
+      });
+      return [];
+    }
+
+    if (!data) {
+      log.warn("getNewsByTopicCategory 데이터가 null", { newsCategory });
+      return [];
+    }
+
+    log.debug("getNewsByTopicCategory 성공", { count: data.length, newsCategory });
+
+    // 데이터 타입 변환 및 검증
+    const newsItems: News[] = data.map((item: NewsRow) => ({
+      id: String(item.id || ""),
+      published_date: item.published_date || "",
+      source_country: item.source_country || "",
+      source_media: item.source_media || "",
+      title: item.title || "",
+      content: item.content || "",
+      content_translated: item.content_translated || null,
+      category: item.category as NewsCategory,
+      news_category: item.news_category || null,
+      original_link: item.original_link || "",
+      image_url: item.image_url || null,
+      created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
+    }));
+
+    return newsItems;
+  } catch (error) {
+    log.error("getNewsByTopicCategory 예외 발생", error instanceof Error ? error : new Error(String(error)), {
+      newsCategory,
+      limit,
+    });
+    return [];
+  }
+}
+
+/**
  * 모든 뉴스 조회 (페이지네이션 지원)
  */
 export async function getAllNews(limit: number = 30, offset: number = 0): Promise<News[]> {
@@ -380,6 +442,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         category: item.category as NewsCategory,
         news_category: item.news_category || null,
         original_link: item.original_link || "",
+        image_url: item.image_url || null,
         created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
       }));
     }
@@ -419,6 +482,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         category: item.category as NewsCategory,
         news_category: item.news_category || null,
         original_link: item.original_link || "",
+        image_url: item.image_url || null,
         created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
       }));
     }
@@ -459,6 +523,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         category: item.category as NewsCategory,
         news_category: item.news_category || null,
         original_link: item.original_link || "",
+        image_url: item.image_url || null,
         created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
       }));
     }

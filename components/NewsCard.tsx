@@ -67,9 +67,13 @@ function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
               {news.news_category && (
-                <span className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${getCategoryColor(news.news_category)}`}>
+                <Link
+                  href={`/topic/${encodeURIComponent(news.news_category)}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${getCategoryColor(news.news_category)} hover:opacity-80 transition-opacity cursor-pointer`}
+                >
                   {news.news_category}
-                </span>
+                </Link>
               )}
             </div>
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2 line-clamp-2 hover:text-blue-600 transition-colors">

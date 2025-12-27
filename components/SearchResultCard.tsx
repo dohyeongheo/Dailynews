@@ -51,9 +51,12 @@ export default function SearchResultCard({ news, query, searchType }: SearchResu
       <div className="mb-2 sm:mb-3">
         <div className="flex items-center gap-2 mb-2">
           {news.news_category && (
-            <span className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${getCategoryColor(news.news_category)}`}>
+            <Link
+              href={`/topic/${encodeURIComponent(news.news_category)}`}
+              className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${getCategoryColor(news.news_category)} hover:opacity-80 transition-opacity cursor-pointer`}
+            >
               {news.news_category}
-            </span>
+            </Link>
           )}
         </div>
         <Link href={`/news/${news.id}`} className="block group-hover:text-blue-600 transition-colors">

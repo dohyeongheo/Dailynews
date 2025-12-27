@@ -18,6 +18,7 @@ async function testImageGeneration() {
   const imageGenerationApi = process.env.IMAGE_GENERATION_API || "none";
   console.log("1. 환경 변수 확인:");
   console.log(`   IMAGE_GENERATION_API: ${imageGenerationApi}`);
+  console.log(`   GOOGLE_GEMINI_API_KEY: ${process.env.GOOGLE_GEMINI_API_KEY ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
   console.log(`   REPLICATE_API_TOKEN: ${process.env.REPLICATE_API_TOKEN ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
   console.log(`   HUGGINGFACE_API_KEY: ${process.env.HUGGINGFACE_API_KEY ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
   console.log(`   DEEPAI_API_KEY: ${process.env.DEEPAI_API_KEY ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
@@ -25,7 +26,12 @@ async function testImageGeneration() {
 
   if (imageGenerationApi === "none") {
     console.error("\n❌ IMAGE_GENERATION_API가 'none'으로 설정되어 있습니다.");
-    console.log("   환경 변수에서 IMAGE_GENERATION_API를 'replicate', 'huggingface', 또는 'deepai'로 설정하세요.");
+    console.log("   환경 변수에서 IMAGE_GENERATION_API를 'gemini', 'replicate', 'huggingface', 또는 'deepai'로 설정하세요.");
+    process.exit(1);
+  }
+
+  if (imageGenerationApi === "gemini" && !process.env.GOOGLE_GEMINI_API_KEY) {
+    console.error("\n❌ IMAGE_GENERATION_API가 'gemini'로 설정되었지만 GOOGLE_GEMINI_API_KEY가 설정되지 않았습니다.");
     process.exit(1);
   }
 
