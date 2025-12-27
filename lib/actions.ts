@@ -1,6 +1,6 @@
 "use server";
 
-import { fetchAndSaveNews } from "./news-fetcher";
+import { fetchAndSaveNews, retryFailedTranslations } from "./news-fetcher";
 import * as newsDB from "./db/news";
 import type { News, NewsCategory } from "@/types/news";
 import { toAppError, getErrorMessage, ErrorType } from "./errors";
@@ -8,10 +8,12 @@ import { log } from "./utils/logger";
 
 /**
  * 뉴스를 수집하고 데이터베이스에 저장하는 Server Action
+ * @param date 수집할 뉴스의 날짜 (기본값: 오늘)
+ * @param maxImageGenerationTimeMs 이미지 생성에 사용할 수 있는 최대 시간(밀리초). 설정하지 않으면 제한 없음.
  */
-export async function fetchAndSaveNewsAction(date?: string) {
+export async function fetchAndSaveNewsAction(date?: string, maxImageGenerationTimeMs?: number) {
   try {
-    const result = await fetchAndSaveNews(date);
+    const result = await fetchAndSaveNews(date, maxImageGenerationTimeMs);
 
     // result가 유효한지 확인
     if (!result || typeof result !== "object") {
@@ -227,6 +229,31 @@ export async function searchNewsAction(
       success: false,
       data: null,
       error: errorMessage,
+    };
+  }
+}
+
+/**
+ * 번역 실패한 뉴스를 재번역하는 Server Action
+ * @param limit 재번역할 최대 뉴스 개수 (기본값: 50, 최대: 100)
+ */
+export async function retryFailedTranslationsAction(limit: number = 50) {
+  try {
+    const result = await retryFailedTranslations(Math.min(limit, 100));
+
+    return {
+      success: true,
+      message: `${result.total}개의 뉴스 중 ${result.success}개가 성공적으로 재번역되었습니다.`,
+      data: result,
+    };
+  } catch (error) {
+    log.error("Error in retryFailedTranslationsAction", error instanceof Error ? error : new Error(String(error)));
+    const appError = toAppError(error, ErrorType.API_ERROR);
+    const errorMessage = getErrorMessage(appError);
+    return {
+      success: false,
+      message: errorMessage,
+      data: null,
     };
   }
 }

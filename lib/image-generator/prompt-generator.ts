@@ -1,15 +1,6 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { NewsInput } from "@/types/news";
 import { log } from "../utils/logger";
-import { getEnv } from "../config/env";
-
-/**
- * Gemini AI 클라이언트를 지연 초기화합니다.
- */
-function getGenAI(): GoogleGenerativeAI {
-  const { GOOGLE_GEMINI_API_KEY } = getEnv();
-  return new GoogleGenerativeAI(GOOGLE_GEMINI_API_KEY);
-}
+import { getModelForTask, generateContentWithCaching } from "../utils/gemini-client";
 
 /**
  * 뉴스 내용을 기반으로 이미지 생성에 적합한 프롬프트를 생성합니다.
@@ -17,8 +8,12 @@ function getGenAI(): GoogleGenerativeAI {
  */
 export async function generateImagePrompt(news: NewsInput): Promise<string> {
   try {
-    const genAI = getGenAI();
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // 제목과 내용의 해시를 캐시 키로 사용
+    // NewsInput에는 id가 없으므로 제목과 내용의 조합을 사용
+    const cacheKeySource = `${news.title}_${news.content.substring(0, 100)}`;
+
+    // Context Caching을 지원하는 모델 생성 (뉴스 제목+내용 기반 캐시 키)
+    const model = getModelForTask("prompt_generation", cacheKeySource);
 
     // 뉴스 내용 요약
     const newsContent = news.content_translated || news.content;
@@ -43,7 +38,9 @@ export async function generateImagePrompt(news: NewsInput): Promise<string> {
 
 프롬프트:`;
 
-    const result = await model.generateContent(prompt);
+    // Context Caching을 지원하는 generateContent 호출
+    const cacheKey = `prompt_generation_${cacheKeySource}`;
+    const result = await generateContentWithCaching(model, prompt, cacheKey);
     const response = await result.response;
     const generatedPrompt = response.text().trim();
 

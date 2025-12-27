@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import CategoryBadge from "@/components/CategoryBadge";
 import type { News } from "@/types/news";
 import HighlightedText from "./HighlightedText";
 
@@ -49,14 +50,10 @@ export default function SearchResultCard({ news, query, searchType }: SearchResu
       aria-label={`${news.category}${news.news_category ? ` - ${news.news_category}` : ""} 뉴스: ${news.title}`}
     >
       <div className="mb-2 sm:mb-3">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <CategoryBadge category={news.category} type="main" className="text-xs px-2.5 py-1" />
           {news.news_category && (
-            <Link
-              href={`/topic/${encodeURIComponent(news.news_category)}`}
-              className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${getCategoryColor(news.news_category)} hover:opacity-80 transition-opacity cursor-pointer`}
-            >
-              {news.news_category}
-            </Link>
+            <CategoryBadge category={news.news_category} type="topic" className="text-xs px-2.5 py-1" />
           )}
         </div>
         <Link href={`/news/${news.id}`} className="block group-hover:text-blue-600 transition-colors">

@@ -22,7 +22,8 @@ async function testImageGeneration() {
   console.log(`   REPLICATE_API_TOKEN: ${process.env.REPLICATE_API_TOKEN ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
   console.log(`   HUGGINGFACE_API_KEY: ${process.env.HUGGINGFACE_API_KEY ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
   console.log(`   DEEPAI_API_KEY: ${process.env.DEEPAI_API_KEY ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
-  console.log(`   BLOB_READ_WRITE_TOKEN: ${process.env.BLOB_READ_WRITE_TOKEN ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
+  console.log(`   NEXT_PUBLIC_SUPABASE_URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
+  console.log(`   SUPABASE_SERVICE_ROLE_KEY: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
 
   if (imageGenerationApi === "none") {
     console.error("\n❌ IMAGE_GENERATION_API가 'none'으로 설정되어 있습니다.");
@@ -32,6 +33,14 @@ async function testImageGeneration() {
 
   if (imageGenerationApi === "gemini" && !process.env.GOOGLE_GEMINI_API_KEY) {
     console.error("\n❌ IMAGE_GENERATION_API가 'gemini'로 설정되었지만 GOOGLE_GEMINI_API_KEY가 설정되지 않았습니다.");
+    process.exit(1);
+  }
+
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.error("\n❌ Supabase 환경 변수가 설정되지 않았습니다.");
+    console.log("   .env.local 파일에 다음을 설정하세요:");
+    console.log("   - NEXT_PUBLIC_SUPABASE_URL");
+    console.log("   - SUPABASE_SERVICE_ROLE_KEY");
     process.exit(1);
   }
 

@@ -637,6 +637,104 @@ export async function updateNewsImageUrl(newsId: string, imageUrl: string): Prom
 }
 
 /**
+ * 번역 실패한 뉴스 조회
+ * 조건: content_translated IS NULL 또는 content_translated = content
+ * content가 한국어가 아닌 뉴스만 필터링
+ */
+export async function getNewsWithFailedTranslation(limit: number = 100): Promise<News[]> {
+  try {
+    log.debug("번역 실패한 뉴스 조회 시작", { limit });
+
+    // content_translated가 null이거나 content와 같은 뉴스 조회
+    // 한국어 판단은 애플리케이션 레벨에서 처리
+    const { data, error } = await supabaseServer
+      .from("news")
+      .select("*")
+      .or("content_translated.is.null,content_translated.eq.content")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      log.error("getNewsWithFailedTranslation Supabase 에러 발생", new Error(error.message), {
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        limit,
+      });
+      return [];
+    }
+
+    if (!data) {
+      return [];
+    }
+
+    // 한국어가 아닌 뉴스만 필터링 (애플리케이션 레벨)
+    // 한국어 판단 함수는 news-fetcher.ts에 있으므로 여기서는 간단히 체크
+    const koreanRegex = /[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/;
+    const nonKoreanNews = data.filter((item: NewsRow) => {
+      const content = item.content || "";
+      // 한국어 문자가 30% 미만이면 한국어가 아닌 것으로 간주
+      const koreanChars = (content.match(/[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]/g) || []).length;
+      const totalChars = content.replace(/\s/g, "").length;
+      if (totalChars === 0) return false; // 빈 내용은 제외
+      return koreanChars / totalChars < 0.3 && !koreanRegex.test(content);
+    });
+
+    // 데이터 타입 변환
+    const newsItems: News[] = nonKoreanNews.map((item: NewsRow) => ({
+      id: String(item.id || ""),
+      published_date: item.published_date || "",
+      source_country: item.source_country || "",
+      source_media: item.source_media || "",
+      title: item.title || "",
+      content: item.content || "",
+      content_translated: item.content_translated || null,
+      category: item.category as NewsCategory,
+      news_category: item.news_category || null,
+      original_link: item.original_link || "",
+      image_url: item.image_url || null,
+      created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
+    }));
+
+    log.info("번역 실패한 뉴스 조회 완료", { total: data.length, filtered: newsItems.length });
+    return newsItems;
+  } catch (error) {
+    log.error("getNewsWithFailedTranslation 예외 발생", error instanceof Error ? error : new Error(String(error)), { limit });
+    return [];
+  }
+}
+
+/**
+ * 뉴스의 번역본 업데이트
+ */
+export async function updateNewsTranslation(newsId: string, contentTranslated: string | null): Promise<boolean> {
+  try {
+    log.debug("뉴스 번역본 업데이트 시작", { newsId });
+
+    const { error } = await supabaseServer
+      .from("news")
+      .update({ content_translated: contentTranslated })
+      .eq("id", newsId);
+
+    if (error) {
+      log.error("updateNewsTranslation Supabase 에러 발생", new Error(error.message), {
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        newsId,
+      });
+      return false;
+    }
+
+    log.info("뉴스 번역본 업데이트 완료", { newsId });
+    return true;
+  } catch (error) {
+    log.error("updateNewsTranslation 예외 발생", error instanceof Error ? error : new Error(String(error)), { newsId });
+    return false;
+  }
+}
+
+/**
  * 관련 뉴스 조회 (같은 카테고리, 현재 뉴스 제외)
  */
 export async function getRelatedNews(currentNewsId: string, category: NewsCategory, limit: number = 5): Promise<News[]> {

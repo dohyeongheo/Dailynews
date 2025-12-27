@@ -21,7 +21,8 @@ async function testNewsFetchWithImages() {
   console.log("1. 환경 변수 확인:");
   console.log(`   IMAGE_GENERATION_API: ${imageGenerationApi}`);
   console.log(`   GOOGLE_GEMINI_API_KEY: ${process.env.GOOGLE_GEMINI_API_KEY ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
-  console.log(`   BLOB_READ_WRITE_TOKEN: ${process.env.BLOB_READ_WRITE_TOKEN ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
+  console.log(`   NEXT_PUBLIC_SUPABASE_URL: ${process.env.NEXT_PUBLIC_SUPABASE_URL ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
+  console.log(`   SUPABASE_SERVICE_ROLE_KEY: ${process.env.SUPABASE_SERVICE_ROLE_KEY ? "✅ 설정됨" : "❌ 설정되지 않음"}`);
 
   // 테스트를 위해 이미지 생성 API가 'none'이면 'gemini'로 강제 설정
   if (imageGenerationApi === "none") {
@@ -183,7 +184,7 @@ async function testNewsFetchWithImages() {
           const imageBuffer = await generateAIImage(imagePrompt);
           console.log(`      이미지 생성 완료 (${(imageBuffer.length / 1024).toFixed(2)} KB)`);
 
-          // Vercel Blob에 업로드
+          // Supabase Storage에 업로드
           const imageUrl = await uploadNewsImage(newsId, imageBuffer);
           console.log(`      업로드 완료: ${imageUrl}`);
 

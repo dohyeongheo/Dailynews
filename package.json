@@ -4,13 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:utf8": "powershell -Command \"$OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; chcp 65001 | Out-Null; npm run dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "analyze": "node scripts/analyze-bundle.js"
+    "analyze": "node scripts/analyze-bundle.js",
+    "setup:encoding": "powershell -ExecutionPolicy Bypass -File scripts/setup-powershell-encoding.ps1",
+    "fetch-news": "tsx scripts/fetch-news.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

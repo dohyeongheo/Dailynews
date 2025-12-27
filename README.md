@@ -85,7 +85,23 @@ npm run dev
 
 ### 뉴스 수집
 
-뉴스는 **매일 오전 6시 (태국 시간)**에 자동으로 수집됩니다. Vercel Cron Jobs를 통해 자동 실행됩니다.
+뉴스는 **매일 오전 6시 (태국 시간)**에 자동으로 수집됩니다. GitHub Actions를 통해 자동 실행됩니다.
+
+#### GitHub Actions 자동 수집
+
+- **스케줄**: 매일 UTC 23시 (태국 시간 오전 6시)
+- **워크플로우**: `.github/workflows/fetch-news.yml`
+- **수동 실행**: GitHub 저장소의 Actions 탭에서 `workflow_dispatch`로 수동 실행 가능
+
+#### 수동 뉴스 수집 (로컬)
+
+로컬에서 뉴스를 수집하려면:
+
+```bash
+npm run fetch-news
+```
+
+#### 수동 뉴스 수집 (배포 서버)
 
 #### 수동 뉴스 수집 (배포 서버)
 
@@ -154,14 +170,16 @@ ADMIN_PASSWORD=your_secure_password_here
 ## 주요 기능
 
 - ✅ Google Gemini API를 통한 뉴스 수집
-- ✅ 매일 오전 6시 (태국 시간) 자동 뉴스 수집 (Vercel Cron Jobs)
+- ✅ 매일 오전 6시 (태국 시간) 자동 뉴스 수집 (GitHub Actions)
 - ✅ Supabase PostgreSQL 데이터베이스를 통한 뉴스 데이터 저장
+- ✅ Supabase Storage를 통한 이미지 저장
 - ✅ 카테고리별 뉴스 조회 및 표시
 - ✅ 무한 스크롤을 통한 효율적인 뉴스 표시
 - ✅ 뉴스 검색 기능 (헤더 검색창)
 - ✅ 중복 뉴스 방지 로직
 - ✅ AWS 스타일의 모던한 UI
 - ✅ 태국 뉴스 영어 원문 자동 한국어 번역
+- ✅ AI 이미지 생성 및 자동 업로드
 - ✅ 에러 핸들링 및 성능 최적화
 
 ## 배포
@@ -172,7 +190,12 @@ ADMIN_PASSWORD=your_secure_password_here
 2. SQL Editor에서 `supabase/schema.sql` 파일의 내용을 실행하여 테이블 생성
 3. SQL Editor에서 `supabase/migrations/enable_rls.sql` 파일의 내용을 실행하여 RLS 활성화 (보안 강화)
 4. SQL Editor에서 `supabase/migrations/fix_function_search_path.sql` 파일의 내용을 실행하여 함수 보안 설정 (보안 강화)
-5. Project Settings > API에서 다음 값 확인:
+5. **Storage 설정**:
+   - Storage 메뉴로 이동
+   - 새 버킷 생성: `news-images`
+   - Public 버킷으로 설정 (이미지 공개 접근)
+   - RLS 정책 설정: SELECT는 Public, INSERT/UPDATE/DELETE는 Service Role만
+6. Project Settings > API에서 다음 값 확인:
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
    - anon public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - service_role key → `SUPABASE_SERVICE_ROLE_KEY`
@@ -188,8 +211,33 @@ ADMIN_PASSWORD=your_secure_password_here
    - `SUPABASE_SERVICE_ROLE_KEY` (필수)
    - `ADMIN_PASSWORD` (관리자 페이지 접속용, 선택사항)
    - `MANUAL_FETCH_PASSWORD` (수동 뉴스 수집용 비밀번호, 선택사항)
-   - `CRON_SECRET` (Cron Job 인증용, 선택사항)
+   - `IMAGE_GENERATION_API` (이미지 생성 API 선택, 선택사항)
+   - `REPLICATE_API_TOKEN`, `HUGGINGFACE_API_KEY`, `DEEPAI_API_KEY` (이미지 생성 API 토큰, 선택사항)
 4. 배포 완료!
+
+### GitHub Actions 설정
+
+뉴스 수집은 GitHub Actions를 통해 자동으로 실행됩니다.
+
+1. **GitHub Secrets 설정**:
+   - 저장소 Settings > Secrets and variables > Actions
+   - 다음 Secrets 추가:
+     - `GOOGLE_GEMINI_API_KEY`
+     - `NEXT_PUBLIC_SUPABASE_URL`
+     - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+     - `SUPABASE_SERVICE_ROLE_KEY`
+     - `IMAGE_GENERATION_API` (선택사항)
+     - `REPLICATE_API_TOKEN`, `HUGGINGFACE_API_KEY`, `DEEPAI_API_KEY` (선택사항)
+     - `GEMINI_USE_CONTEXT_CACHING`, `GEMINI_NEWS_COLLECTION_MODEL`, `GEMINI_TRANSLATION_MODEL` (선택사항)
+
+2. **워크플로우 확인**:
+   - `.github/workflows/fetch-news.yml` 파일이 자동으로 인식됩니다
+   - Actions 탭에서 워크플로우 실행 상태 확인 가능
+   - 수동 실행: Actions 탭 > Fetch News Daily > Run workflow
+
+3. **스케줄 확인**:
+   - 매일 UTC 23시 (태국 시간 오전 6시)에 자동 실행
+   - 스케줄 변경: `.github/workflows/fetch-news.yml`의 `cron` 값 수정
 
 ## 문서
 

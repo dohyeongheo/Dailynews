@@ -10,11 +10,15 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    // Vercel Blob Storage 도메인 허용
+    // 이미지 도메인 허용
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: '*.public.blob.vercel-storage.com',
+        hostname: '*.public.blob.vercel-storage.com',  // 기존 Vercel Blob (하위 호환성)
+      },
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',  // Supabase Storage
       },
     ],
   },
@@ -38,6 +42,33 @@ const nextConfig = {
           'pino-pretty',
           'thread-stream',
         ];
+      }
+    }
+
+    // OpenTelemetry 관련 모듈 처리
+    // Sentry가 사용하는 OpenTelemetry 모듈이 vendor-chunks로 분리될 때 문제가 발생할 수 있음
+    config.resolve = config.resolve || {};
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      tls: false,
+    };
+
+    // OpenTelemetry 모듈이 vendor-chunks로 분리되지 않도록 설정
+    // 이렇게 하면 모듈을 찾을 수 없는 오류를 방지할 수 있음
+    if (config.optimization && config.optimization.splitChunks) {
+      const splitChunks = config.optimization.splitChunks;
+      if (splitChunks.cacheGroups) {
+        splitChunks.cacheGroups = {
+          ...splitChunks.cacheGroups,
+          default: {
+            ...splitChunks.cacheGroups.default,
+            minChunks: 2,
+            priority: -20,
+            reuseExistingChunk: true,
+          },
+        };
       }
     }
 

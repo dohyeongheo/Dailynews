@@ -36,9 +36,9 @@ export default function Header() {
       <div className="border-b border-[#3a4553]">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           {/* 데스크톱 레이아웃 */}
-          <div className="hidden md:flex items-center justify-between h-16">
+          <div className="hidden md:grid grid-cols-3 items-center h-16">
             {/* 왼쪽: 로고 및 텍스트 */}
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex items-center gap-3 justify-start">
               <Link href="/" className={`flex items-center gap-2 transition-opacity ${isHomeActive ? "opacity-100" : "hover:opacity-80"}`}>
                 <div className="w-10 h-10 flex items-center justify-center flex-shrink-0 relative">
                   <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="drop-shadow-lg">
@@ -67,7 +67,7 @@ export default function Header() {
             </div>
 
             {/* 가운데: 카테고리 버튼 */}
-            <nav className="flex items-center gap-1 flex-1 justify-center px-4" role="navigation" aria-label="카테고리 메뉴">
+            <nav className="flex items-center gap-1 justify-center px-4" role="navigation" aria-label="카테고리 메뉴">
               <Link
                 href="/category/태국뉴스"
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
@@ -96,7 +96,7 @@ export default function Header() {
             </nav>
 
             {/* 오른쪽: 관리자 메뉴 */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 justify-end">
               {isAdmin && (
                 <Link href="/admin" className="text-sm text-yellow-500 hover:text-yellow-400 font-medium">
                   관리자

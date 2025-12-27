@@ -7,16 +7,16 @@ import { log } from "@/lib/utils/logger";
 export const dynamic = "force-dynamic";
 
 /**
- * Vercel Cron Job: 매일 오전 6시 (태국 시간, UTC 23시) 뉴스 수집
+ * 뉴스 수집 API 엔드포인트
  *
- * Vercel Cron Jobs는 UTC 시간을 사용합니다.
- * 태국 시간 오전 6시 = UTC 23시 (전날)
+ * 참고: 이 엔드포인트는 GitHub Actions로 전환되었습니다.
+ * GitHub Actions 워크플로우가 매일 자동으로 뉴스를 수집합니다.
  *
- * 참고: Vercel Serverless Functions는 기본 타임아웃이 10초(Hobby) 또는 60초(Pro)입니다.
- * 뉴스 수집 작업이 오래 걸릴 수 있으므로 maxDuration을 300초로 설정했습니다.
- * (Vercel Pro 플랜의 최대 타임아웃)
+ * 이 엔드포인트는 수동 실행용으로 유지되며, 필요시 호출할 수 있습니다.
+ *
+ * @deprecated GitHub Actions를 사용하세요. 이 엔드포인트는 하위 호환성을 위해 유지됩니다.
  */
-export const maxDuration = 300; // Vercel Pro 플랜 최대 타임아웃 (초)
+export const maxDuration = 300; // 최대 타임아웃 (초)
 
 /**
  * Vercel Cron Job 인증 확인
@@ -131,7 +131,13 @@ export async function GET(request: NextRequest) {
       }, TIMEOUT_MS);
     });
 
-    const fetchPromise = fetchAndSaveNewsAction();
+    // 이미지 생성에 사용할 수 있는 최대 시간 계산
+    // 뉴스 수집에 약 60초 정도 소요된다고 가정하고, 나머지 시간을 이미지 생성에 할당
+    // 실제로는 뉴스 수집 시간을 측정하여 동적으로 계산할 수 있지만,
+    // 타임아웃을 피하기 위해 보수적으로 180초(3분)를 할당
+    const IMAGE_GENERATION_TIME_MS = 180000; // 180초 (3분)
+
+    const fetchPromise = fetchAndSaveNewsAction(undefined, IMAGE_GENERATION_TIME_MS);
 
     // Promise.race로 타임아웃 처리
     let result: Awaited<ReturnType<typeof fetchAndSaveNewsAction>>;

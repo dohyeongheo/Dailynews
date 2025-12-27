@@ -27,6 +27,11 @@ const envSchema = z.object({
   HUGGINGFACE_API_KEY: z.string().optional(),
   DEEPAI_API_KEY: z.string().optional(),
 
+  // Gemini API 최적화 설정
+  GEMINI_USE_CONTEXT_CACHING: z.boolean().default(true),
+  GEMINI_NEWS_COLLECTION_MODEL: z.enum(["flash", "pro"]).default("pro"),
+  GEMINI_TRANSLATION_MODEL: z.enum(["flash", "pro"]).default("flash"),
+
   // Node 환경
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
@@ -53,6 +58,9 @@ function validateEnv(): Env {
       REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN,
       HUGGINGFACE_API_KEY: process.env.HUGGINGFACE_API_KEY,
       DEEPAI_API_KEY: process.env.DEEPAI_API_KEY,
+      GEMINI_USE_CONTEXT_CACHING: process.env.GEMINI_USE_CONTEXT_CACHING === "true" || process.env.GEMINI_USE_CONTEXT_CACHING === undefined,
+      GEMINI_NEWS_COLLECTION_MODEL: (process.env.GEMINI_NEWS_COLLECTION_MODEL as "flash" | "pro") || "pro",
+      GEMINI_TRANSLATION_MODEL: (process.env.GEMINI_TRANSLATION_MODEL as "flash" | "pro") || "flash",
       NODE_ENV: process.env.NODE_ENV || "development",
     });
   } catch (error) {

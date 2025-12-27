@@ -162,3 +162,24 @@ export async function getRelatedNews(currentNewsId: string, category: NewsCatego
 
   return news;
 }
+
+/**
+ * 번역 실패한 뉴스 조회
+ */
+export async function getNewsWithFailedTranslation(limit: number = 100): Promise<News[]> {
+  return await supabaseNews.getNewsWithFailedTranslation(limit);
+}
+
+/**
+ * 뉴스의 번역본 업데이트 (캐시 무효화 포함)
+ */
+export async function updateNewsTranslation(newsId: string, contentTranslated: string | null): Promise<boolean> {
+  const result = await supabaseNews.updateNewsTranslation(newsId, contentTranslated);
+
+  // 업데이트 성공 시 관련 캐시 무효화
+  if (result) {
+    await invalidateNewsCache(newsId);
+  }
+
+  return result;
+}

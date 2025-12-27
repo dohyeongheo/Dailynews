@@ -1,7 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { insertNewsBatch } from "./db/news";
+import { insertNewsBatch, updateNewsImageUrl, getNewsById, getNewsWithFailedTranslation, updateNewsTranslation } from "./db/news";
 import type { NewsInput, GeminiNewsResponse, NewsCategory, NewsTopicCategory } from "@/types/news";
 import { log } from "./utils/logger";
+import { getModelForTask, generateContentWithCaching, type TaskType } from "./utils/gemini-client";
+import { generateImagePrompt } from "./image-generator/prompt-generator";
+import { generateAIImage } from "./image-generator/ai-image-generator";
+import { uploadNewsImage } from "./storage/image-storage";
 
 /**
  * Gemini AI 클라이언트를 지연 초기화합니다.
@@ -48,6 +52,7 @@ function isValidJSON(text: string): boolean {
 /**
  * 텍스트에서 JSON 부분을 추출합니다.
  * 마크다운 코드 블록, 주변 텍스트 등을 제거하고 순수 JSON만 반환합니다.
+ * 여러 코드 블록이 있거나 설명 텍스트가 포함된 경우도 처리합니다.
  */
 function extractJSON(text: string): string | null {
   if (!text || text.trim().length === 0) {
@@ -56,46 +61,117 @@ function extractJSON(text: string): string | null {
 
   let jsonText = text.trim();
 
-  // 1. 마크다운 코드 블록 제거 (```json ... ``` 또는 ``` ... ```)
+  // 1. 마크다운 코드 블록에서 JSON 추출 시도
   if (jsonText.includes("```")) {
-    const jsonMatch = jsonText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (jsonMatch && jsonMatch[1]) {
-      jsonText = jsonMatch[1].trim();
+    // 모든 코드 블록을 찾아서 JSON이 포함된 것을 찾음
+    const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)```/g;
+    const codeBlocks: string[] = [];
+    let match;
+
+    while ((match = codeBlockRegex.exec(jsonText)) !== null) {
+      if (match[1]) {
+        codeBlocks.push(match[1].trim());
+      }
+    }
+
+    // 코드 블록이 있으면 그 중에서 JSON을 찾음
+    if (codeBlocks.length > 0) {
+      for (const block of codeBlocks) {
+        const extracted = extractJSONFromText(block);
+        if (extracted) {
+          return extracted;
+        }
+      }
     }
   }
 
-  // 2. JSON 시작 위치 찾기 ({)
-  const startIndex = jsonText.indexOf("{");
+  // 2. 마크다운 코드 블록이 없거나 코드 블록에서 찾지 못한 경우 전체 텍스트에서 추출
+  return extractJSONFromText(jsonText);
+}
+
+/**
+ * 텍스트에서 JSON 객체를 추출하는 헬퍼 함수
+ */
+function extractJSONFromText(text: string): string | null {
+  if (!text || text.trim().length === 0) {
+    return null;
+  }
+
+  // JSON 시작 위치 찾기 ({)
+  const startIndex = text.indexOf("{");
   if (startIndex === -1) {
     return null;
   }
 
-  // 3. JSON 종료 위치 찾기 (마지막 })
+  // 중괄호 카운팅으로 JSON 종료 위치 찾기
+  // 문자열 내부의 중괄호는 무시해야 함
   let braceCount = 0;
   let endIndex = -1;
+  let inString = false;
+  let escapeNext = false;
+  let stringChar = '';
 
-  for (let i = startIndex; i < jsonText.length; i++) {
-    if (jsonText[i] === "{") {
-      braceCount++;
-    } else if (jsonText[i] === "}") {
-      braceCount--;
-      if (braceCount === 0) {
-        endIndex = i;
-        break;
+  for (let i = startIndex; i < text.length; i++) {
+    const char = text[i];
+
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+
+    if (!inString && (char === '"' || char === "'")) {
+      inString = true;
+      stringChar = char;
+      continue;
+    }
+
+    if (inString && char === stringChar) {
+      inString = false;
+      stringChar = '';
+      continue;
+    }
+
+    if (!inString) {
+      if (char === "{") {
+        braceCount++;
+      } else if (char === "}") {
+        braceCount--;
+        if (braceCount === 0) {
+          endIndex = i;
+          break;
+        }
       }
     }
   }
 
   if (endIndex === -1) {
-    return null;
+    // 중괄호 카운팅으로 찾지 못한 경우, 마지막 }를 사용
+    const lastBraceIndex = text.lastIndexOf("}");
+    if (lastBraceIndex > startIndex) {
+      endIndex = lastBraceIndex;
+    } else {
+      return null;
+    }
   }
 
-  // 4. JSON 부분만 추출
-  const extractedJSON = jsonText.substring(startIndex, endIndex + 1);
+  // JSON 부분만 추출
+  const extractedJSON = text.substring(startIndex, endIndex + 1);
 
-  // 5. 유효성 검사
+  // 유효성 검사
   if (isValidJSON(extractedJSON)) {
     return extractedJSON;
+  }
+
+  // 유효하지 않은 경우, JSON을 정리하여 재시도
+  // 앞뒤 공백과 줄바꿈 제거
+  const cleanedJSON = extractedJSON.trim();
+  if (cleanedJSON !== extractedJSON && isValidJSON(cleanedJSON)) {
+    return cleanedJSON;
   }
 
   return null;
@@ -199,15 +275,16 @@ async function translateToKorean(text: string, retryCount: number = 0): Promise<
   const RETRY_DELAY = 1000; // 1초
 
   try {
-    const genAI = getGenAI();
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // Context Caching을 지원하는 모델 생성 (텍스트 해시 기반 캐시 키)
+    const model = getModelForTask("translation", text);
 
     const prompt = `다음 텍스트를 자연스러운 한국어로 번역해주세요. 원문의 의미와 뉘앙스를 정확히 전달해야 합니다. 번역만 출력하고 다른 설명은 하지 마세요.
 
 원문:
 ${text}`;
 
-    const result = await model.generateContent(prompt);
+    // Context Caching을 지원하는 generateContent 호출
+    const result = await generateContentWithCaching(model, prompt, text);
     const response = await result.response;
     const translatedText = response.text().trim();
 
@@ -264,17 +341,36 @@ ${text}`;
 }
 
 /**
- * 뉴스 항목의 제목과 내용을 확인하고 필요시 한국어로 번역합니다.
+ * 번역이 실패했는지 확인합니다.
+ * 원본과 번역본이 같거나 번역본이 null이면 실패로 간주합니다.
  */
-async function translateNewsIfNeeded(newsItem: NewsInput): Promise<NewsInput> {
+function isTranslationFailed(original: string, translated: string | null): boolean {
+  if (!translated) return true;
+  // 원본과 번역본이 같으면 실패 (번역이 안 된 것으로 간주)
+  return translated.trim() === original.trim();
+}
+
+/**
+ * 뉴스 항목의 제목과 내용을 확인하고 필요시 한국어로 번역합니다.
+ * 번역 실패 여부를 반환합니다.
+ */
+async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: NewsInput; translationFailed: boolean }> {
   let title = newsItem.title;
   let content = newsItem.content;
   let contentTranslated = newsItem.content_translated;
+  let translationFailed = false;
 
   // 제목이 한국어가 아니면 번역
   if (!isKorean(title)) {
     log.debug("제목 번역 중", { titlePreview: title.substring(0, 50) });
-    title = await translateToKorean(title);
+    const translatedTitle = await translateToKorean(title);
+    // 번역 결과가 원본과 같으면 실패
+    if (isTranslationFailed(title, translatedTitle)) {
+      log.warn("제목 번역 실패 감지", { titlePreview: title.substring(0, 50) });
+      translationFailed = true;
+    } else {
+      title = translatedTitle;
+    }
   }
 
   // 모든 카테고리: content가 한국어가 아니면 무조건 번역
@@ -286,7 +382,19 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<NewsInput> {
         news_category: newsItem.news_category,
         contentPreview: content.substring(0, 50)
       });
-      contentTranslated = await translateToKorean(content);
+      const translatedContent = await translateToKorean(content);
+      // 번역 결과가 원본과 같으면 실패
+      if (isTranslationFailed(content, translatedContent)) {
+        log.warn("내용 번역 실패 감지", {
+          category: newsItem.category,
+          contentPreview: content.substring(0, 50)
+        });
+        translationFailed = true;
+        // 실패한 경우 null로 설정하여 나중에 재처리 가능하도록 함
+        contentTranslated = null;
+      } else {
+        contentTranslated = translatedContent;
+      }
     }
   } else {
     // content가 이미 한국어인 경우 content_translated를 null로 유지
@@ -294,10 +402,13 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<NewsInput> {
   }
 
   return {
-    ...newsItem,
-    title,
-    content,
-    content_translated: contentTranslated,
+    newsItem: {
+      ...newsItem,
+      title,
+      content,
+      content_translated: contentTranslated,
+    },
+    translationFailed,
   };
 }
 
@@ -305,13 +416,6 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<NewsInput> {
  * Google Gemini API를 사용하여 뉴스를 수집합니다.
  */
 export async function fetchNewsFromGemini(date: string = new Date().toISOString().split("T")[0]): Promise<NewsInput[]> {
-  // Gemini AI 클라이언트 초기화 (런타임에 실행)
-  const genAI = getGenAI();
-
-  // gemini-2.5-flash 모델 사용
-  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-  log.info("모델 선택: gemini-2.5-flash");
-
   // 날짜 검증: 미래 날짜가 아닌지 확인
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
@@ -324,6 +428,12 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
   } else {
     date = requestDate;
   }
+
+  // Context Caching을 지원하는 모델 생성 (날짜 기반 캐시 키)
+  // 뉴스 수집은 Pro 모델 사용 (환경 변수로 제어 가능)
+  const model = getModelForTask("news_collection", date);
+  const modelName = model.model || "gemini-2.5-pro";
+  log.info("모델 선택", { model: modelName, date, useContextCaching: true });
 
   const prompt = `${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴스, 한국 주요 뉴스를 가능한 한 많은 뉴스를 수집하여 JSON 포맷으로 출력해주세요. (최소 20개 이상)
 
@@ -378,13 +488,17 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     const MAX_RETRIES = 3;
 
     // 기본 모드로 뉴스 수집 시도 (재시도 로직 포함)
+    // Context Caching을 위한 캐시 키 생성 (날짜 기반)
+    const cacheKey = `news_collection_${date}`;
+
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        log.debug("뉴스 수집 시도 중", { attempt: attempt + 1, maxRetries: MAX_RETRIES + 1 });
-        result = await model.generateContent(prompt);
+        log.debug("뉴스 수집 시도 중", { attempt: attempt + 1, maxRetries: MAX_RETRIES + 1, cacheKey });
+        // Context Caching을 지원하는 generateContent 호출
+        result = await generateContentWithCaching(model, prompt, cacheKey);
         response = await result.response;
         text = response.text();
-        log.info("뉴스 수집 성공");
+        log.info("뉴스 수집 성공", { cacheKey });
         break; // 성공 시 루프 종료
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
@@ -595,11 +709,19 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     // 병렬 처리로 번역 시간 단축 (최대 5개씩 동시 처리)
     const BATCH_SIZE = 5;
     const translatedNewsItems: NewsInput[] = [];
+    const failedTranslationCount: number[] = [0]; // 번역 실패 개수 추적
 
     for (let i = 0; i < newsItems.length; i += BATCH_SIZE) {
       const batch = newsItems.slice(i, i + BATCH_SIZE);
       const translatedBatch = await Promise.all(batch.map((newsItem) => translateNewsIfNeeded(newsItem)));
-      translatedNewsItems.push(...translatedBatch);
+
+      // 번역 결과 추출 및 실패 개수 집계
+      for (const result of translatedBatch) {
+        translatedNewsItems.push(result.newsItem);
+        if (result.translationFailed) {
+          failedTranslationCount[0]++;
+        }
+      }
 
       // 진행 상황 로깅
       if ((i + BATCH_SIZE) % 10 === 0 || i + BATCH_SIZE >= newsItems.length) {
@@ -607,7 +729,15 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
       }
     }
 
-    log.info("번역 완료", { count: translatedNewsItems.length });
+    log.info("번역 완료", {
+      count: translatedNewsItems.length,
+      failedCount: failedTranslationCount[0]
+    });
+
+    if (failedTranslationCount[0] > 0) {
+      log.warn("번역 실패한 뉴스가 있습니다", { failedCount: failedTranslationCount[0] });
+    }
+
     return translatedNewsItems;
   } catch (error) {
     log.error("Error fetching news from Gemini", error);
@@ -616,9 +746,262 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 }
 
 /**
- * 수집한 뉴스를 로컬 데이터베이스에 저장합니다.
+ * 저장된 뉴스에 대해 이미지를 생성하고 업로드합니다.
+ * 배치 처리로 최대 5개씩 동시 처리하여 성능과 안정성을 고려합니다.
+ * 타임아웃을 고려하여 최대 처리 시간을 제한할 수 있습니다.
  */
-export async function saveNewsToDatabase(newsItems: NewsInput[]): Promise<{ success: number; failed: number }> {
+async function generateImagesForNews(savedNewsIds: string[], maxTimeMs?: number): Promise<void> {
+  try {
+    const { getEnv } = require("@/lib/config/env");
+    const { IMAGE_GENERATION_API } = getEnv();
+
+    // 이미지 생성 API가 설정되지 않았거나 'none'인 경우 스킵
+    if (!IMAGE_GENERATION_API || IMAGE_GENERATION_API === "none") {
+      log.debug("이미지 생성 스킵: IMAGE_GENERATION_API가 설정되지 않음", { api: IMAGE_GENERATION_API });
+      return;
+    }
+
+    log.info("뉴스 이미지 생성 시작", { count: savedNewsIds.length, maxTimeMs });
+
+    const BATCH_SIZE = 5; // 한 번에 처리할 이미지 개수
+    let successCount = 0;
+    let failCount = 0;
+    const startTime = Date.now();
+
+    // 배치 단위로 이미지 생성
+    for (let i = 0; i < savedNewsIds.length; i += BATCH_SIZE) {
+      // 타임아웃 체크
+      if (maxTimeMs) {
+        const elapsedTime = Date.now() - startTime;
+        if (elapsedTime >= maxTimeMs) {
+          log.warn("이미지 생성 타임아웃으로 중단", {
+            processed: i,
+            total: savedNewsIds.length,
+            success: successCount,
+            failed: failCount,
+            elapsedTimeMs: elapsedTime,
+            maxTimeMs,
+          });
+          break;
+        }
+      }
+
+      const batch = savedNewsIds.slice(i, i + BATCH_SIZE);
+
+      // 배치 내에서 병렬 처리
+      const batchResults = await Promise.allSettled(
+        batch.map(async (newsId) => {
+          try {
+            // DB에서 뉴스 데이터 조회
+            const savedNews = await getNewsById(newsId);
+            if (!savedNews) {
+              throw new Error(`뉴스를 찾을 수 없습니다: ${newsId}`);
+            }
+
+            // NewsInput 형식으로 변환
+            const newsItem: NewsInput = {
+              published_date: savedNews.published_date,
+              source_country: savedNews.source_country,
+              source_media: savedNews.source_media,
+              title: savedNews.title,
+              content: savedNews.content,
+              content_translated: savedNews.content_translated || null,
+              category: savedNews.category,
+              news_category: savedNews.news_category || null,
+              original_link: savedNews.original_link,
+            };
+
+            // 1. 이미지 프롬프트 생성
+            log.debug("이미지 프롬프트 생성 중", { newsId, title: newsItem.title.substring(0, 50) });
+            const imagePrompt = await generateImagePrompt(newsItem);
+
+            // 2. AI 이미지 생성
+            log.debug("AI 이미지 생성 중", { newsId });
+            const imageBuffer = await generateAIImage(imagePrompt);
+
+            // 3. Vercel Blob에 업로드
+            log.debug("이미지 업로드 중", { newsId });
+            const imageUrl = await uploadNewsImage(newsId, imageBuffer);
+
+            // 4. DB에 image_url 업데이트
+            await updateNewsImageUrl(newsId, imageUrl);
+
+            log.info("뉴스 이미지 생성 완료", {
+              newsId,
+              imageUrl,
+              imageSize: imageBuffer.length,
+            });
+
+            return { success: true, newsId, imageUrl };
+          } catch (error) {
+            log.error("뉴스 이미지 생성 실패", error instanceof Error ? error : new Error(String(error)), {
+              newsId,
+            });
+            throw error;
+          }
+        })
+      );
+
+      // 배치 결과 집계
+      for (const result of batchResults) {
+        if (result.status === "fulfilled") {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+
+      // 진행 상황 로깅
+      if ((i + BATCH_SIZE) % 10 === 0 || i + BATCH_SIZE >= savedNewsIds.length) {
+        const elapsedTime = Date.now() - startTime;
+        log.info("이미지 생성 진행 중", {
+          processed: Math.min(i + BATCH_SIZE, savedNewsIds.length),
+          total: savedNewsIds.length,
+          success: successCount,
+          failed: failCount,
+          elapsedTimeMs: elapsedTime,
+        });
+      }
+    }
+
+    const totalTime = Date.now() - startTime;
+    log.info("뉴스 이미지 생성 완료", {
+      total: savedNewsIds.length,
+      processed: successCount + failCount,
+      success: successCount,
+      failed: failCount,
+      totalTimeMs: totalTime,
+    });
+  } catch (error) {
+    log.error("이미지 생성 프로세스 오류", error instanceof Error ? error : new Error(String(error)));
+    // 이미지 생성 실패는 전체 프로세스를 중단하지 않음
+  }
+}
+
+/**
+ * 번역 실패한 뉴스를 재번역합니다.
+ * @param limit 재번역할 최대 뉴스 개수 (기본값: 50)
+ * @returns 재번역 결과 (성공/실패 개수)
+ */
+export async function retryFailedTranslations(limit: number = 50): Promise<{ success: number; failed: number; total: number }> {
+  try {
+    log.info("번역 실패한 뉴스 재번역 시작", { limit });
+
+    // 번역 실패한 뉴스 조회
+    const failedNews = await getNewsWithFailedTranslation(limit);
+
+    if (failedNews.length === 0) {
+      log.info("재번역할 뉴스가 없습니다");
+      return { success: 0, failed: 0, total: 0 };
+    }
+
+    log.info("번역 실패한 뉴스 발견", { count: failedNews.length });
+
+    let successCount = 0;
+    let failedCount = 0;
+
+    // 배치 처리로 재번역 (최대 5개씩 동시 처리)
+    const BATCH_SIZE = 5;
+
+    for (let i = 0; i < failedNews.length; i += BATCH_SIZE) {
+      const batch = failedNews.slice(i, i + BATCH_SIZE);
+
+      // 배치 내에서 병렬 처리
+      const batchResults = await Promise.allSettled(
+        batch.map(async (news) => {
+          try {
+            // NewsInput 형식으로 변환
+            const newsItem: NewsInput = {
+              published_date: news.published_date,
+              source_country: news.source_country,
+              source_media: news.source_media,
+              title: news.title,
+              content: news.content,
+              content_translated: news.content_translated || null,
+              category: news.category,
+              news_category: news.news_category || null,
+              original_link: news.original_link,
+            };
+
+            // 번역 시도
+            const result = await translateNewsIfNeeded(newsItem);
+
+            // 번역 성공 여부 확인
+            if (!result.translationFailed && result.newsItem.content_translated) {
+              // DB에 번역본 업데이트
+              const updated = await updateNewsTranslation(news.id, result.newsItem.content_translated);
+              if (updated) {
+                log.info("뉴스 번역 재처리 성공", {
+                  newsId: news.id,
+                  title: news.title.substring(0, 50),
+                });
+                return { success: true, newsId: news.id };
+              } else {
+                log.warn("뉴스 번역본 업데이트 실패", { newsId: news.id });
+                return { success: false, newsId: news.id };
+              }
+            } else {
+              log.warn("뉴스 번역 재처리 실패 (번역 결과가 원본과 동일)", {
+                newsId: news.id,
+                title: news.title.substring(0, 50),
+              });
+              return { success: false, newsId: news.id };
+            }
+          } catch (error) {
+            log.error("뉴스 번역 재처리 중 오류 발생", error instanceof Error ? error : new Error(String(error)), {
+              newsId: news.id,
+            });
+            return { success: false, newsId: news.id };
+          }
+        })
+      );
+
+      // 배치 결과 집계
+      for (const result of batchResults) {
+        if (result.status === "fulfilled" && result.value.success) {
+          successCount++;
+        } else {
+          failedCount++;
+        }
+      }
+
+      // 진행 상황 로깅
+      if ((i + BATCH_SIZE) % 10 === 0 || i + BATCH_SIZE >= failedNews.length) {
+        log.info("번역 재처리 진행 중", {
+          processed: Math.min(i + BATCH_SIZE, failedNews.length),
+          total: failedNews.length,
+          success: successCount,
+          failed: failedCount,
+        });
+      }
+    }
+
+    log.info("번역 실패한 뉴스 재번역 완료", {
+      total: failedNews.length,
+      success: successCount,
+      failed: failedCount,
+    });
+
+    return {
+      success: successCount,
+      failed: failedCount,
+      total: failedNews.length,
+    };
+  } catch (error) {
+    log.error("번역 실패한 뉴스 재번역 중 오류 발생", error instanceof Error ? error : new Error(String(error)));
+    throw error;
+  }
+}
+
+/**
+ * 수집한 뉴스를 로컬 데이터베이스에 저장하고 이미지를 생성합니다.
+ * @param newsItems 저장할 뉴스 항목들
+ * @param maxImageGenerationTimeMs 이미지 생성에 사용할 수 있는 최대 시간(밀리초). 설정하지 않으면 제한 없음.
+ */
+export async function saveNewsToDatabase(
+  newsItems: NewsInput[],
+  maxImageGenerationTimeMs?: number
+): Promise<{ success: number; failed: number }> {
   try {
     const result = await insertNewsBatch(newsItems);
 
@@ -628,7 +1011,32 @@ export async function saveNewsToDatabase(newsItems: NewsInput[]): Promise<{ succ
       return { success: 0, failed: newsItems.length };
     }
 
-    return result;
+    // 저장된 뉴스에 대해 이미지 생성 (저장된 뉴스 ID가 있는 경우)
+    if (result.success > 0 && result.savedNewsIds && result.savedNewsIds.length > 0) {
+      try {
+        // 이미지 생성 완료를 기다림 (Cron Job과 수동 수집 모두에서 동작하도록)
+        // 타임아웃이 설정된 경우 남은 시간 내에서 이미지 생성
+        // 에러가 발생해도 뉴스 저장 결과에는 영향을 주지 않음
+        await generateImagesForNews(result.savedNewsIds, maxImageGenerationTimeMs);
+      } catch (error) {
+        log.error("이미지 생성 중 오류 발생", error instanceof Error ? error : new Error(String(error)), {
+          savedNewsCount: result.savedNewsIds.length,
+          maxImageGenerationTimeMs,
+        });
+        // 이미지 생성 실패는 뉴스 저장 결과에 영향을 주지 않음
+      }
+    }
+
+    // 자동 재처리: 번역 실패한 뉴스 재처리 (비동기로 실행)
+    // 타임아웃이 설정된 경우에는 재처리하지 않음 (시간 제한 고려)
+    if (!maxImageGenerationTimeMs) {
+      // 비동기로 실행하여 뉴스 저장 응답 시간에 영향을 주지 않음
+      retryFailedTranslations(20).catch((error) => {
+        log.error("자동 번역 재처리 중 오류 발생 (비동기)", error instanceof Error ? error : new Error(String(error)));
+      });
+    }
+
+    return { success: result.success, failed: result.failed };
   } catch (error) {
     log.error("Error in saveNewsToDatabase", error);
     return { success: 0, failed: newsItems.length };
@@ -637,11 +1045,16 @@ export async function saveNewsToDatabase(newsItems: NewsInput[]): Promise<{ succ
 
 /**
  * 뉴스 수집 및 저장을 한 번에 수행합니다.
+ * @param date 수집할 뉴스의 날짜 (기본값: 오늘)
+ * @param maxImageGenerationTimeMs 이미지 생성에 사용할 수 있는 최대 시간(밀리초). 설정하지 않으면 제한 없음.
  */
-export async function fetchAndSaveNews(date?: string): Promise<{ success: number; failed: number; total: number }> {
+export async function fetchAndSaveNews(
+  date?: string,
+  maxImageGenerationTimeMs?: number
+): Promise<{ success: number; failed: number; total: number }> {
   try {
     const newsItems = await fetchNewsFromGemini(date);
-    const result = await saveNewsToDatabase(newsItems);
+    const result = await saveNewsToDatabase(newsItems, maxImageGenerationTimeMs);
 
     // result가 유효한지 확인
     if (!result || typeof result !== "object") {
