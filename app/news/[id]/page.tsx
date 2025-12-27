@@ -1,5 +1,4 @@
 import { getNewsById, getRelatedNews } from "@/lib/db/news";
-import { incrementViewCount, getViewCount } from "@/lib/db/views";
 import RelatedNews from "@/components/RelatedNews";
 import CategoryBadge from "@/components/CategoryBadge";
 import { notFound } from "next/navigation";
@@ -36,14 +35,8 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
     notFound();
   }
 
-  // 병렬로 데이터 로드 및 조회수 증가
-  const [relatedNews, _] = await Promise.all([
-    getRelatedNews(params.id, news.category, 5),
-    incrementViewCount(params.id),
-  ]);
-
-  // 최신 조회수 가져오기
-  const viewCount = await getViewCount(params.id);
+  // 관련 뉴스 로드
+  const relatedNews = await getRelatedNews(params.id, news.category, 5);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -65,8 +58,6 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
               <span className="font-semibold text-gray-700">{news.source_media}</span>
               <span>•</span>
               <time>{new Date(news.published_date).toLocaleDateString("ko-KR")}</time>
-              <span>•</span>
-              <span>조회수 {viewCount}</span>
             </div>
           </header>
 

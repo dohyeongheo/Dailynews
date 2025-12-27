@@ -41,15 +41,7 @@ CREATE POLICY "comments_block_anon" ON public.comments
   FOR ALL
   USING (false);
 
--- 5. news_views 테이블: RLS 활성화
-ALTER TABLE public.news_views ENABLE ROW LEVEL SECURITY;
-
--- news_views: anon key로의 직접 접근 차단
-CREATE POLICY "news_views_block_anon" ON public.news_views
-  FOR ALL
-  USING (false);
-
--- 6. news_reactions 테이블: RLS 활성화
+-- 5. news_reactions 테이블: RLS 활성화
 ALTER TABLE public.news_reactions ENABLE ROW LEVEL SECURITY;
 
 -- news_reactions: anon key로의 직접 접근 차단

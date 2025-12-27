@@ -67,46 +67,11 @@ CREATE INDEX IF NOT EXISTS idx_comments_news_id ON comments(news_id);
 CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);
 CREATE INDEX IF NOT EXISTS idx_comments_created_at ON comments(created_at DESC);
 
--- 4. news_views 테이블 (조회수)
-CREATE TABLE IF NOT EXISTS news_views (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  news_id UUID NOT NULL REFERENCES news(id) ON DELETE CASCADE,
-  view_count BIGINT DEFAULT 0,
-  last_viewed_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(news_id)
-);
-
-CREATE INDEX IF NOT EXISTS idx_news_views_news_id ON news_views(news_id);
-CREATE INDEX IF NOT EXISTS idx_news_views_count ON news_views(view_count DESC);
-
--- 5. 기존 news 테이블 최적화 (추가 인덱스)
+-- 4. 기존 news 테이블 최적화 (추가 인덱스)
 CREATE INDEX IF NOT EXISTS idx_news_id_created_at ON news(id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_news_category_created_at ON news(category, created_at DESC);
 
--- 6. 조회수 증가 함수
--- search_path를 명시적으로 설정하여 SQL injection 공격 방지
-CREATE OR REPLACE FUNCTION increment_view_count(p_news_id UUID)
-RETURNS BIGINT
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_count BIGINT;
-BEGIN
-  INSERT INTO news_views (news_id, view_count, last_viewed_at)
-  VALUES (p_news_id, 1, NOW())
-  ON CONFLICT (news_id)
-  DO UPDATE SET
-    view_count = news_views.view_count + 1,
-    last_viewed_at = NOW()
-  RETURNING view_count INTO v_count;
-
-  RETURN v_count;
-END;
-$$;
-
--- 7. news_reactions 테이블 (뉴스 좋아요/싫어요)
+-- 5. news_reactions 테이블 (뉴스 좋아요/싫어요)
 CREATE TABLE IF NOT EXISTS news_reactions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   news_id UUID NOT NULL REFERENCES news(id) ON DELETE CASCADE,

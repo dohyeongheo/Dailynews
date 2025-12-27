@@ -48,16 +48,6 @@ export interface BookmarkRow {
 }
 
 /**
- * news_views 테이블의 행 타입
- */
-export interface NewsViewRow {
-  id: string;
-  news_id: string;
-  view_count: number; // BIGINT -> number
-  last_viewed_at: string; // TIMESTAMPTZ -> string (ISO format)
-}
-
-/**
  * news_reactions 테이블의 행 타입
  */
 export interface NewsReactionRow {
