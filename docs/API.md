@@ -105,8 +105,6 @@ Rate Limit 초과 시 `429 Too Many Requests` 응답과 함께 `Retry-After` 헤
 
 ### 선택적 환경 변수
 
-- `MANUAL_FETCH_PASSWORD`: 수동 뉴스 수집 비밀번호
-- `CRON_SECRET`: Cron Job 인증 비밀번호
 - `NEXT_PUBLIC_SENTRY_DSN`: Sentry DSN (에러 모니터링)
 - `LOG_LEVEL`: 로그 레벨 (`debug`, `info`, `warn`, `error`)
 
