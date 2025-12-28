@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { clientLog } from "@/lib/utils/client-logger";
+import MetricsCharts from "./MetricsCharts";
 
 interface SystemStats {
   totalNews: number;
@@ -33,20 +34,81 @@ export default function Monitoring() {
   async function loadStats() {
     try {
       setIsLoading(true);
-      const response = await fetch("/api/admin/metrics");
+      const response = await fetch("/api/admin/metrics", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // 쿠키 포함
+      });
+
+      clientLog.debug("API 응답 상태", {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        url: response.url,
+      });
+
       if (!response.ok) {
-        throw new Error("메트릭 데이터를 불러올 수 없습니다.");
+        const errorText = await response.text();
+        let errorMessage = "메트릭 데이터를 불러올 수 없습니다.";
+        let errorDetails: unknown = null;
+
+        try {
+          const errorData = JSON.parse(errorText);
+          errorMessage = errorData.error?.message || errorData.error?.code || errorData.error || errorMessage;
+          errorDetails = errorData;
+        } catch {
+          errorMessage = errorText || errorMessage;
+          errorDetails = errorText;
+        }
+
+        clientLog.error("API 요청 실패", new Error(errorMessage), {
+          status: response.status,
+          statusText: response.statusText,
+          errorDetails,
+        });
+
+        throw new Error(`${errorMessage} (HTTP ${response.status})`);
       }
+
       const data = await response.json();
+
+      clientLog.debug("API 응답 데이터", {
+        success: data.success,
+        hasData: !!data.data,
+        dataKeys: data.data ? Object.keys(data.data) : [],
+      });
+
       if (data.success && data.data) {
         setStats(data.data);
         setLastUpdated(new Date());
       } else {
-        throw new Error(data.error || "알 수 없는 오류");
+        // 에러 응답 형식: { success: false, error: { message: string, ... } } 또는 { success: false, error: string }
+        let errorMessage = "알 수 없는 오류";
+        if (data.error) {
+          if (typeof data.error === "string") {
+            errorMessage = data.error;
+          } else if (typeof data.error === "object" && data.error.message) {
+            errorMessage = data.error.message;
+          } else if (typeof data.error === "object" && data.error.code) {
+            errorMessage = data.error.code;
+          }
+        }
+
+        clientLog.error("API 응답 오류", new Error(errorMessage), {
+          responseData: data,
+        });
+
+        throw new Error(errorMessage);
       }
     } catch (error) {
-      clientLog.error("메트릭 로드 실패", error instanceof Error ? error : new Error(String(error)));
-      showError("메트릭 데이터를 불러오는데 실패했습니다.");
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      clientLog.error("메트릭 로드 실패", error instanceof Error ? error : new Error(String(error)), {
+        errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      showError(`메트릭 데이터를 불러오는데 실패했습니다: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -150,6 +212,60 @@ export default function Monitoring() {
             category="관련뉴스"
             count={stats.newsByCategory.관련뉴스}
             color="blue"
+          />
+        </div>
+      </div>
+
+      {/* 성능 메트릭 차트 */}
+      <div className="space-y-6">
+        <h3 className="text-xl font-semibold text-gray-900">성능 메트릭</h3>
+        <MetricsCharts
+          metricType="performance"
+          metricName="api_response_time"
+          title="API 응답 시간 (ms)"
+          yAxisLabel="응답 시간 (ms)"
+          chartType="line"
+          days={7}
+        />
+      </div>
+
+      {/* 비즈니스 메트릭 차트 */}
+      <div className="space-y-6">
+        <h3 className="text-xl font-semibold text-gray-900">비즈니스 메트릭</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <MetricsCharts
+            metricType="business"
+            metricName="news_collection_success_rate"
+            title="뉴스 수집 성공률 (%)"
+            yAxisLabel="성공률 (%)"
+            chartType="line"
+            days={7}
+          />
+          <MetricsCharts
+            metricType="business"
+            metricName="image_generation_success_rate"
+            title="이미지 생성 성공률 (%)"
+            yAxisLabel="성공률 (%)"
+            chartType="line"
+            days={7}
+          />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <MetricsCharts
+            metricType="business"
+            metricName="news_collection_count"
+            title="시간대별 뉴스 수집 추이"
+            yAxisLabel="뉴스 개수"
+            chartType="bar"
+            days={7}
+          />
+          <MetricsCharts
+            metricType="business"
+            metricName="image_generation_count"
+            title="시간대별 이미지 생성 추이"
+            yAxisLabel="이미지 개수"
+            chartType="bar"
+            days={7}
           />
         </div>
       </div>

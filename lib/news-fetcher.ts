@@ -6,6 +6,7 @@ import { generateImagePrompt } from "./image-generator/prompt-generator";
 import { generateAIImage } from "./image-generator/ai-image-generator";
 import { uploadNewsImage } from "./storage/image-storage";
 import { createNewsInputFromDB } from "./utils/news-helpers";
+import { saveMetricSnapshot } from "./utils/metrics-storage";
 
 /**
  * 할당량 초과 에러인지 확인합니다.
@@ -962,6 +963,34 @@ async function generateImagesForNews(savedNewsIds: string[], maxTimeMs?: number)
       failed: failCount,
       totalTimeMs: totalTime,
     });
+
+    // 이미지 생성 성공률 메트릭 저장
+    if (savedNewsIds.length > 0) {
+      const successRate = ((successCount / savedNewsIds.length) * 100) || 0;
+      await saveMetricSnapshot({
+        metricType: "business",
+        metricName: "image_generation_success_rate",
+        metricValue: successRate,
+        metadata: {
+          total: savedNewsIds.length,
+          success: successCount,
+          failed: failCount,
+          totalTimeMs: totalTime,
+        },
+      });
+
+      // 이미지 생성 개수 메트릭 저장
+      await saveMetricSnapshot({
+        metricType: "business",
+        metricName: "image_generation_count",
+        metricValue: successCount,
+        metadata: {
+          total: savedNewsIds.length,
+          failed: failCount,
+          totalTimeMs: totalTime,
+        },
+      });
+    }
   } catch (error) {
     log.error("이미지 생성 프로세스 오류", error instanceof Error ? error : new Error(String(error)));
     // 이미지 생성 실패는 전체 프로세스를 중단하지 않음
@@ -1149,6 +1178,32 @@ export async function fetchAndSaveNews(
         savedNewsIds: [],
       };
     }
+
+    // 뉴스 수집 성공률 메트릭 저장
+    const successRate = newsItems.length > 0 ? (result.success / newsItems.length) * 100 : 0;
+    await saveMetricSnapshot({
+      metricType: "business",
+      metricName: "news_collection_success_rate",
+      metricValue: successRate,
+      metadata: {
+        total: newsItems.length,
+        success: result.success,
+        failed: result.failed,
+        date: date || new Date().toISOString().split("T")[0],
+      },
+    });
+
+    // 뉴스 수집 개수 메트릭 저장
+    await saveMetricSnapshot({
+      metricType: "business",
+      metricName: "news_collection_count",
+      metricValue: result.success,
+      metadata: {
+        total: newsItems.length,
+        failed: result.failed,
+        date: date || new Date().toISOString().split("T")[0],
+      },
+    });
 
     return {
       success: result.success || 0,

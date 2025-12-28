@@ -1,16 +1,18 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { supabaseServer } from "@/lib/supabase/server";
 import { withAdmin, withErrorHandling } from "@/lib/utils/api-middleware";
 import { createSuccessResponse } from "@/lib/utils/api-response";
 import { getNewsCount } from "@/lib/db/news";
 import { getNewsWithFailedTranslation } from "@/lib/db/news";
+import { createApiTimer } from "@/lib/utils/performance-metrics";
+import { saveSystemStatsSnapshot } from "@/lib/utils/metrics-storage";
 
 /**
  * 시스템 통계 조회 API (관리자 전용)
  */
 export const GET = withAdmin(
   withErrorHandling(async (request: NextRequest) => {
-    const supabase = createClient();
+    const timer = createApiTimer("/api/admin/metrics");
 
     // 전체 뉴스 개수
     const totalNews = await getNewsCount();
@@ -22,40 +24,69 @@ export const GET = withAdmin(
       관련뉴스: await getNewsCount("관련뉴스"),
     };
 
-    // 번역 실패한 뉴스 개수
-    const failedTranslationNews = await getNewsWithFailedTranslation(1000);
-    const failedTranslationCount = failedTranslationNews.length;
-
-    // 이미지 없는 뉴스 개수
-    const { count: newsWithoutImage } = await supabase
+    // 번역 실패한 뉴스 개수 (간단한 조건: content_translated가 null이고 content가 있는 경우)
+    const { data: failedTranslationData, count: failedTranslationCount, error: failedTranslationError } = await supabaseServer
       .from("news")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: false })
+      .is("content_translated", null)
+      .not("content", "is", null);
+    const failedTranslationCountResult = failedTranslationError
+      ? 0
+      : (failedTranslationCount !== null ? failedTranslationCount : (failedTranslationData?.length || 0));
+
+    // 이미지 없는 뉴스 개수 (실제 데이터 조회로 count 확인)
+    const { data: newsWithoutImageData, count: newsWithoutImageCount, error: newsWithoutImageError } = await supabaseServer
+      .from("news")
+      .select("id", { count: "exact", head: false })
       .is("image_url", null);
+    const newsWithoutImage = newsWithoutImageError
+      ? 0
+      : (newsWithoutImageCount !== null ? newsWithoutImageCount : (newsWithoutImageData?.length || 0));
 
-    // 최근 7일간 뉴스 수집 통계
+    // 최근 7일간 뉴스 수집 통계 (UTC 기준)
     const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const { count: recentNews } = await supabase
+    sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+    sevenDaysAgo.setUTCHours(0, 0, 0, 0);
+    const { data: recentNewsData, count: recentNewsCount, error: recentNewsError } = await supabaseServer
       .from("news")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: false })
       .gte("created_at", sevenDaysAgo.toISOString());
+    const recentNews = recentNewsError
+      ? 0
+      : (recentNewsCount !== null ? recentNewsCount : (recentNewsData?.length || 0));
 
-    // 오늘 수집된 뉴스 개수
+    // 오늘 수집된 뉴스 개수 (UTC 기준, 오늘 00:00:00 UTC부터)
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const { count: todayNews } = await supabase
+    today.setUTCHours(0, 0, 0, 0);
+    const { data: todayNewsData, count: todayNewsCount, error: todayNewsError } = await supabaseServer
       .from("news")
-      .select("*", { count: "exact", head: true })
+      .select("id", { count: "exact", head: false })
       .gte("created_at", today.toISOString());
+    const todayNews = todayNewsError
+      ? 0
+      : (todayNewsCount !== null ? todayNewsCount : (todayNewsData?.length || 0));
 
-    return createSuccessResponse({
+    const stats = {
       totalNews,
       newsByCategory,
-      failedTranslationCount,
-      newsWithoutImage: newsWithoutImage || 0,
-      recentNews: recentNews || 0,
-      todayNews: todayNews || 0,
+      failedTranslationCount: failedTranslationCountResult,
+      newsWithoutImage,
+      recentNews,
+      todayNews,
+    };
+
+    // 성능 메트릭 저장 (비동기로 실행하여 응답 시간에 영향 없음)
+    timer.saveAsMetric("api_response_time", { endpoint: "/api/admin/metrics" }).catch((error) => {
+      // 메트릭 저장 실패는 무시 (로깅만 수행)
+      console.error("메트릭 저장 실패 (비동기)", error);
     });
+
+    // 시스템 통계 스냅샷 저장 (비동기로 실행)
+    saveSystemStatsSnapshot(stats).catch((error) => {
+      console.error("시스템 통계 스냅샷 저장 실패 (비동기)", error);
+    });
+
+    return createSuccessResponse(stats);
   })
 );
 

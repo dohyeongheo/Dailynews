@@ -21,4 +21,20 @@ services:
       - NODE_ENV=development
     stdin_open: true
     tty: true
-
+    logging:
+      driver: "json-file"
+      options:
+        # 개별 로그 파일의 최대 크기 (10MB)
+        max-size: "10m"
+        # 보관할 로그 파일의 최대 개수 (3개)
+        max-file: "3"
+        # 로그 압축 활성화 (디스크 공간 절약)
+        compress: "true"
+    deploy:
+      resources:
+        limits:
+          # 최대 메모리 사용량 제한 (8GB)
+          memory: 8G
+        reservations:
+          # 최소 메모리 보장 (선택사항, 필요시 조정)
+          memory: 512M
