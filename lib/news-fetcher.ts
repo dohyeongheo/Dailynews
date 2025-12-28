@@ -64,21 +64,28 @@ function extractJSON(text: string): string | null {
   // 1. 마크다운 코드 블록에서 JSON 추출 시도
   if (jsonText.includes("```")) {
     // 모든 코드 블록을 찾아서 JSON이 포함된 것을 찾음
+    // 더 견고한 정규식: 코드 블록 시작부터 끝까지 (중첩된 ``` 처리)
     const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)```/g;
-    const codeBlocks: string[] = [];
+    const codeBlocks: Array<{ content: string; startPos: number }> = [];
     let match;
 
     while ((match = codeBlockRegex.exec(jsonText)) !== null) {
       if (match[1]) {
-        codeBlocks.push(match[1].trim());
+        codeBlocks.push({
+          content: match[1].trim(),
+          startPos: match.index + match[0].indexOf(match[1]),
+        });
       }
     }
 
     // 코드 블록이 있으면 그 중에서 JSON을 찾음
     if (codeBlocks.length > 0) {
+      // 여러 코드 블록이 있는 경우 가장 긴 것을 우선 시도 (완전한 JSON일 가능성 높음)
+      codeBlocks.sort((a, b) => b.content.length - a.content.length);
+      
       for (const block of codeBlocks) {
-        const extracted = extractJSONFromText(block);
-        if (extracted) {
+        const extracted = extractJSONFromText(block.content);
+        if (extracted && isValidJSON(extracted)) {
           return extracted;
         }
       }
@@ -86,6 +93,18 @@ function extractJSON(text: string): string | null {
   }
 
   // 2. 마크다운 코드 블록이 없거나 코드 블록에서 찾지 못한 경우 전체 텍스트에서 추출
+  // 먼저 { 로 시작하는 부분을 찾아서 추출 시도
+  const jsonStartIndex = jsonText.indexOf("{");
+  if (jsonStartIndex !== -1) {
+    // { 로 시작하는 부분부터 추출
+    const fromStart = jsonText.substring(jsonStartIndex);
+    const extracted = extractJSONFromText(fromStart);
+    if (extracted && isValidJSON(extracted)) {
+      return extracted;
+    }
+  }
+
+  // 3. 마지막 시도: 전체 텍스트에서 추출
   return extractJSONFromText(jsonText);
 }
 
@@ -430,10 +449,18 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 
   // 미래 날짜인 경우 오늘 날짜로 변경
   if (requestDate > todayStr) {
-    log.warn("미래 날짜 감지", { requestDate, todayStr });
+    log.warn("미래 날짜 감지 - 오늘 날짜로 변경", { requestDate, todayStr });
     date = todayStr;
   } else {
     date = requestDate;
+  }
+  
+  // 날짜가 비정상적으로 미래인 경우 (예: 2025년) 오늘 날짜로 강제 변경
+  const requestYear = parseInt(requestDate.substring(0, 4), 10);
+  const currentYear = today.getFullYear();
+  if (requestYear > currentYear) {
+    log.warn("비정상적인 미래 날짜 감지 - 오늘 날짜로 강제 변경", { requestDate, requestYear, currentYear, todayStr });
+    date = todayStr;
   }
 
   // Context Caching을 지원하는 모델 생성 (날짜 기반 캐시 키)
@@ -587,12 +614,27 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     const jsonText = extractJSON(text);
 
     if (!jsonText) {
+      // 더 상세한 디버깅 정보
+      const codeBlockMatches = text.match(/```[\s\S]*?```/g);
+      const firstJsonIndex = text.indexOf("{");
+      const lastJsonIndex = text.lastIndexOf("}");
+      
       log.error("JSON 추출 실패", undefined, {
-        originalTextPreview: text.substring(0, 500),
+        originalTextPreview: text.substring(0, 1000),
         originalTextLength: text.length,
         hasMarkdown: text.includes("```"),
         hasJsonStart: text.includes("{"),
+        codeBlockCount: codeBlockMatches?.length || 0,
+        firstJsonIndex,
+        lastJsonIndex,
+        jsonRange: firstJsonIndex !== -1 && lastJsonIndex !== -1 ? text.substring(firstJsonIndex, Math.min(firstJsonIndex + 500, lastJsonIndex + 1)) : null,
       });
+      
+      // 미래 날짜 관련 응답인지 확인
+      if (text.includes("2025") || text.includes("미래") || text.includes("future")) {
+        throw new Error("미래 날짜에 대한 뉴스를 수집할 수 없습니다. 오늘 날짜로 다시 시도해주세요.");
+      }
+      
       throw new Error("Gemini API 응답에서 유효한 JSON을 찾을 수 없습니다. 응답이 JSON 형식이 아닙니다.");
     }
 
