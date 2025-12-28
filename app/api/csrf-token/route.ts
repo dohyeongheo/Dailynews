@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCsrfToken, setCsrfToken } from "@/lib/utils/csrf";
 
+// Node.js 런타임 사용 (crypto 모듈 사용을 위해)
+export const runtime = "nodejs";
+
 /**
  * CSRF 토큰을 가져오는 API
  * - 이미 쿠키에 토큰이 있으면 재사용

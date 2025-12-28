@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requiresCsrfProtection } from "@/lib/utils/csrf";
 import { CSRF_TOKEN_HEADER, CSRF_TOKEN_COOKIE_NAME } from "@/lib/utils/csrf-constants";
 import { isAdminAuthenticated } from "@/lib/utils/admin-auth";
+import { log } from "@/lib/utils/logger";
 
 export default async function middleware(req: NextRequest) {
   const { nextUrl } = req;
@@ -28,7 +29,7 @@ export default async function middleware(req: NextRequest) {
       const isValid = verifyCsrfToken(requestToken || null, cookieToken || null);
 
       if (!isValid) {
-        console.error("[CSRF] 토큰 검증 실패:", {
+        log.error("CSRF 토큰 검증 실패", new Error("Invalid CSRF token"), {
           path: nextUrl.pathname,
           method: req.method,
           hasRequestToken: !!requestToken,

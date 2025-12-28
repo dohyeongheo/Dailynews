@@ -296,7 +296,7 @@ export async function getNewsByTopicCategory(
 
     const { data, error } = await supabaseServer
       .from("news")
-      .select("*")
+      .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
       .eq("news_category", newsCategory)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
@@ -354,7 +354,7 @@ export async function getAllNews(limit: number = 30, offset: number = 0): Promis
 
     const { data, error } = await supabaseServer
       .from("news")
-      .select("*")
+      .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -411,7 +411,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
     case "title": {
       const { data, error } = await supabaseServer
         .from("news")
-        .select("*")
+        .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
         .ilike("title", searchTerm)
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -451,7 +451,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
       // content 또는 content_translated에서 검색
       const { data, error } = await supabaseServer
         .from("news")
-        .select("*")
+        .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
         .or(`content.ilike.${searchTerm},content_translated.ilike.${searchTerm}`)
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -492,7 +492,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
       // title, content, content_translated에서 검색
       const { data, error } = await supabaseServer
         .from("news")
-        .select("*")
+        .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
         .or(`title.ilike.${searchTerm},content.ilike.${searchTerm},content_translated.ilike.${searchTerm}`)
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -555,7 +555,7 @@ export async function getNewsCount(category?: NewsCategory): Promise<number> {
  */
 export async function getNewsById(id: string): Promise<News | null> {
   try {
-    const { data, error } = await supabaseServer.from("news").select("*").eq("id", id).single();
+    const { data, error } = await supabaseServer.from("news").select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at").eq("id", id).single();
 
     if (error) {
       log.error("getNewsById Supabase 에러 발생", new Error(error.message), {
@@ -649,7 +649,7 @@ export async function getNewsWithFailedTranslation(limit: number = 100): Promise
     // 한국어 판단은 애플리케이션 레벨에서 처리
     const { data, error } = await supabaseServer
       .from("news")
-      .select("*")
+      .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
       .or("content_translated.is.null,content_translated.eq.content")
       .order("created_at", { ascending: false })
       .limit(limit);
@@ -741,7 +741,7 @@ export async function getRelatedNews(currentNewsId: string, category: NewsCatego
   try {
     const { data, error } = await supabaseServer
       .from("news")
-      .select("*")
+      .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
       .eq("category", category)
       .neq("id", currentNewsId)
       .order("created_at", { ascending: false })

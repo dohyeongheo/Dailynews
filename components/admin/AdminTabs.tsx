@@ -3,9 +3,10 @@
 import { useState } from "react";
 import NewsManagement from "./NewsManagement";
 import UserManagement from "./UserManagement";
+import Monitoring from "./Monitoring";
 
 export default function AdminTabs() {
-  const [activeTab, setActiveTab] = useState<"news" | "users">("news");
+  const [activeTab, setActiveTab] = useState<"news" | "users" | "monitoring">("news");
 
   return (
     <div>
@@ -29,12 +30,22 @@ export default function AdminTabs() {
           >
             회원 관리
           </button>
+          <button
+            onClick={() => setActiveTab("monitoring")}
+            className={`
+              whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm
+              ${activeTab === "monitoring" ? "border-blue-500 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"}
+            `}
+          >
+            모니터링
+          </button>
         </nav>
       </div>
 
       <div>
         {activeTab === "news" && <NewsManagement />}
         {activeTab === "users" && <UserManagement />}
+        {activeTab === "monitoring" && <Monitoring />}
       </div>
     </div>
   );

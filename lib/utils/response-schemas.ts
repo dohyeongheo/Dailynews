@@ -64,7 +64,7 @@ export function validateNewsArrayResponse(data: unknown): { success: boolean; da
       return {
         success: false,
         data: null,
-        error: `응답 검증 실패: ${error.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join(", ")}`,
+        error: `응답 검증 실패: ${error.issues.map((e: z.ZodIssue) => `${e.path.join(".")}: ${e.message}`).join(", ")}`,
       };
     }
     return {

@@ -102,10 +102,3 @@ export function createErrorResponse(
   return NextResponse.json(errorResponse, { status: finalStatusCode });
 }
 
-/**
- * 에러 타입별 기본 메시지 생성
- */
-export function getErrorCode(errorType: ErrorType): string {
-  return errorType;
-}
-

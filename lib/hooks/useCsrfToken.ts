@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { CSRF_TOKEN_HEADER } from "@/lib/utils/csrf-constants";
-
-// 클라이언트 사이드에서는 console 사용 (서버 사이드 log 유틸리티 사용 불가)
-// TODO: 클라이언트 사이드 로깅 유틸리티 추가 고려
+import { clientLog } from "@/lib/utils/client-logger";
 
 /**
  * CSRF 토큰을 가져와서 관리하는 훅
@@ -26,10 +24,10 @@ export function useCsrfToken() {
         if (data.token) {
           setToken(data.token);
         } else {
-          console.error("CSRF token not found in response:", data);
+          clientLog.error("CSRF token not found in response", undefined, { data });
         }
       } catch (error) {
-        console.error("Failed to fetch CSRF token:", error);
+        clientLog.error("Failed to fetch CSRF token", error instanceof Error ? error : new Error(String(error)));
       } finally {
         setIsLoading(false);
       }

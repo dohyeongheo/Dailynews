@@ -1,6 +1,9 @@
 import { searchNewsAction } from "@/lib/actions";
 import SearchResultCard from "@/components/SearchResultCard";
 
+// 페이지 캐싱 설정: 5분마다 재검증
+export const revalidate = 300;
+
 interface SearchPageProps {
   searchParams: {
     q?: string;

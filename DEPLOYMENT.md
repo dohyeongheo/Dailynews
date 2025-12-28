@@ -112,10 +112,7 @@ Vercel 대시보드에서 환경 변수를 설정합니다:
 #### 선택적 환경 변수
 
 - **ADMIN_PASSWORD**: 관리자 페이지 접속용 비밀번호
-- **IMAGE_GENERATION_API**: 이미지 생성 API 선택 (`gemini`, `replicate`, `huggingface`, `deepai`, `none`)
-- **REPLICATE_API_TOKEN**: Replicate API 토큰 (IMAGE_GENERATION_API가 `replicate`인 경우)
-- **HUGGINGFACE_API_KEY**: Hugging Face API 키 (IMAGE_GENERATION_API가 `huggingface`인 경우)
-- **DEEPAI_API_KEY**: DeepAI API 키 (IMAGE_GENERATION_API가 `deepai`인 경우)
+- **IMAGE_GENERATION_API**: 이미지 생성 API 선택 (`gemini` 또는 `none`)
 - **GEMINI_USE_CONTEXT_CACHING**: Gemini Context Caching 사용 여부 (`true` 또는 `false`, 기본값: `true`)
 - **GEMINI_NEWS_COLLECTION_MODEL**: 뉴스 수집 모델 (`flash` 또는 `pro`, 기본값: `pro`)
 - **GEMINI_TRANSLATION_MODEL**: 번역 모델 (`flash` 또는 `pro`, 기본값: `flash`)

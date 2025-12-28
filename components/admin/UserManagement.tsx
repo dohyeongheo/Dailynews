@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { clientLog } from "@/lib/utils/client-logger";
 import { useToast } from "@/components/ToastProvider";
+import { formatNewsDate } from "@/lib/utils/date-format";
 
 interface User {
   id: string;
@@ -13,7 +14,7 @@ interface User {
 }
 
 export default function UserManagement() {
-  const { toast } = useToast();
+  const { showToast, showSuccess, showError, showInfo, showWarning } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
@@ -54,10 +55,10 @@ export default function UserManagement() {
 
       if (res.ok) {
         setUsers(users.map((u) => (u.id === userId ? { ...u, role: newRole } : u)));
-        toast.showSuccess("권한이 변경되었습니다.");
+        showSuccess("권한이 변경되었습니다.");
       } else {
         const data = await res.json();
-        toast.showError("권한 변경에 실패했습니다: " + (data.error || "알 수 없는 오류"));
+        showError("권한 변경에 실패했습니다: " + (data.error || "알 수 없는 오류"));
       }
     } catch (error) {
       clientLog.error("Failed to update user role", error instanceof Error ? error : new Error(String(error)), { userId, newRole });
@@ -87,7 +88,7 @@ export default function UserManagement() {
               <tr key={user.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(user.created_at).toLocaleDateString()}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatNewsDate(user.created_at)}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   <select
                     value={user.role}

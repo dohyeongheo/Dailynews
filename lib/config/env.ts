@@ -20,10 +20,7 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().optional(),
 
   // AI 이미지 생성 API 설정
-  IMAGE_GENERATION_API: z.enum(["gemini", "replicate", "huggingface", "deepai", "none"]).default("none"),
-  REPLICATE_API_TOKEN: z.string().optional(),
-  HUGGINGFACE_API_KEY: z.string().optional(),
-  DEEPAI_API_KEY: z.string().optional(),
+  IMAGE_GENERATION_API: z.enum(["gemini", "none"]).default("none"),
 
   // Gemini API 최적화 설정
   GEMINI_USE_CONTEXT_CACHING: z.boolean().default(true),
@@ -50,10 +47,7 @@ function validateEnv(): Env {
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
-      IMAGE_GENERATION_API: (process.env.IMAGE_GENERATION_API as "gemini" | "replicate" | "huggingface" | "deepai" | "none") || "none",
-      REPLICATE_API_TOKEN: process.env.REPLICATE_API_TOKEN,
-      HUGGINGFACE_API_KEY: process.env.HUGGINGFACE_API_KEY,
-      DEEPAI_API_KEY: process.env.DEEPAI_API_KEY,
+      IMAGE_GENERATION_API: (process.env.IMAGE_GENERATION_API as "gemini" | "none") || "none",
       GEMINI_USE_CONTEXT_CACHING: process.env.GEMINI_USE_CONTEXT_CACHING === "true" || process.env.GEMINI_USE_CONTEXT_CACHING === undefined,
       GEMINI_NEWS_COLLECTION_MODEL: (process.env.GEMINI_NEWS_COLLECTION_MODEL as "flash" | "pro") || "pro",
       GEMINI_TRANSLATION_MODEL: (process.env.GEMINI_TRANSLATION_MODEL as "flash" | "pro") || "flash",

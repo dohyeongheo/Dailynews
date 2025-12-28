@@ -3,7 +3,7 @@
  * 모델 선택 및 Context Caching 지원
  */
 
-import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
+import { GoogleGenerativeAI, GenerativeModel, type GenerateContentResult } from "@google/generative-ai";
 import { getEnv } from "../config/env";
 import { log } from "./logger";
 import { createHash } from "crypto";

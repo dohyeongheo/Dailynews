@@ -1,9 +1,11 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import CategoryBadge from "@/components/CategoryBadge";
 import type { News } from "@/types/news";
 import HighlightedText from "./HighlightedText";
+import { formatNewsDateDetailed } from "@/lib/utils/date-format";
 
 interface SearchResultCardProps {
   news: News;
@@ -11,9 +13,7 @@ interface SearchResultCardProps {
   searchType: "title" | "content" | "all";
 }
 
-import { formatNewsDateDetailed } from "@/lib/utils/date-format";
-
-export default function SearchResultCard({ news, query, searchType }: SearchResultCardProps) {
+function SearchResultCard({ news, query, searchType }: SearchResultCardProps) {
 
   // 카테고리별 색상 매핑
   const getCategoryColor = (category: string | null) => {
@@ -87,3 +87,5 @@ export default function SearchResultCard({ news, query, searchType }: SearchResu
     </article>
   );
 }
+
+export default React.memo(SearchResultCard);

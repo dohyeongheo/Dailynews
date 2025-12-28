@@ -62,8 +62,11 @@ describe('actions', () => {
       const result = await fetchAndSaveNewsAction();
 
       expect(result.success).toBe(true);
-      expect(result.data.success).toBe(8);
-      expect(result.data.failed).toBe(2);
+      expect(result.data).not.toBeNull();
+      if (result.data) {
+        expect(result.data.success).toBe(8);
+        expect(result.data.failed).toBe(2);
+      }
     });
 
     it('뉴스 수집 실패 시 에러 메시지를 반환해야 함', async () => {

@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { insertNewsBatch, updateNewsImageUrl, getNewsById, getNewsWithFailedTranslation, updateNewsTranslation } from "./db/news";
 import type { NewsInput, GeminiNewsResponse, NewsCategory, NewsTopicCategory } from "@/types/news";
 import { log } from "./utils/logger";
@@ -6,15 +5,7 @@ import { getModelForTask, generateContentWithCaching, type TaskType } from "./ut
 import { generateImagePrompt } from "./image-generator/prompt-generator";
 import { generateAIImage } from "./image-generator/ai-image-generator";
 import { uploadNewsImage } from "./storage/image-storage";
-
-/**
- * Gemini AI 클라이언트를 지연 초기화합니다.
- * 빌드 타임에 API 키가 없어도 오류가 발생하지 않도록 합니다.
- */
-function getGenAI(): GoogleGenerativeAI {
-  const { GOOGLE_GEMINI_API_KEY } = require("@/lib/config/env").getEnv();
-  return new GoogleGenerativeAI(GOOGLE_GEMINI_API_KEY);
-}
+import { createNewsInputFromDB } from "./utils/news-helpers";
 
 /**
  * 할당량 초과 에러인지 확인합니다.
@@ -908,17 +899,7 @@ async function generateImagesForNews(savedNewsIds: string[], maxTimeMs?: number)
             }
 
             // NewsInput 형식으로 변환
-            const newsItem: NewsInput = {
-              published_date: savedNews.published_date,
-              source_country: savedNews.source_country,
-              source_media: savedNews.source_media,
-              title: savedNews.title,
-              content: savedNews.content,
-              content_translated: savedNews.content_translated || null,
-              category: savedNews.category,
-              news_category: savedNews.news_category || null,
-              original_link: savedNews.original_link,
-            };
+            const newsItem = createNewsInputFromDB(savedNews);
 
             // 1. 이미지 프롬프트 생성
             log.debug("이미지 프롬프트 생성 중", { newsId, title: newsItem.title.substring(0, 50) });
@@ -1020,17 +1001,7 @@ export async function retryFailedTranslations(limit: number = 50): Promise<{ suc
         batch.map(async (news) => {
           try {
             // NewsInput 형식으로 변환
-            const newsItem: NewsInput = {
-              published_date: news.published_date,
-              source_country: news.source_country,
-              source_media: news.source_media,
-              title: news.title,
-              content: news.content,
-              content_translated: news.content_translated || null,
-              category: news.category,
-              news_category: news.news_category || null,
-              original_link: news.original_link,
-            };
+            const newsItem = createNewsInputFromDB(news);
 
             // 번역 시도
             const result = await translateNewsIfNeeded(newsItem);

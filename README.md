@@ -208,8 +208,7 @@ ADMIN_PASSWORD=your_secure_password_here
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` (필수)
    - `SUPABASE_SERVICE_ROLE_KEY` (필수)
    - `ADMIN_PASSWORD` (관리자 페이지 접속용, 선택사항)
-   - `IMAGE_GENERATION_API` (이미지 생성 API 선택, 선택사항)
-   - `REPLICATE_API_TOKEN`, `HUGGINGFACE_API_KEY`, `DEEPAI_API_KEY` (이미지 생성 API 토큰, 선택사항)
+   - `IMAGE_GENERATION_API` (이미지 생성 API 선택: `gemini` 또는 `none`, 선택사항)
 4. 배포 완료!
 
 ### GitHub Actions 설정
@@ -224,8 +223,7 @@ ADMIN_PASSWORD=your_secure_password_here
      - `NEXT_PUBLIC_SUPABASE_URL`
      - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
      - `SUPABASE_SERVICE_ROLE_KEY`
-     - `IMAGE_GENERATION_API` (선택사항)
-     - `REPLICATE_API_TOKEN`, `HUGGINGFACE_API_KEY`, `DEEPAI_API_KEY` (선택사항)
+     - `IMAGE_GENERATION_API` (이미지 생성 API 선택: `gemini` 또는 `none`, 선택사항)
      - `GEMINI_USE_CONTEXT_CACHING`, `GEMINI_NEWS_COLLECTION_MODEL`, `GEMINI_TRANSLATION_MODEL` (선택사항)
 
 2. **워크플로우 확인**:

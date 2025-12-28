@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useRouter } from "next/navigation";
 
 interface CategoryBadgeProps {
@@ -8,7 +9,7 @@ interface CategoryBadgeProps {
   className?: string;
 }
 
-export default function CategoryBadge({ category, type, className = "" }: CategoryBadgeProps) {
+function CategoryBadge({ category, type, className = "" }: CategoryBadgeProps) {
   const router = useRouter();
 
   const getColor = () => {
@@ -56,4 +57,4 @@ export default function CategoryBadge({ category, type, className = "" }: Catego
   );
 }
 
-
+export default React.memo(CategoryBadge);

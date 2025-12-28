@@ -7,6 +7,44 @@ import { toAppError, getErrorMessage, ErrorType } from "./errors";
 import { log } from "./utils/logger";
 
 /**
+ * 공통 에러 처리 헬퍼 함수
+ * @param error 발생한 에러
+ * @param errorType 에러 타입
+ * @param context 추가 컨텍스트 정보
+ * @returns 에러 응답 객체
+ */
+function handleActionError(
+  error: unknown,
+  errorType: ErrorType,
+  context?: Record<string, unknown>
+): { success: false; error: string; data: null; message?: string; hasMore?: boolean } {
+  log.error("Action error", error instanceof Error ? error : new Error(String(error)), context);
+  const appError = toAppError(error, errorType);
+  const errorMessage = getErrorMessage(appError);
+  return {
+    success: false,
+    error: errorMessage,
+    data: null,
+  };
+}
+
+/**
+ * 공통 데이터 검증 함수
+ * @param data 검증할 데이터
+ * @param errorMessage 에러 메시지
+ * @returns 검증 결과
+ */
+function validateNewsData<T extends News[]>(
+  data: T | null | undefined,
+  errorMessage: string = "뉴스 데이터 형식이 올바르지 않습니다."
+): { isValid: false; error: string } | { isValid: true; data: T } {
+  if (!data || !Array.isArray(data)) {
+    return { isValid: false, error: errorMessage };
+  }
+  return { isValid: true, data };
+}
+
+/**
  * 뉴스를 수집하고 데이터베이스에 저장하는 Server Action
  * @param date 수집할 뉴스의 날짜 (기본값: 오늘)
  * @param maxImageGenerationTimeMs 이미지 생성에 사용할 수 있는 최대 시간(밀리초). 설정하지 않으면 제한 없음.
@@ -26,13 +64,10 @@ export async function fetchAndSaveNewsAction(date?: string, maxImageGenerationTi
       data: result,
     };
   } catch (error) {
-    log.error("Error in fetchAndSaveNewsAction", error instanceof Error ? error : new Error(String(error)));
-    const appError = toAppError(error, ErrorType.API_ERROR);
-    const errorMessage = getErrorMessage(appError);
+    const errorResult = handleActionError(error, ErrorType.API_ERROR, { date, maxImageGenerationTimeMs });
     return {
-      success: false,
-      message: errorMessage,
-      data: null,
+      ...errorResult,
+      message: errorResult.error,
     };
   }
 }
@@ -49,33 +84,24 @@ export async function getNewsByCategoryAction(
     log.debug("getNewsByCategoryAction 시작", { category, limit, offset });
     const data = await newsDB.getNewsByCategory(category, limit, offset);
 
-    if (!data || !Array.isArray(data)) {
+    const validation = validateNewsData(data);
+    if (!validation.isValid) {
       log.warn("getNewsByCategoryAction 유효하지 않은 데이터 반환", { category });
       return {
         success: false,
         data: null,
-        error: "뉴스 데이터 형식이 올바르지 않습니다.",
+        error: validation.error,
       };
     }
 
-    log.debug("getNewsByCategoryAction 성공", { count: data.length, category });
+    log.debug("getNewsByCategoryAction 성공", { count: validation.data.length, category });
 
     return {
       success: true,
-      data,
+      data: validation.data,
     };
   } catch (error) {
-    const appError = toAppError(error, ErrorType.DATABASE_ERROR);
-    const errorMessage = getErrorMessage(appError);
-    log.error("getNewsByCategoryAction 에러 발생", error instanceof Error ? error : new Error(String(error)), {
-      category,
-      limit,
-    });
-    return {
-      success: false,
-      data: null,
-      error: errorMessage,
-    };
+    return handleActionError(error, ErrorType.DATABASE_ERROR, { category, limit, offset });
   }
 }
 
@@ -90,14 +116,7 @@ export async function getAllNewsAction(limit: number = 30, offset: number = 0): 
       data,
     };
   } catch (error) {
-    log.error("Error in getAllNews", error instanceof Error ? error : new Error(String(error)));
-    const appError = toAppError(error, ErrorType.DATABASE_ERROR);
-    const errorMessage = getErrorMessage(appError);
-    return {
-      success: false,
-      data: null,
-      error: errorMessage,
-    };
+    return handleActionError(error, ErrorType.DATABASE_ERROR, { limit, offset });
   }
 }
 
@@ -116,19 +135,20 @@ export async function getNewsByCategoryPaginatedAction(
     log.debug("getNewsByCategoryPaginatedAction 시작", { category, page, pageSize });
     const data = await newsDB.getNewsByCategory(category, limit, offset);
 
-    if (!data || !Array.isArray(data)) {
+    const validation = validateNewsData(data);
+    if (!validation.isValid) {
       log.warn("getNewsByCategoryPaginatedAction 유효하지 않은 데이터 반환", { category });
       return {
         success: false,
         data: null,
         hasMore: false,
-        error: "뉴스 데이터 형식이 올바르지 않습니다.",
+        error: validation.error,
       };
     }
 
     // 한 개 더 가져왔으므로 hasMore 판단
-    const hasMore = data.length > pageSize;
-    const newsData = hasMore ? data.slice(0, pageSize) : data;
+    const hasMore = validation.data.length > pageSize;
+    const newsData = hasMore ? validation.data.slice(0, pageSize) : validation.data;
 
     log.debug("getNewsByCategoryPaginatedAction 성공", { count: newsData.length, category, hasMore });
 
@@ -138,18 +158,10 @@ export async function getNewsByCategoryPaginatedAction(
       hasMore,
     };
   } catch (error) {
-    const appError = toAppError(error, ErrorType.DATABASE_ERROR);
-    const errorMessage = getErrorMessage(appError);
-    log.error("getNewsByCategoryPaginatedAction 에러 발생", error instanceof Error ? error : new Error(String(error)), {
-      category,
-      page,
-      pageSize,
-    });
+    const errorResult = handleActionError(error, ErrorType.DATABASE_ERROR, { category, page, pageSize });
     return {
-      success: false,
-      data: null,
+      ...errorResult,
       hasMore: false,
-      error: errorMessage,
     };
   }
 }
@@ -169,19 +181,20 @@ export async function getNewsByTopicCategoryPaginatedAction(
     log.debug("getNewsByTopicCategoryPaginatedAction 시작", { newsCategory, page, pageSize });
     const data = await newsDB.getNewsByTopicCategory(newsCategory, limit, offset);
 
-    if (!data || !Array.isArray(data)) {
+    const validation = validateNewsData(data);
+    if (!validation.isValid) {
       log.warn("getNewsByTopicCategoryPaginatedAction 유효하지 않은 데이터 반환", { newsCategory });
       return {
         success: false,
         data: null,
         hasMore: false,
-        error: "뉴스 데이터 형식이 올바르지 않습니다.",
+        error: validation.error,
       };
     }
 
     // 한 개 더 가져왔으므로 hasMore 판단
-    const hasMore = data.length > pageSize;
-    const newsData = hasMore ? data.slice(0, pageSize) : data;
+    const hasMore = validation.data.length > pageSize;
+    const newsData = hasMore ? validation.data.slice(0, pageSize) : validation.data;
 
     log.debug("getNewsByTopicCategoryPaginatedAction 성공", { count: newsData.length, newsCategory, hasMore });
 
@@ -191,18 +204,10 @@ export async function getNewsByTopicCategoryPaginatedAction(
       hasMore,
     };
   } catch (error) {
-    const appError = toAppError(error, ErrorType.DATABASE_ERROR);
-    const errorMessage = getErrorMessage(appError);
-    log.error("getNewsByTopicCategoryPaginatedAction 에러 발생", error instanceof Error ? error : new Error(String(error)), {
-      newsCategory,
-      page,
-      pageSize,
-    });
+    const errorResult = handleActionError(error, ErrorType.DATABASE_ERROR, { newsCategory, page, pageSize });
     return {
-      success: false,
-      data: null,
+      ...errorResult,
       hasMore: false,
-      error: errorMessage,
     };
   }
 }
@@ -222,14 +227,7 @@ export async function searchNewsAction(
       data,
     };
   } catch (error) {
-    log.error("Error in searchNews", error instanceof Error ? error : new Error(String(error)));
-    const appError = toAppError(error, ErrorType.DATABASE_ERROR);
-    const errorMessage = getErrorMessage(appError);
-    return {
-      success: false,
-      data: null,
-      error: errorMessage,
-    };
+    return handleActionError(error, ErrorType.DATABASE_ERROR, { query, searchType, limit });
   }
 }
 
@@ -247,13 +245,10 @@ export async function retryFailedTranslationsAction(limit: number = 50) {
       data: result,
     };
   } catch (error) {
-    log.error("Error in retryFailedTranslationsAction", error instanceof Error ? error : new Error(String(error)));
-    const appError = toAppError(error, ErrorType.API_ERROR);
-    const errorMessage = getErrorMessage(appError);
+    const errorResult = handleActionError(error, ErrorType.API_ERROR, { limit });
     return {
-      success: false,
-      message: errorMessage,
-      data: null,
+      ...errorResult,
+      message: errorResult.error,
     };
   }
 }

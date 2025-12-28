@@ -6,6 +6,19 @@ import { render, screen } from '@testing-library/react';
 import NewsCard from '@/components/NewsCard';
 import type { News } from '@/types/news';
 
+// Next.js Router 모킹
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: jest.fn(),
+    replace: jest.fn(),
+    prefetch: jest.fn(),
+    back: jest.fn(),
+    pathname: '/',
+    query: {},
+    asPath: '/',
+  }),
+}));
+
 const mockNews: News = {
   id: '1',
   published_date: '2024-01-01',
@@ -15,6 +28,8 @@ const mockNews: News = {
   content: '테스트 뉴스 내용입니다.',
   content_translated: null,
   category: '태국뉴스',
+  news_category: null,
+  image_url: null,
   original_link: 'https://example.com/news/1',
   created_at: '2024-01-01T00:00:00Z',
 };

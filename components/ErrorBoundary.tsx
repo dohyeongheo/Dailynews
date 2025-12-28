@@ -3,6 +3,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import ErrorDisplay from './ErrorDisplay';
 import { toAppError, ErrorType } from '@/lib/errors';
+import { clientLog } from '@/lib/utils/client-logger';
 
 interface Props {
   children: ReactNode;
@@ -42,16 +43,16 @@ export default class ErrorBoundary extends Component<Props, State> {
         });
       } catch (sentryError) {
         // Sentry 초기화 실패 시 무시
-        console.warn('Sentry capture failed:', sentryError);
+        clientLog.warn('Sentry capture failed', { sentryError });
       }
     }
 
     // 에러 로깅 (프로덕션 환경에서는 에러 추적 서비스로 전송)
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    clientLog.error('ErrorBoundary caught an error', error, { errorInfo });
 
     // 개발 환경에서만 상세 정보 표시
     if (process.env.NODE_ENV === 'development') {
-      console.error('Error details:', {
+      clientLog.error('Error details', error, {
         error: error.message,
         stack: error.stack,
         componentStack: errorInfo.componentStack,
