@@ -128,7 +128,7 @@ function extractJSONFromText(text: string): string | null {
   let endIndex = -1;
   let inString = false;
   let escapeNext = false;
-  let stringChar = '';
+  let stringChar = "";
 
   for (let i = startIndex; i < text.length; i++) {
     const char = text[i];
@@ -138,7 +138,7 @@ function extractJSONFromText(text: string): string | null {
       continue;
     }
 
-    if (char === '\\') {
+    if (char === "\\") {
       escapeNext = true;
       continue;
     }
@@ -151,7 +151,7 @@ function extractJSONFromText(text: string): string | null {
 
     if (inString && char === stringChar) {
       inString = false;
-      stringChar = '';
+      stringChar = "";
       continue;
     }
 
@@ -245,7 +245,7 @@ function parseQuotaError(error: unknown): { limit?: number; retryAfter?: number;
       errorDetails?: Array<{
         "@type"?: string;
         retryDelay?: string | number;
-        violations?: Array<{ subject?: string; description?: string }>;
+        violations?: Array<{ subject?: string; description?: string; quotaValue?: string | number }>;
       }>;
     }
     const errorObj = error as ErrorWithDetails;
@@ -260,7 +260,7 @@ function parseQuotaError(error: unknown): { limit?: number; retryAfter?: number;
         if (detail["@type"] === "type.googleapis.com/google.rpc.QuotaFailure" && detail.violations) {
           for (const violation of detail.violations) {
             if (violation.quotaValue) {
-              result.limit = parseInt(violation.quotaValue, 10);
+              result.limit = parseInt(String(violation.quotaValue), 10);
             }
           }
         }
@@ -403,7 +403,7 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
       log.warn("제목 번역 실패 감지, 재시도 중", {
         titlePreview: title.substring(0, 50),
         attempt: titleRetryCount,
-        maxRetries: MAX_TRANSLATION_RETRIES
+        maxRetries: MAX_TRANSLATION_RETRIES,
       });
 
       // 재시도 전 대기 (지수 백오프)
@@ -417,7 +417,7 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
     if (isTranslationFailed(title, translatedTitle)) {
       log.warn("제목 번역 최종 실패", {
         titlePreview: title.substring(0, 50),
-        totalAttempts: titleRetryCount + 1
+        totalAttempts: titleRetryCount + 1,
       });
       translationFailed = true;
     } else {
@@ -425,7 +425,7 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
       if (titleRetryCount > 0) {
         log.info("제목 번역 재시도 성공", {
           titlePreview: title.substring(0, 50),
-          attempts: titleRetryCount + 1
+          attempts: titleRetryCount + 1,
         });
       }
     }
@@ -438,7 +438,7 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
       log.debug("내용 번역 중", {
         category: newsItem.category,
         news_category: newsItem.news_category,
-        contentPreview: content.substring(0, 50)
+        contentPreview: content.substring(0, 50),
       });
 
       let translatedContent = await translateToKorean(content);
@@ -451,7 +451,7 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
           category: newsItem.category,
           contentPreview: content.substring(0, 50),
           attempt: contentRetryCount,
-          maxRetries: MAX_TRANSLATION_RETRIES
+          maxRetries: MAX_TRANSLATION_RETRIES,
         });
 
         // 재시도 전 대기 (지수 백오프)
@@ -466,7 +466,7 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
         log.warn("내용 번역 최종 실패", {
           category: newsItem.category,
           contentPreview: content.substring(0, 50),
-          totalAttempts: contentRetryCount + 1
+          totalAttempts: contentRetryCount + 1,
         });
         translationFailed = true;
         // 실패한 경우 null로 설정하여 나중에 재처리 가능하도록 함
@@ -477,7 +477,7 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
           log.info("내용 번역 재시도 성공", {
             category: newsItem.category,
             contentPreview: content.substring(0, 50),
-            attempts: contentRetryCount + 1
+            attempts: contentRetryCount + 1,
           });
         }
       }
@@ -840,7 +840,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 
     log.info("번역 완료", {
       count: translatedNewsItems.length,
-      failedCount: failedTranslationCount[0]
+      failedCount: failedTranslationCount[0],
     });
 
     if (failedTranslationCount[0] > 0) {

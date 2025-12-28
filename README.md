@@ -42,13 +42,33 @@ Dailynews/
 
 ## 설치 및 실행
 
-### 1. 의존성 설치
+### 방법 1: Dev Container 사용 (권장)
+
+VS Code/Cursor의 Dev Containers 확장을 사용하면 Docker 환경에서 자동으로 개발 환경이 구성됩니다.
+
+#### 필수 사전 요구사항
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) 설치 및 실행
+- VS Code/Cursor에 "Dev Containers" 확장 설치
+
+#### 시작하기
+
+1. Docker Desktop 실행
+2. VS Code/Cursor에서 프로젝트 폴더 열기
+3. 명령 팔레트(`Ctrl+Shift+P` / `Cmd+Shift+P`)에서 **"Dev Containers: Reopen in Container"** 실행
+4. 컨테이너가 빌드되고 연결되면 자동으로 개발 서버가 시작됩니다
+
+> 💡 **팁**: 자세한 사용 방법은 [개발 환경 가이드](docs/DEVELOPMENT.md)를 참고하세요.
+
+### 방법 2: 로컬 설치
+
+#### 1. 의존성 설치
 
 ```bash
 npm install
 ```
 
-### 2. 환경 변수 설정
+#### 2. 환경 변수 설정
 
 `.env.local` 파일을 생성하고 다음 환경 변수를 설정하세요:
 
@@ -68,7 +88,7 @@ ADMIN_PASSWORD=your_admin_password
 
 > 💡 **팁**: `.env.example` 파일을 참고하여 필요한 환경 변수를 확인할 수 있습니다.
 
-### 4. 개발 서버 실행
+#### 3. 개발 서버 실행
 
 ```bash
 npm run dev
@@ -98,7 +118,6 @@ npm run fetch-news
 
 #### 수동 뉴스 수집 (배포 서버)
 
-
 ### 관리자 페이지 접속
 
 관리자 페이지(`/admin`)에 접속하려면 비밀번호 인증이 필요합니다.
@@ -112,9 +131,11 @@ ADMIN_PASSWORD=your_secure_password_here
 ```
 
 **로컬 개발 환경:**
+
 - `.env.local` 파일에 `ADMIN_PASSWORD` 추가
 
 **Vercel 배포 환경:**
+
 1. Vercel 대시보드 → 프로젝트 선택
 2. Settings → Environment Variables
 3. `ADMIN_PASSWORD` 추가 (모든 환경에 적용)
@@ -196,6 +217,7 @@ ADMIN_PASSWORD=your_secure_password_here
 뉴스 수집은 GitHub Actions를 통해 자동으로 실행됩니다.
 
 1. **GitHub Secrets 설정**:
+
    - 저장소 Settings > Secrets and variables > Actions
    - 다음 Secrets 추가:
      - `GOOGLE_GEMINI_API_KEY`
@@ -207,6 +229,7 @@ ADMIN_PASSWORD=your_secure_password_here
      - `GEMINI_USE_CONTEXT_CACHING`, `GEMINI_NEWS_COLLECTION_MODEL`, `GEMINI_TRANSLATION_MODEL` (선택사항)
 
 2. **워크플로우 확인**:
+
    - `.github/workflows/fetch-news.yml` 파일이 자동으로 인식됩니다
    - Actions 탭에서 워크플로우 실행 상태 확인 가능
    - 수동 실행: Actions 탭 > Fetch News Daily > Run workflow
@@ -217,8 +240,8 @@ ADMIN_PASSWORD=your_secure_password_here
 
 ## 문서
 
+- [개발 환경 가이드](docs/DEVELOPMENT.md) - Docker 및 Dev Container 사용 방법
 - [MCP 서버 설정 가이드](docs/MCP_SETUP.md) - MCP 서버(Supabase, Docker) 설정 방법
-
 - [배포 가이드](DEPLOYMENT.md) - Supabase 및 Vercel 배포 가이드
 - [API 문서](docs/API.md) - API 엔드포인트 상세 문서
 - [아키텍처 문서](docs/ARCHITECTURE.md) - 시스템 아키텍처 및 데이터 흐름
@@ -226,11 +249,11 @@ ADMIN_PASSWORD=your_secure_password_here
 
 ## 향후 계획
 
-- [ ] 뉴스 상세 페이지
-- [ ] 필터링 (날짜, 카테고리, 국가별)
+- [x] 뉴스 상세 페이지 ✅ (구현 완료)
+- [x] 필터링 (카테고리별) ✅ (구현 완료 - `/category/[category]` 페이지)
+- [ ] 필터링 (날짜, 국가별) - 추가 구현 필요
 - [ ] Redis를 통한 Rate Limiting 개선
 
 ## 라이선스
 
 ISC
-
