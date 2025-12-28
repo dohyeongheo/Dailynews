@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dailynews-dev
+    ports:
+      - "3000:3000"
+    volumes:
+      # 소스 코드는 호스트와 동기화 (Hot Reload 지원)
+      - .:/app
+      # node_modules는 익명 볼륨으로 분리 (호스트와 동기화 안 됨)
+      - /app/node_modules
+      # .next 빌드 캐시도 익명 볼륨으로 분리
+      - /app/.next
+    env_file:
+      # 환경 변수는 .env.local 파일에서 로드
+      - .env.local
+    environment:
+      # Node.js 환경 설정
+      - NODE_ENV=development
+    stdin_open: true
+    tty: true
+
