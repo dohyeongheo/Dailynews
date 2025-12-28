@@ -378,6 +378,7 @@ function isTranslationFailed(original: string, translated: string | null): boole
 
 /**
  * 뉴스 항목의 제목과 내용을 확인하고 필요시 한국어로 번역합니다.
+ * 번역 실패 시 재시도 로직 포함.
  * 번역 실패 여부를 반환합니다.
  */
 async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: NewsInput; translationFailed: boolean }> {
@@ -386,16 +387,47 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
   let contentTranslated = newsItem.content_translated;
   let translationFailed = false;
 
+  const MAX_TRANSLATION_RETRIES = 3;
+  const TRANSLATION_RETRY_DELAY = 1000; // 1초
+
   // 제목이 한국어가 아니면 번역
   if (!isKorean(title)) {
     log.debug("제목 번역 중", { titlePreview: title.substring(0, 50) });
-    const translatedTitle = await translateToKorean(title);
-    // 번역 결과가 원본과 같으면 실패
+
+    let translatedTitle = await translateToKorean(title);
+    let titleRetryCount = 0;
+
+    // 번역 결과가 원본과 같으면 재시도
+    while (isTranslationFailed(title, translatedTitle) && titleRetryCount < MAX_TRANSLATION_RETRIES) {
+      titleRetryCount++;
+      log.warn("제목 번역 실패 감지, 재시도 중", {
+        titlePreview: title.substring(0, 50),
+        attempt: titleRetryCount,
+        maxRetries: MAX_TRANSLATION_RETRIES
+      });
+
+      // 재시도 전 대기 (지수 백오프)
+      const delay = TRANSLATION_RETRY_DELAY * Math.pow(2, titleRetryCount - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+
+      translatedTitle = await translateToKorean(title);
+    }
+
+    // 재시도 후에도 실패하면 실패로 표시
     if (isTranslationFailed(title, translatedTitle)) {
-      log.warn("제목 번역 실패 감지", { titlePreview: title.substring(0, 50) });
+      log.warn("제목 번역 최종 실패", {
+        titlePreview: title.substring(0, 50),
+        totalAttempts: titleRetryCount + 1
+      });
       translationFailed = true;
     } else {
       title = translatedTitle;
+      if (titleRetryCount > 0) {
+        log.info("제목 번역 재시도 성공", {
+          titlePreview: title.substring(0, 50),
+          attempts: titleRetryCount + 1
+        });
+      }
     }
   }
 
@@ -408,18 +440,46 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
         news_category: newsItem.news_category,
         contentPreview: content.substring(0, 50)
       });
-      const translatedContent = await translateToKorean(content);
-      // 번역 결과가 원본과 같으면 실패
-      if (isTranslationFailed(content, translatedContent)) {
-        log.warn("내용 번역 실패 감지", {
+
+      let translatedContent = await translateToKorean(content);
+      let contentRetryCount = 0;
+
+      // 번역 결과가 원본과 같으면 재시도
+      while (isTranslationFailed(content, translatedContent) && contentRetryCount < MAX_TRANSLATION_RETRIES) {
+        contentRetryCount++;
+        log.warn("내용 번역 실패 감지, 재시도 중", {
           category: newsItem.category,
-          contentPreview: content.substring(0, 50)
+          contentPreview: content.substring(0, 50),
+          attempt: contentRetryCount,
+          maxRetries: MAX_TRANSLATION_RETRIES
+        });
+
+        // 재시도 전 대기 (지수 백오프)
+        const delay = TRANSLATION_RETRY_DELAY * Math.pow(2, contentRetryCount - 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+
+        translatedContent = await translateToKorean(content);
+      }
+
+      // 재시도 후에도 실패하면 실패로 표시
+      if (isTranslationFailed(content, translatedContent)) {
+        log.warn("내용 번역 최종 실패", {
+          category: newsItem.category,
+          contentPreview: content.substring(0, 50),
+          totalAttempts: contentRetryCount + 1
         });
         translationFailed = true;
         // 실패한 경우 null로 설정하여 나중에 재처리 가능하도록 함
         contentTranslated = null;
       } else {
         contentTranslated = translatedContent;
+        if (contentRetryCount > 0) {
+          log.info("내용 번역 재시도 성공", {
+            category: newsItem.category,
+            contentPreview: content.substring(0, 50),
+            attempts: contentRetryCount + 1
+          });
+        }
       }
     }
   } else {

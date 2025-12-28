@@ -1,6 +1,9 @@
 # Next.js 개발 환경을 위한 Dockerfile
 FROM node:20-alpine
 
+# Dev Containers를 위해 bash와 git 설치
+RUN apk add --no-cache bash git
+
 # 작업 디렉토리 설정
 WORKDIR /app
 

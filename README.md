@@ -217,6 +217,8 @@ ADMIN_PASSWORD=your_secure_password_here
 
 ## 문서
 
+- [MCP 서버 설정 가이드](docs/MCP_SETUP.md) - MCP 서버(Supabase, Docker) 설정 방법
+
 - [배포 가이드](DEPLOYMENT.md) - Supabase 및 Vercel 배포 가이드
 - [API 문서](docs/API.md) - API 엔드포인트 상세 문서
 - [아키텍처 문서](docs/ARCHITECTURE.md) - 시스템 아키텍처 및 데이터 흐름
