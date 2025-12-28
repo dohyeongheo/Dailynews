@@ -82,7 +82,7 @@ function extractJSON(text: string): string | null {
     if (codeBlocks.length > 0) {
       // 여러 코드 블록이 있는 경우 가장 긴 것을 우선 시도 (완전한 JSON일 가능성 높음)
       codeBlocks.sort((a, b) => b.content.length - a.content.length);
-      
+
       for (const block of codeBlocks) {
         const extracted = extractJSONFromText(block.content);
         if (extracted && isValidJSON(extracted)) {
@@ -454,7 +454,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
   } else {
     date = requestDate;
   }
-  
+
   // 날짜가 비정상적으로 미래인 경우 (예: 2025년) 오늘 날짜로 강제 변경
   const requestYear = parseInt(requestDate.substring(0, 4), 10);
   const currentYear = today.getFullYear();
@@ -618,7 +618,7 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
       const codeBlockMatches = text.match(/```[\s\S]*?```/g);
       const firstJsonIndex = text.indexOf("{");
       const lastJsonIndex = text.lastIndexOf("}");
-      
+
       log.error("JSON 추출 실패", undefined, {
         originalTextPreview: text.substring(0, 1000),
         originalTextLength: text.length,
@@ -629,12 +629,12 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
         lastJsonIndex,
         jsonRange: firstJsonIndex !== -1 && lastJsonIndex !== -1 ? text.substring(firstJsonIndex, Math.min(firstJsonIndex + 500, lastJsonIndex + 1)) : null,
       });
-      
+
       // 미래 날짜 관련 응답인지 확인
       if (text.includes("2025") || text.includes("미래") || text.includes("future")) {
         throw new Error("미래 날짜에 대한 뉴스를 수집할 수 없습니다. 오늘 날짜로 다시 시도해주세요.");
       }
-      
+
       throw new Error("Gemini API 응답에서 유효한 JSON을 찾을 수 없습니다. 응답이 JSON 형식이 아닙니다.");
     }
 
