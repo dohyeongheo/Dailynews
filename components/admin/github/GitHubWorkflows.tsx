@@ -51,16 +51,22 @@ export default function GitHubWorkflows() {
       });
 
       if (!response.ok) {
-        throw new Error("워크플로우 목록을 불러올 수 없습니다.");
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData?.error?.message || `HTTP ${response.status} 오류가 발생했습니다.`;
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
       if (data.success) {
+        // GitHub API 응답 구조: { total_count, workflows }
         setWorkflows(data.data.workflows || []);
+      } else {
+        throw new Error(data.error?.message || "워크플로우 목록을 불러올 수 없습니다.");
       }
     } catch (error) {
       clientLog.error("워크플로우 목록 로드 실패", error);
-      showError("워크플로우 목록을 불러오는 중 오류가 발생했습니다.");
+      const errorMessage = error instanceof Error ? error.message : "워크플로우 목록을 불러오는 중 오류가 발생했습니다.";
+      showError(errorMessage);
     } finally {
       setIsLoading(false);
     }

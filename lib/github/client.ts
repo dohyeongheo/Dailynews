@@ -55,11 +55,43 @@ export function getRepositoryInfo() {
  * Rate Limit 초과 시 에러 메시지 반환
  */
 export function handleRateLimitError(error: unknown): string {
-  if (error && typeof error === "object" && "status" in error) {
-    if (error.status === 403) {
-      return "GitHub API Rate Limit이 초과되었습니다. 잠시 후 다시 시도해주세요.";
+  if (error && typeof error === "object") {
+    // Octokit 에러 구조 확인
+    if ("status" in error) {
+      const status = error.status as number;
+      if (status === 403) {
+        return "GitHub API Rate Limit이 초과되었습니다. 잠시 후 다시 시도해주세요.";
+      }
+      if (status === 401) {
+        return "GitHub API 인증에 실패했습니다. 토큰을 확인해주세요.";
+      }
+      if (status === 404) {
+        return "GitHub 리포지토리 또는 리소스를 찾을 수 없습니다.";
+      }
+    }
+    
+    // Octokit 에러 메시지 확인
+    if ("message" in error) {
+      return `GitHub API 오류: ${error.message}`;
+    }
+    
+    // RequestError 타입 확인
+    if ("response" in error) {
+      const response = (error as any).response;
+      if (response?.data?.message) {
+        return `GitHub API 오류: ${response.data.message}`;
+      }
+      if (response?.status) {
+        return `GitHub API 오류 (상태 코드: ${response.status})`;
+      }
     }
   }
-  return "GitHub API 요청 중 오류가 발생했습니다.";
+  
+  // 일반 에러
+  if (error instanceof Error) {
+    return `GitHub API 오류: ${error.message}`;
+  }
+  
+  return "GitHub API 요청 중 알 수 없는 오류가 발생했습니다.";
 }
 

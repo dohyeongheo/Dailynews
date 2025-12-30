@@ -13,14 +13,28 @@ const { owner, repo } = getRepositoryInfo();
 export async function listWorkflows() {
   try {
     const octokit = getOctokitClient();
-    // @ts-expect-error - Octokit 타입 정의에 없을 수 있지만 실제로는 동작함
-    const response = await octokit.rest.actions.listWorkflowsForRepo({
+    log.info("워크플로우 목록 조회 시작", { owner, repo });
+    
+    const response = await octokit.rest.actions.listRepoWorkflows({
       owner,
       repo,
     });
+    
+    log.info("워크플로우 목록 조회 성공", { 
+      totalCount: response.data.total_count,
+      workflowsCount: response.data.workflows?.length || 0 
+    });
+    
     return response.data;
   } catch (error) {
-    log.error("워크플로우 목록 조회 실패", error);
+    log.error("워크플로우 목록 조회 실패", { 
+      error,
+      owner,
+      repo,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStatus: (error as any)?.status,
+      errorResponse: (error as any)?.response?.data
+    });
     throw new Error(handleRateLimitError(error));
   }
 }
