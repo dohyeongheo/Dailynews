@@ -30,6 +30,8 @@ yarn-error.log*
 # local env files
 .env*.local
 .env
+.env.*
+!.env.example
 
 # vercel
 .vercel
@@ -43,3 +45,48 @@ next-env.d.ts
 *.db
 *.db-shm
 *.db-wal
+
+# security & credentials
+*.key
+*.pem
+*.p12
+*.pfx
+*.secret
+*.token
+credentials.json
+mcp.json
+.cursor/mcp.json
+**/mcp.json
+**/*credentials*
+**/*secret*
+**/*token*
+
+# logs
+*.log
+logs/
+*.log.*
+
+# temporary files
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/
+
+# IDE & editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini

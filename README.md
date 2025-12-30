@@ -244,6 +244,10 @@ ADMIN_PASSWORD=your_secure_password_here
 - [API 문서](docs/API.md) - API 엔드포인트 상세 문서
 - [아키텍처 문서](docs/ARCHITECTURE.md) - 시스템 아키텍처 및 데이터 흐름
 - [PowerShell 인코딩 가이드](docs/POWERSHELL_ENCODING.md) - Windows PowerShell 한글 인코딩 문제 해결
+- [GitHub 관리 기능 가이드](docs/GITHUB_ADMIN_USAGE.md) - 관리자 페이지에서 GitHub 관리 기능 사용 방법
+- [GitHub CLI 사용 가이드](docs/GITHUB_CLI_USAGE.md) - 터미널에서 GitHub 관리 기능 사용 방법
+- [GitHub REST API 워크플로우 추적 가이드](docs/GITHUB_REST_API_WORKFLOW_TRACKING.md) - GitHub REST API를 통한 워크플로우 추적 및 프로젝트 관리
+- [AI 에이전트 에러 트래킹 분석](docs/AI_AGENT_ERROR_TRACKING_ANALYSIS.md) - AI 에이전트를 위한 에러 트래킹 및 핸들링 분석
 
 ## 향후 계획
 

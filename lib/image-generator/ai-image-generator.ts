@@ -88,6 +88,15 @@ async function generateWithGemini(prompt: string): Promise<Buffer> {
 
     if (result.candidates && result.candidates.length > 0) {
       const candidate = result.candidates[0];
+
+      // finishReason 확인 (이미지 생성 실패 원인 파악)
+      if (candidate.finishReason && candidate.finishReason !== "STOP") {
+        log.warn("Gemini API 응답에 finishReason이 STOP이 아님", {
+          finishReason: candidate.finishReason,
+          finishMessage: candidate.finishMessage,
+        });
+      }
+
       if (candidate.content && candidate.content.parts) {
         for (const part of candidate.content.parts) {
           // inlineData에 이미지가 있는 경우
@@ -111,13 +120,37 @@ async function generateWithGemini(prompt: string): Promise<Buffer> {
 
     if (!imageBase64) {
       // 모델이 존재하지 않거나 이미지 생성을 지원하지 않는 경우
+      // 실제 응답 구조를 로깅하여 디버깅 정보 제공
+      const candidate = result.candidates?.[0];
+      const candidateStructure = candidate
+        ? {
+            hasContent: !!candidate.content,
+            contentKeys: candidate.content ? Object.keys(candidate.content) : [],
+            hasParts: !!candidate.content?.parts,
+            partsCount: candidate.content?.parts?.length || 0,
+            partsStructure: candidate.content?.parts?.map((part: any) => ({
+              keys: Object.keys(part),
+              hasInlineData: !!part.inlineData,
+              hasText: !!part.text,
+              textPreview: part.text ? part.text.substring(0, 200) : null,
+              inlineDataKeys: part.inlineData ? Object.keys(part.inlineData) : [],
+            })) || [],
+            candidateKeys: Object.keys(candidate),
+          }
+        : null;
+
       log.warn("Gemini API에서 이미지 데이터를 찾을 수 없음", {
         responseKeys: Object.keys(result),
         candidatesCount: result.candidates?.length || 0,
+        candidateStructure,
+        finishReason: candidate?.finishReason,
+        finishMessage: candidate?.finishMessage,
+        safetyRatings: candidate?.safetyRatings,
+        fullCandidate: candidate ? JSON.stringify(candidate, null, 2).substring(0, 2000) : null,
       });
 
       throw new Error(
-        `Gemini API에서 이미지 데이터를 추출할 수 없습니다. ` + `모델 "${modelName}"이 이미지 생성을 지원하지 않거나, ` + `API 응답 형식이 예상과 다릅니다.`
+        `Gemini API에서 이미지 데이터를 추출할 수 없습니다. ` + `모델 "${modelName}"이 이미지 생성을 지원하지 않거나, ` + `API 응답 형식이 예상과 다릅니다. ` + `응답 구조를 확인하려면 로그를 확인하세요.`
       );
     }
 

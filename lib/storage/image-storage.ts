@@ -1,4 +1,4 @@
-import { put } from "@vercel/blob";
+import { put, del } from "@vercel/blob";
 import { log } from "../utils/logger";
 
 /**
@@ -29,6 +29,28 @@ export async function uploadNewsImage(newsId: string, imageBuffer: Buffer): Prom
       newsId,
     });
     throw error;
+  }
+}
+
+/**
+ * 뉴스 이미지를 Vercel Blob Storage에서 삭제합니다.
+ * @param imageUrl 삭제할 이미지 URL
+ * @returns 삭제 성공 여부
+ */
+export async function deleteNewsImage(imageUrl: string): Promise<boolean> {
+  try {
+    await del(imageUrl);
+
+    log.debug("Vercel Blob 이미지 삭제 완료", {
+      imageUrl,
+    });
+
+    return true;
+  } catch (error) {
+    log.error("Vercel Blob 이미지 삭제 실패", error instanceof Error ? error : new Error(String(error)), {
+      imageUrl,
+    });
+    return false;
   }
 }
 

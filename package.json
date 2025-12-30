@@ -12,10 +12,15 @@
     "test:coverage": "jest --coverage",
     "analyze": "node scripts/analyze-bundle.js",
     "fetch-news": "npx tsx scripts/fetch-news.ts",
-    "fetch-news-test": "npx tsx scripts/fetch-news-test.ts"
+    "fetch-news-test": "npx tsx scripts/fetch-news-test.ts",
+    "github:workflows": "npx tsx scripts/github/workflows.ts",
+    "github:issues": "npx tsx scripts/github/issues.ts",
+    "github:pulls": "npx tsx scripts/github/pulls.ts",
+    "github:releases": "npx tsx scripts/github/releases.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@octokit/rest": "^22.0.1",
     "@sentry/nextjs": "^10.30.0",
     "@supabase/supabase-js": "^2.39.3",
     "@vercel/blob": "^0.25.0",

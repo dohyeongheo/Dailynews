@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { supabaseServer } from "@/lib/supabase/server";
 import { z } from "zod";
 import { log } from "@/lib/utils/logger";
 import { withAdmin, withErrorHandling } from "@/lib/utils/api-middleware";
@@ -16,6 +16,7 @@ const updateNewsSchema = z.object({
   source_media: z.string().optional(),
   original_link: z.string().url().optional().or(z.literal("")),
   published_date: z.string().optional(),
+  image_url: z.string().url().nullable().optional(),
 });
 
 /**
@@ -27,7 +28,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       const body = await req.json();
       const validatedData = updateNewsSchema.parse(body);
 
-      const supabase = createClient();
       const updateData: Record<string, unknown> = {
         updated_at: new Date().toISOString(),
       };
@@ -53,8 +53,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       if (validatedData.published_date) {
         updateData.published_date = validatedData.published_date;
       }
+      if (validatedData.image_url !== undefined) {
+        updateData.image_url = validatedData.image_url || null;
+      }
 
-      const { error } = await supabase.from("news").update(updateData).eq("id", params.id);
+      const { error } = await supabaseServer.from("news").update(updateData).eq("id", params.id);
 
       if (error) {
         log.error("Update news error", new Error(error.message), { id: params.id, errorCode: error.code });
@@ -72,8 +75,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   return withAdmin(
     withErrorHandling(async (req: NextRequest) => {
-      const supabase = createClient();
-      const { error } = await supabase.from("news").delete().eq("id", params.id);
+      const { error } = await supabaseServer.from("news").delete().eq("id", params.id);
 
       if (error) {
         log.error("Delete news error", new Error(error.message), { id: params.id, errorCode: error.code });
