@@ -5,7 +5,7 @@
  * 세션 관리 및 페이지뷰 자동 추적
  */
 
-import { createContext, useContext, useEffect, useState, ReactNode, Suspense } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { getSessionId, getClientInfo, parseDeviceInfo } from '@/lib/utils/analytics';
 import { clientLog } from '@/lib/utils/client-logger';
@@ -24,12 +24,17 @@ interface AnalyticsProviderProps {
 
 function AnalyticsProviderInner({ children }: AnalyticsProviderProps) {
   const [sessionId, setSessionId] = useState<string>('');
+  const [isSessionInitialized, setIsSessionInitialized] = useState<boolean>(false);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [lastPagePath, setLastPagePath] = useState<string>('');
+  const initializationRef = useRef<boolean>(false);
 
   // 세션 ID 초기화 및 서버에 세션 등록 (한 번만 실행)
   useEffect(() => {
+    if (initializationRef.current) return;
+    initializationRef.current = true;
+
     const initializeSession = async () => {
       try {
         const id = getSessionId();
@@ -66,8 +71,11 @@ function AnalyticsProviderInner({ children }: AnalyticsProviderProps) {
         }
 
         clientLog.debug('세션 등록 성공', { sessionId: id });
+        setIsSessionInitialized(true);
       } catch (error) {
         // 세션 등록 실패는 조용히 처리 (사용자 경험에 영향 없음)
+        // 하지만 세션 ID는 설정되어 있으므로 페이지뷰 추적은 가능
+        setIsSessionInitialized(true);
         if (error instanceof TypeError && error.message === 'Failed to fetch') {
           clientLog.warn('세션 등록 실패 (네트워크 오류) - 계속 진행', {
             error: error instanceof Error ? error.message : String(error),
@@ -84,10 +92,11 @@ function AnalyticsProviderInner({ children }: AnalyticsProviderProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // 한 번만 실행
 
-  // 페이지뷰 추적 함수
-  const trackPageView = async (pagePath?: string, pageTitle?: string) => {
-    if (!sessionId) {
-      clientLog.warn('세션 ID가 없어 페이지뷰를 추적할 수 없습니다.');
+  // 페이지뷰 추적 함수 (useCallback으로 메모이제이션)
+  const trackPageView = useCallback(async (pagePath?: string, pageTitle?: string) => {
+    // 세션이 초기화되지 않았거나 세션 ID가 없으면 대기
+    if (!isSessionInitialized || !sessionId) {
+      clientLog.debug('세션 초기화 대기 중...', { isSessionInitialized, hasSessionId: !!sessionId });
       return;
     }
 
@@ -134,12 +143,19 @@ function AnalyticsProviderInner({ children }: AnalyticsProviderProps) {
     } catch (error) {
       // 네트워크 오류는 조용히 처리 (사용자 경험에 영향 없음)
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
-        clientLog.warn('페이지뷰 추적 실패 (네트워크 오류)', { pagePath: currentPath });
+        // 개발 환경에서만 상세 로그 출력
+        if (process.env.NODE_ENV === 'development') {
+          clientLog.warn('페이지뷰 추적 실패 (네트워크 오류)', { 
+            pagePath: currentPath,
+            sessionId,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       } else {
         clientLog.error('페이지뷰 추적 실패', error instanceof Error ? error : new Error(String(error)));
       }
     }
-  };
+  }, [sessionId, isSessionInitialized, pathname, lastPagePath]);
 
   // 이벤트 추적 함수
   const trackEvent = async (
@@ -189,15 +205,15 @@ function AnalyticsProviderInner({ children }: AnalyticsProviderProps) {
 
   // 페이지 변경 시 자동 추적
   useEffect(() => {
-    if (!sessionId) return;
+    if (!isSessionInitialized || !sessionId) return;
 
     // 약간의 지연을 두어 페이지 로드 완료 후 추적
     const timer = setTimeout(() => {
       trackPageView();
-    }, 100);
+    }, 300); // 지연 시간을 300ms로 증가하여 세션 초기화 완료 대기
 
     return () => clearTimeout(timer);
-  }, [pathname, searchParams, sessionId]);
+  }, [pathname, searchParams, sessionId, isSessionInitialized, trackPageView]);
 
   // 페이지 언마운트 시 체류 시간 계산 (선택사항)
   useEffect(() => {

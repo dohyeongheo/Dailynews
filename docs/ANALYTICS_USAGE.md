@@ -80,9 +80,9 @@ export default function SearchPage() {
 
   const handleSearch = async (query: string) => {
     const results = await searchNews(query);
-    
+
     trackSearch(query, results.length);
-    
+
     // 검색 결과 표시
   };
 
