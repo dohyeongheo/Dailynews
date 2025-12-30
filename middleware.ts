@@ -15,12 +15,13 @@ export default async function middleware(req: NextRequest) {
 
   // CSRF 보호: API 라우트에서 POST/PUT/PATCH/DELETE 요청에 대해 CSRF 토큰 검증
   if (isApiRoute && requiresCsrfProtection(req.method)) {
-    // 제외할 라우트들: CSRF 토큰 API, 비밀번호/Secret 기반 인증 API
+    // 제외할 라우트들: CSRF 토큰 API, 비밀번호/Secret 기반 인증 API, Analytics API (공개 API)
     const isCsrfTokenRoute = nextUrl.pathname.startsWith("/api/csrf-token");
     const isManualFetchRoute = nextUrl.pathname.startsWith("/api/manual/fetch-news");
     const isCronFetchRoute = nextUrl.pathname.startsWith("/api/cron/fetch-news");
+    const isAnalyticsRoute = nextUrl.pathname.startsWith("/api/analytics");
 
-    if (!isAdminAuthApi && !isCsrfTokenRoute && !isManualFetchRoute && !isCronFetchRoute) {
+    if (!isAdminAuthApi && !isCsrfTokenRoute && !isManualFetchRoute && !isCronFetchRoute && !isAnalyticsRoute) {
       const requestToken = req.headers.get(CSRF_TOKEN_HEADER);
       const cookieToken = req.cookies.get(CSRF_TOKEN_COOKIE_NAME)?.value;
 

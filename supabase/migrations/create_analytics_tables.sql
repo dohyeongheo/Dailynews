@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS page_views (
   page_title TEXT, -- 페이지 제목
   referrer TEXT, -- 이전 페이지 URL
   user_agent TEXT, -- 브라우저 정보
-  ip_address INET, -- IP 주소 (개인정보 보호를 위해 해시화 가능)
+  ip_address TEXT, -- IP 주소 (해시화된 문자열 저장)
   country TEXT, -- 국가 (IP 기반, 선택사항)
   device_type TEXT, -- 'desktop' | 'mobile' | 'tablet'
   browser TEXT, -- 브라우저 이름
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   first_page_path TEXT NOT NULL, -- 첫 방문 페이지
   referrer TEXT, -- 유입 경로
   user_agent TEXT,
-  ip_address INET,
+  ip_address TEXT, -- IP 주소 (해시화된 문자열 저장)
   country TEXT,
   device_type TEXT,
   browser TEXT,

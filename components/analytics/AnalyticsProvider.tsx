@@ -28,12 +28,61 @@ function AnalyticsProviderInner({ children }: AnalyticsProviderProps) {
   const searchParams = useSearchParams();
   const [lastPagePath, setLastPagePath] = useState<string>('');
 
-  // 세션 ID 초기화
+  // 세션 ID 초기화 및 서버에 세션 등록 (한 번만 실행)
   useEffect(() => {
-    const id = getSessionId();
-    setSessionId(id);
-    clientLog.debug('Analytics 세션 초기화', { sessionId: id });
-  }, []);
+    const initializeSession = async () => {
+      try {
+        const id = getSessionId();
+        setSessionId(id);
+        clientLog.debug('Analytics 세션 초기화', { sessionId: id });
+
+        // 서버에 세션 등록
+        const clientInfo = getClientInfo();
+        const deviceInfo = parseDeviceInfo(clientInfo.user_agent);
+        const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+
+        const response = await fetch('/api/analytics/session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            session_id: id,
+            first_page_path: currentPath,
+            referrer: clientInfo.referrer,
+            user_agent: clientInfo.user_agent,
+            device_type: deviceInfo.device_type,
+            browser: deviceInfo.browser,
+            os: deviceInfo.os,
+            screen_width: clientInfo.screen_width,
+            screen_height: clientInfo.screen_height,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text().catch(() => '');
+          throw new Error(`세션 등록 실패: ${response.status} ${errorText}`);
+        }
+
+        clientLog.debug('세션 등록 성공', { sessionId: id });
+      } catch (error) {
+        // 세션 등록 실패는 조용히 처리 (사용자 경험에 영향 없음)
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+          clientLog.warn('세션 등록 실패 (네트워크 오류) - 계속 진행', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        } else {
+          clientLog.warn('세션 등록 실패 (계속 진행)', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      }
+    };
+
+    initializeSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 한 번만 실행
 
   // 페이지뷰 추적 함수
   const trackPageView = async (pagePath?: string, pageTitle?: string) => {
@@ -77,12 +126,18 @@ function AnalyticsProviderInner({ children }: AnalyticsProviderProps) {
       });
 
       if (!response.ok) {
-        throw new Error(`페이지뷰 추적 실패: ${response.status}`);
+        const errorText = await response.text().catch(() => '');
+        throw new Error(`페이지뷰 추적 실패: ${response.status} ${errorText}`);
       }
 
       clientLog.debug('페이지뷰 추적 성공', { pagePath: currentPath });
     } catch (error) {
-      clientLog.error('페이지뷰 추적 실패', error);
+      // 네트워크 오류는 조용히 처리 (사용자 경험에 영향 없음)
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        clientLog.warn('페이지뷰 추적 실패 (네트워크 오류)', { pagePath: currentPath });
+      } else {
+        clientLog.error('페이지뷰 추적 실패', error instanceof Error ? error : new Error(String(error)));
+      }
     }
   };
 
@@ -117,12 +172,18 @@ function AnalyticsProviderInner({ children }: AnalyticsProviderProps) {
       });
 
       if (!response.ok) {
-        throw new Error(`이벤트 추적 실패: ${response.status}`);
+        const errorText = await response.text().catch(() => '');
+        throw new Error(`이벤트 추적 실패: ${response.status} ${errorText}`);
       }
 
       clientLog.debug('이벤트 추적 성공', { eventName, metadata });
     } catch (error) {
-      clientLog.error('이벤트 추적 실패', error);
+      // 네트워크 오류는 조용히 처리 (사용자 경험에 영향 없음)
+      if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        clientLog.warn('이벤트 추적 실패 (네트워크 오류)', { eventName });
+      } else {
+        clientLog.error('이벤트 추적 실패', error instanceof Error ? error : new Error(String(error)));
+      }
     }
   };
 
