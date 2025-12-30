@@ -17,6 +17,14 @@ import { isAdminAuthenticated } from './admin-auth';
 type Handler = (request: NextRequest) => Promise<NextResponse>;
 
 /**
+ * 동적 라우트 핸들러 타입 (params 포함)
+ */
+type DynamicHandler<T = Record<string, string>> = (
+  request: NextRequest,
+  context: { params: T }
+) => Promise<NextResponse>;
+
+/**
  * Rate Limit 설정 타입
  */
 type RateLimitConfig = {
@@ -92,6 +100,42 @@ export function combine(...middlewares: Array<(handler: Handler) => Handler>): (
 export function withAdminAndRateLimit(config: RateLimitConfig): (handler: Handler) => Handler {
   return (handler: Handler) => {
     return combine(withRateLimit(config), withErrorHandling)(withAdmin(handler));
+  };
+}
+
+/**
+ * 동적 라우트용 관리자 권한 미들웨어
+ */
+export function withAdminDynamic<T = Record<string, string>>(
+  handler: DynamicHandler<T>
+): DynamicHandler<T> {
+  return async (request: NextRequest, context: { params: T }) => {
+    try {
+      if (!isAdminAuthenticated(request)) {
+        return createErrorResponse(new AuthError('관리자 인증이 필요합니다.'), 401);
+      }
+
+      return await handler(request, context);
+    } catch (error) {
+      const appError = toAppError(error, ErrorType.AUTH_ERROR);
+      return createErrorResponse(appError);
+    }
+  };
+}
+
+/**
+ * 동적 라우트용 에러 핸들링 미들웨어
+ */
+export function withErrorHandlingDynamic<T = Record<string, string>>(
+  handler: DynamicHandler<T>
+): DynamicHandler<T> {
+  return async (request: NextRequest, context: { params: T }) => {
+    try {
+      return await handler(request, context);
+    } catch (error) {
+      const appError = toAppError(error);
+      return createErrorResponse(appError);
+    }
   };
 }
 

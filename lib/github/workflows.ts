@@ -13,6 +13,7 @@ const { owner, repo } = getRepositoryInfo();
 export async function listWorkflows() {
   try {
     const octokit = getOctokitClient();
+    // @ts-expect-error - Octokit 타입 정의에 없을 수 있지만 실제로는 동작함
     const response = await octokit.rest.actions.listWorkflowsForRepo({
       owner,
       repo,

@@ -3,12 +3,12 @@
  */
 
 import { NextRequest } from "next/server";
-import { withAdmin, withErrorHandling } from "@/lib/utils/api-middleware";
+import { withAdminDynamic, withErrorHandlingDynamic } from "@/lib/utils/api-middleware";
 import { createSuccessResponse, createErrorResponse } from "@/lib/utils/api-response";
 import { getIssue, updateIssue } from "@/lib/github/issues";
 
-export const GET = withAdmin(
-  withErrorHandling(async (
+export const GET = withAdminDynamic(
+  withErrorHandlingDynamic(async (
     request: NextRequest,
     { params }: { params: { issueNumber: string } }
   ) => {
@@ -26,8 +26,8 @@ export const GET = withAdmin(
   })
 );
 
-export const PATCH = withAdmin(
-  withErrorHandling(async (
+export const PATCH = withAdminDynamic(
+  withErrorHandlingDynamic(async (
     request: NextRequest,
     { params }: { params: { issueNumber: string } }
   ) => {

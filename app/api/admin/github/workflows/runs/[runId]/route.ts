@@ -3,12 +3,12 @@
  */
 
 import { NextRequest } from "next/server";
-import { withAdmin, withErrorHandling } from "@/lib/utils/api-middleware";
+import { withAdminDynamic, withErrorHandlingDynamic } from "@/lib/utils/api-middleware";
 import { createSuccessResponse, createErrorResponse } from "@/lib/utils/api-response";
 import { getWorkflowRun } from "@/lib/github/workflows";
 
-export const GET = withAdmin(
-  withErrorHandling(async (
+export const GET = withAdminDynamic(
+  withErrorHandlingDynamic(async (
     request: NextRequest,
     { params }: { params: { runId: string } }
   ) => {
