@@ -86,12 +86,9 @@ export default function GitHubWorkflows() {
       }
       params.append("perPage", "20");
 
-      const response = await fetch(
-        `/api/admin/github/workflows/runs?${params.toString()}`,
-        {
-          credentials: "include",
-        }
-      );
+      const response = await fetch(`/api/admin/github/workflows/runs?${params.toString()}`, {
+        credentials: "include",
+      });
 
       if (!response.ok) {
         throw new Error("워크플로우 실행 기록을 불러올 수 없습니다.");
@@ -149,10 +146,7 @@ export default function GitHubWorkflows() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">워크플로우 관리</h2>
-        <button
-          onClick={loadWorkflowRuns}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
+        <button onClick={loadWorkflowRuns} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
           새로고침
         </button>
       </div>
@@ -161,14 +155,10 @@ export default function GitHubWorkflows() {
       <div className="bg-white rounded-lg shadow p-4">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              워크플로우 선택
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">워크플로우 선택</label>
             <select
               value={selectedWorkflow || ""}
-              onChange={(e) =>
-                setSelectedWorkflow(e.target.value ? Number(e.target.value) : null)
-              }
+              onChange={(e) => setSelectedWorkflow(e.target.value ? Number(e.target.value) : null)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             >
               <option value="">전체</option>
@@ -180,14 +170,10 @@ export default function GitHubWorkflows() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              상태
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">상태</label>
             <select
               value={filter.status || ""}
-              onChange={(e) =>
-                setFilter({ ...filter, status: e.target.value || undefined })
-              }
+              onChange={(e) => setFilter({ ...filter, status: e.target.value || undefined })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             >
               <option value="">전체</option>
@@ -197,14 +183,10 @@ export default function GitHubWorkflows() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              결과
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">결과</label>
             <select
               value={filter.conclusion || ""}
-              onChange={(e) =>
-                setFilter({ ...filter, conclusion: e.target.value || undefined })
-              }
+              onChange={(e) => setFilter({ ...filter, conclusion: e.target.value || undefined })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg"
             >
               <option value="">전체</option>
@@ -231,71 +213,33 @@ export default function GitHubWorkflows() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    실행 번호
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    워크플로우
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    브랜치
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    이벤트
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    상태
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    실행 시간
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    작업
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">실행 번호</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">워크플로우</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">브랜치</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이벤트</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">실행 시간</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">작업</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {runs.map((run) => (
                   <tr key={run.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      #{run.run_number}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {run.name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {run.head_branch}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {run.event}
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#{run.run_number}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{run.name}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{run.head_branch}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{run.event}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full ${getConclusionColor(
-                          run.conclusion
-                        )}`}
-                      >
-                        {run.conclusion || run.status}
-                      </span>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getConclusionColor(run.conclusion)}`}>{run.conclusion || run.status}</span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {formatDate(run.created_at)}
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{formatDate(run.created_at)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
-                        <a
-                          href={run.html_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-900"
-                        >
+                        <a href={run.html_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-900">
                           보기
                         </a>
                         {run.conclusion === "failure" && (
-                          <button
-                            onClick={() => handleRerun(run.id)}
-                            className="text-green-600 hover:text-green-900"
-                          >
+                          <button onClick={() => handleRerun(run.id)} className="text-green-600 hover:text-green-900">
                             재실행
                           </button>
                         )}
@@ -311,4 +255,3 @@ export default function GitHubWorkflows() {
     </div>
   );
 }
-

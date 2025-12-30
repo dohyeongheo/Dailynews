@@ -151,6 +151,9 @@ ADMIN_PASSWORD=your_secure_password_here
 - **뉴스 관리**: 뉴스 생성, 수정, 삭제
 - **댓글 관리**: 댓글 조회 및 삭제
 - **사용자 관리**: 사용자 조회 및 역할 변경
+- **모니터링**: 시스템 통계 및 성능 메트릭 확인
+- **GitHub 관리**: 워크플로우 추적, 이슈/PR/릴리즈 관리
+- **웹 분석**: 페이지뷰 추적, 이벤트 추적, 사용자 행동 분석
 
 #### 4. 보안 주의사항
 
@@ -179,6 +182,7 @@ ADMIN_PASSWORD=your_secure_password_here
 - ✅ 태국 뉴스 영어 원문 자동 한국어 번역
 - ✅ AI 이미지 생성 및 자동 업로드
 - ✅ 에러 핸들링 및 성능 최적화
+- ✅ 웹 분석 기능 (페이지뷰 추적, 이벤트 추적, 사용자 행동 분석)
 
 ## 배포
 
@@ -248,6 +252,8 @@ ADMIN_PASSWORD=your_secure_password_here
 - [GitHub CLI 사용 가이드](docs/GITHUB_CLI_USAGE.md) - 터미널에서 GitHub 관리 기능 사용 방법
 - [GitHub REST API 워크플로우 추적 가이드](docs/GITHUB_REST_API_WORKFLOW_TRACKING.md) - GitHub REST API를 통한 워크플로우 추적 및 프로젝트 관리
 - [AI 에이전트 에러 트래킹 분석](docs/AI_AGENT_ERROR_TRACKING_ANALYSIS.md) - AI 에이전트를 위한 에러 트래킹 및 핸들링 분석
+- [웹 분석 기능 사용 가이드](docs/ANALYTICS_USAGE.md) - 웹 분석 기능 사용 방법 및 이벤트 추적 가이드
+- [웹 분석 기능 구현 계획](docs/WEB_ANALYTICS_IMPLEMENTATION_PLAN.md) - 웹 분석 기능 구현 계획 및 설계 문서
 
 ## 향후 계획
 

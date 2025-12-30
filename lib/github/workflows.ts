@@ -14,20 +14,20 @@ export async function listWorkflows() {
   try {
     const octokit = getOctokitClient();
     log.info("워크플로우 목록 조회 시작", { owner, repo });
-    
+
     const response = await octokit.rest.actions.listRepoWorkflows({
       owner,
       repo,
     });
-    
-    log.info("워크플로우 목록 조회 성공", { 
+
+    log.info("워크플로우 목록 조회 성공", {
       totalCount: response.data.total_count,
-      workflowsCount: response.data.workflows?.length || 0 
+      workflowsCount: response.data.workflows?.length || 0
     });
-    
+
     return response.data;
   } catch (error) {
-    log.error("워크플로우 목록 조회 실패", { 
+    log.error("워크플로우 목록 조회 실패", {
       error,
       owner,
       repo,

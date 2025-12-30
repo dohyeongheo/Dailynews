@@ -13,9 +13,9 @@ export const GET = withAdmin(
     try {
       log.info("워크플로우 목록 API 호출 시작");
       const workflows = await listWorkflows();
-      log.info("워크플로우 목록 API 호출 성공", { 
+      log.info("워크플로우 목록 API 호출 성공", {
         totalCount: workflows.total_count,
-        workflowsCount: workflows.workflows?.length || 0 
+        workflowsCount: workflows.workflows?.length || 0
       });
       return createSuccessResponse(workflows);
     } catch (error) {
