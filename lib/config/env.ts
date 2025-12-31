@@ -27,6 +27,12 @@ const envSchema = z.object({
   GEMINI_NEWS_COLLECTION_MODEL: z.enum(["flash", "pro"]).default("pro"),
   GEMINI_TRANSLATION_MODEL: z.enum(["flash", "pro"]).default("flash"),
 
+  // Brave Search API (선택적)
+  BRAVE_SEARCH_API_KEY: z.string().optional(),
+
+  // 뉴스 수집 방식 선택
+  NEWS_COLLECTION_METHOD: z.enum(["gemini", "brave"]).default("gemini"),
+
   // Node 환경
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
@@ -51,6 +57,8 @@ function validateEnv(): Env {
       GEMINI_USE_CONTEXT_CACHING: process.env.GEMINI_USE_CONTEXT_CACHING === "true" || process.env.GEMINI_USE_CONTEXT_CACHING === undefined,
       GEMINI_NEWS_COLLECTION_MODEL: (process.env.GEMINI_NEWS_COLLECTION_MODEL as "flash" | "pro") || "pro",
       GEMINI_TRANSLATION_MODEL: (process.env.GEMINI_TRANSLATION_MODEL as "flash" | "pro") || "flash",
+      BRAVE_SEARCH_API_KEY: process.env.BRAVE_SEARCH_API_KEY,
+      NEWS_COLLECTION_METHOD: (process.env.NEWS_COLLECTION_METHOD as "gemini" | "brave") || "gemini",
       NODE_ENV: process.env.NODE_ENV || "development",
     });
   } catch (error) {

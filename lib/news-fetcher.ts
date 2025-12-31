@@ -7,6 +7,8 @@ import { generateAIImage } from "./image-generator/ai-image-generator";
 import { uploadNewsImage } from "./storage/image-storage";
 import { createNewsInputFromDB } from "./utils/news-helpers";
 import { saveMetricSnapshot } from "./utils/metrics-storage";
+import { getEnv } from "./config/env";
+import { fetchNewsFromBrave } from "./news-fetcher-brave";
 
 /**
  * 할당량 초과 에러인지 확인합니다.
@@ -286,7 +288,7 @@ function isKorean(text: string): boolean {
  * Gemini API를 사용하여 텍스트를 한국어로 번역합니다.
  * 재시도 로직 포함 (최대 3회)
  */
-async function translateToKorean(text: string, retryCount: number = 0): Promise<string> {
+export async function translateToKorean(text: string, retryCount: number = 0): Promise<string> {
   if (!text || text.trim().length === 0) return text;
 
   const MAX_RETRIES = 3;
@@ -376,7 +378,6 @@ function isTranslationFailed(original: string, translated: string | null): boole
 async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: NewsInput; translationFailed: boolean }> {
   let title = newsItem.title;
   let content = newsItem.content;
-  let contentTranslated = newsItem.content_translated;
   let translationFailed = false;
 
   const MAX_TRANSLATION_RETRIES = 3;
@@ -474,15 +475,11 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
     }
   }
 
-  // content_translated는 더 이상 사용하지 않으므로 항상 null로 설정
-  contentTranslated = null;
-
   return {
     newsItem: {
       ...newsItem,
       title,
       content,
-      content_translated: contentTranslated,
     },
     translationFailed,
   };
@@ -555,7 +552,6 @@ ${categoryList}
     {
       "title": "뉴스 제목",
       "content": "뉴스 본문 내용",
-      "content_translated": "번역된 내용 (태국 뉴스인 경우)",
       "source_country": "태국" 또는 "한국",
       "source_media": "언론사 이름",
       "category": "태국뉴스" 또는 "관련뉴스" 또는 "한국뉴스",
@@ -567,7 +563,6 @@ ${categoryList}
 
 중요 사항:
 - 각 뉴스의 본문 내용(content)은 상세하게 작성해주세요. 가능한 한 자세히 작성하되, 최소 300자 이상으로 작성해주세요. 뉴스의 핵심 내용, 배경 정보, 영향 등을 포함해주세요.
-- content_translated도 원문과 동일한 수준의 상세함을 유지하여 가능한 한 자세히 작성해주세요.
 - news_category는 뉴스의 제목과 내용을 분석하여 가장 적합한 주제 분류를 선택해주세요. 뉴스의 주요 주제가 명확하지 않은 경우 null로 설정할 수 있습니다.
 
 카테고리 분류 기준:
@@ -753,7 +748,6 @@ async function fetchAdditionalNewsForCategories(
       source_media: item.source_media,
       title: item.title,
       content: item.content,
-      content_translated: item.content_translated || null,
       category: item.category as NewsCategory,
       news_category: newsCategory,
     };
@@ -815,7 +809,6 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
     {
       "title": "뉴스 제목",
       "content": "뉴스 본문 내용",
-      "content_translated": "번역된 내용 (태국 뉴스인 경우)",
       "source_country": "태국" 또는 "한국",
       "source_media": "언론사 이름",
       "category": "태국뉴스" 또는 "관련뉴스" 또는 "한국뉴스",
@@ -827,7 +820,6 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
 
 중요 사항:
 - 각 뉴스의 본문 내용(content)은 상세하게 작성해주세요. 가능한 한 자세히 작성하되, 최소 300자 이상으로 작성해주세요. 뉴스의 핵심 내용, 배경 정보, 영향 등을 포함해주세요.
-- content_translated도 원문과 동일한 수준의 상세함을 유지하여 가능한 한 자세히 작성해주세요.
 - news_category는 뉴스의 제목과 내용을 분석하여 가장 적합한 주제 분류를 선택해주세요. 뉴스의 주요 주제가 명확하지 않은 경우 null로 설정할 수 있습니다.
 
 카테고리 분류 기준:
@@ -1063,7 +1055,6 @@ export async function fetchNewsFromGemini(date: string = new Date().toISOString(
         source_media: item.source_media,
         title: item.title,
         content: item.content,
-        content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
         news_category: newsCategory,
       };
@@ -1412,19 +1403,14 @@ export async function retryFailedTranslations(limit: number = 50): Promise<{ suc
             const result = await translateNewsIfNeeded(newsItem);
 
             // 번역 성공 여부 확인
-            if (!result.translationFailed && result.newsItem.content_translated) {
-              // DB에 번역본 업데이트
-              const updated = await updateNewsTranslation(news.id, result.newsItem.content_translated);
-              if (updated) {
-                log.info("뉴스 번역 재처리 성공", {
-                  newsId: news.id,
-                  title: news.title.substring(0, 50),
-                });
-                return { success: true, newsId: news.id };
-              } else {
-                log.warn("뉴스 번역본 업데이트 실패", { newsId: news.id });
-                return { success: false, newsId: news.id };
-              }
+            // content_translated 필드가 제거되어 더 이상 별도 업데이트가 필요 없음
+            // 번역된 내용은 이미 content 필드에 저장됨
+            if (!result.translationFailed) {
+              log.info("뉴스 번역 재처리 성공", {
+                newsId: news.id,
+                title: news.title.substring(0, 50),
+              });
+              return { success: true, newsId: news.id };
             } else {
               log.warn("뉴스 번역 재처리 실패 (번역 결과가 원본과 동일)", {
                 newsId: news.id,
@@ -1541,7 +1527,23 @@ export async function fetchAndSaveNews(
   maxImageGenerationTimeMs?: number
 ): Promise<{ success: number; failed: number; total: number; savedNewsIds: string[] }> {
   try {
-    const newsItems = await fetchNewsFromGemini(date);
+    const { NEWS_COLLECTION_METHOD } = getEnv();
+    const collectionMethod = NEWS_COLLECTION_METHOD || "gemini";
+
+    log.info("뉴스 수집 방식 선택", { method: collectionMethod, date });
+
+    let newsItems: NewsInput[];
+
+    if (collectionMethod === "brave") {
+      // Brave Search API 사용
+      if (!date) {
+        date = new Date().toISOString().split("T")[0];
+      }
+      newsItems = await fetchNewsFromBrave(date);
+    } else {
+      // 기본: Gemini API 사용
+      newsItems = await fetchNewsFromGemini(date);
+    }
     const result = await saveNewsToDatabase(newsItems, maxImageGenerationTimeMs);
 
     // result가 유효한지 확인
