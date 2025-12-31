@@ -24,7 +24,7 @@ export default function RelatedNews({ news, currentNewsId }: RelatedNewsProps) {
       <h3 className="text-xl font-bold mb-6">관련 뉴스</h3>
       <div className="grid grid-cols-1 gap-4 sm:gap-6">
         {filteredNews.slice(0, 5).map((item) => (
-          <NewsCard key={item.id} news={item} showOriginalLink={true} />
+          <NewsCard key={item.id} news={item} />
         ))}
       </div>
     </section>

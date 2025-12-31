@@ -688,16 +688,6 @@ export async function updateNewsTranslation(newsId: string, contentTranslated: s
     log.warn("updateNewsTranslation 호출됨 - content_translated 컬럼이 제거되어 더 이상 사용할 수 없습니다", { newsId });
     return false;
 
-    if (error) {
-      log.error("updateNewsTranslation Supabase 에러 발생", new Error(error.message), {
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-        newsId,
-      });
-      return false;
-    }
-
     log.info("뉴스 번역본 업데이트 완료", { newsId });
     return true;
   } catch (error) {

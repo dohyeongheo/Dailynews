@@ -15,7 +15,7 @@ export interface NewsRow {
   source_media: string;
   title: string;
   content: string;
-  content_translated: string | null;
+  content_translated?: string | null; // Optional: 더 이상 사용하지 않음
   category: NewsCategory;
   news_category: NewsTopicCategory | null;
   image_url: string | null;
