@@ -48,6 +48,7 @@ export async function generateImagePrompt(news: NewsInput): Promise<string> {
 11. 프롬프트는 "A professional animated illustration" 또는 "A 2D animation style illustration" 같은 형식으로 시작하세요.
 12. 모든 이미지는 동일한 애니메이션 스타일을 유지하여 자연스럽고 일관된 느낌을 주어야 합니다.
 13. 애니메이션 일러스트레이션의 특성을 살려 부드럽고 유기적인 형태, 자연스러운 색상 그라데이션, 일관된 라인 스타일을 표현하세요.
+14. **중요: 생성되는 이미지에는 어떠한 텍스트도 포함되어서는 안 됩니다. 한글, 영어, 숫자, 기호 등 모든 종류의 텍스트나 문자를 이미지에 포함하지 마세요. 이미지는 순수한 시각적 일러스트레이션만 포함해야 하며, 텍스트가 전혀 없는 깨끗한 이미지여야 합니다.**
 
 프롬프트:`;
 
@@ -101,6 +102,6 @@ function generateDefaultPrompt(news: NewsInput): string {
   const category = news.news_category || news.category;
   const styleGuide = getCategoryStyleGuide(category);
 
-  return `A professional 2D animation style illustration representing "${title}" in the ${category} category, ${styleGuide}, natural and cohesive animated illustration style, smooth forms, natural color gradients, consistent line style, high quality, detailed, clean composition`;
+  return `A professional 2D animation style illustration representing "${title}" in the ${category} category, ${styleGuide}, natural and cohesive animated illustration style, smooth forms, natural color gradients, consistent line style, high quality, detailed, clean composition, no text, no letters, no numbers, no characters, no words, text-free, completely text-free image`;
 }
 

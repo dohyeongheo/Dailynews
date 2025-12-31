@@ -14,7 +14,11 @@ export interface NewsReaction {
  */
 export async function getUserNewsReaction(newsId: string, userId: string): Promise<"like" | "dislike" | null> {
   try {
-    const { data, error } = await (supabaseServer.from("news_reactions") as any).select("reaction_type").eq("news_id", newsId).eq("user_id", userId).single();
+    const result = await supabaseServer.from("news_reactions").select("reaction_type").eq("news_id", newsId).eq("user_id", userId).single();
+    if (!result) {
+      return null;
+    }
+    const { data, error } = result;
 
     if (error && error.code !== "PGRST116") {
       // PGRST116은 "no rows returned" 에러로 정상적인 경우

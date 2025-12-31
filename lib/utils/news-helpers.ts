@@ -20,7 +20,6 @@ export function createNewsInputFromDB(news: News): NewsInput {
     content_translated: news.content_translated,
     category: news.category,
     news_category: news.news_category,
-    original_link: news.original_link,
   };
 }
 

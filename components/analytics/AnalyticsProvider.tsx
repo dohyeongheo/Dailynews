@@ -145,7 +145,7 @@ function AnalyticsProviderInner({ children }: AnalyticsProviderProps) {
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
         // 개발 환경에서만 상세 로그 출력
         if (process.env.NODE_ENV === 'development') {
-          clientLog.warn('페이지뷰 추적 실패 (네트워크 오류)', { 
+          clientLog.warn('페이지뷰 추적 실패 (네트워크 오류)', {
             pagePath: currentPath,
             sessionId,
             error: error instanceof Error ? error.message : String(error),

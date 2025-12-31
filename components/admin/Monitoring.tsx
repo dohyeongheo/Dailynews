@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/components/ToastProvider";
 import { clientLog } from "@/lib/utils/client-logger";
 import MetricsCharts from "./MetricsCharts";
+import ErrorMonitor from "./ErrorMonitor";
 
 interface SystemStats {
   totalNews: number;
@@ -227,6 +228,11 @@ export default function Monitoring() {
           chartType="line"
           days={7}
         />
+      </div>
+
+      {/* 콘솔 에러 모니터링 */}
+      <div className="space-y-6">
+        <ErrorMonitor autoRefresh={true} refreshInterval={5000} />
       </div>
 
       {/* 비즈니스 메트릭 차트 */}

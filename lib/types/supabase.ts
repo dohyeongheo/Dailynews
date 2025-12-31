@@ -18,7 +18,6 @@ export interface NewsRow {
   content_translated: string | null;
   category: NewsCategory;
   news_category: NewsTopicCategory | null;
-  original_link: string;
   image_url: string | null;
   created_at: string; // TIMESTAMPTZ -> string (ISO format)
   updated_at?: string; // TIMESTAMPTZ -> string (ISO format), optional

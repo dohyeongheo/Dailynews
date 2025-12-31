@@ -13,7 +13,7 @@ import { log } from '@/lib/utils/logger';
 export const POST = withErrorHandling(async (request: NextRequest) => {
   try {
     const body = await request.json();
-    
+
     // 필수 필드 검증
     if (!body.session_id || !body.page_path) {
       log.warn('페이지뷰 추적 요청에 필수 필드가 없습니다', {

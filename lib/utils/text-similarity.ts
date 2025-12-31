@@ -110,14 +110,15 @@ export function calculateLevenshteinSimilarity(text1: string, text2: string): nu
 
 /**
  * 두 뉴스 항목의 제목과 내용을 비교하여 종합 유사도를 계산합니다.
- * 제목 가중치 40%, 내용 가중치 60%로 가중 평균 계산
+ * 제목 가중치 50%, 내용 가중치 50%로 가중 평균 계산
+ * 제목 유사도가 90% 이상이면 추가 가중치 적용
  *
  * @param title1 첫 번째 뉴스의 제목
  * @param content1 첫 번째 뉴스의 내용
  * @param title2 두 번째 뉴스의 제목
  * @param content2 두 번째 뉴스의 내용
- * @param titleWeight 제목 가중치 (기본값: 0.4)
- * @param contentWeight 내용 가중치 (기본값: 0.6)
+ * @param titleWeight 제목 가중치 (기본값: 0.5)
+ * @param contentWeight 내용 가중치 (기본값: 0.5)
  * @returns 종합 유사도 (0~1 사이의 값)
  */
 export function calculateNewsSimilarity(
@@ -125,20 +126,25 @@ export function calculateNewsSimilarity(
   content1: string,
   title2: string,
   content2: string,
-  titleWeight: number = 0.4,
-  contentWeight: number = 0.6
+  titleWeight: number = 0.5,
+  contentWeight: number = 0.5
 ): number {
   // 제목 유사도 계산 (Jaccard 유사도 사용 - 단어 기반 비교에 적합)
   const titleSimilarity = calculateJaccardSimilarity(title1, title2);
 
   // 내용 유사도 계산 (Jaccard 유사도 사용)
-  // content_translated가 있으면 그것을 사용, 없으면 content 사용
   const content1ToCompare = content1 || "";
   const content2ToCompare = content2 || "";
   const contentSimilarity = calculateJaccardSimilarity(content1ToCompare, content2ToCompare);
 
   // 가중 평균 계산
-  const totalSimilarity = titleSimilarity * titleWeight + contentSimilarity * contentWeight;
+  let totalSimilarity = titleSimilarity * titleWeight + contentSimilarity * contentWeight;
+
+  // 제목 유사도가 90% 이상이면 추가 가중치 적용 (제목이 매우 유사하면 중복 가능성 높음)
+  if (titleSimilarity >= 0.9) {
+    // 제목 유사도에 추가 가중치를 주어 전체 유사도를 높임
+    totalSimilarity = Math.min(1.0, totalSimilarity + (titleSimilarity - 0.9) * 0.2);
+  }
 
   return totalSimilarity;
 }

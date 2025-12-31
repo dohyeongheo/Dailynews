@@ -51,7 +51,7 @@ async function generateWithGemini(prompt: string): Promise<Buffer> {
           {
             parts: [
               {
-                text: prompt,
+                text: `${prompt}\n\nIMPORTANT: The generated image must not contain any text, letters, numbers, characters, or words in any language (Korean, English, or any other language). The image must be completely text-free and contain only visual illustrations without any textual elements.`,
               },
             ],
           },

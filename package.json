@@ -16,7 +16,15 @@
     "github:workflows": "npx tsx scripts/github/workflows.ts",
     "github:issues": "npx tsx scripts/github/issues.ts",
     "github:pulls": "npx tsx scripts/github/pulls.ts",
-    "github:releases": "npx tsx scripts/github/releases.ts"
+    "github:releases": "npx tsx scripts/github/releases.ts",
+    "sentry:analyze": "npx tsx scripts/sentry/analyze-errors.ts",
+    "sentry:test": "npx tsx scripts/sentry/test-sentry.ts",
+    "admin:auto-access": "npx tsx scripts/admin/auto-access.ts",
+    "admin:check-errors": "npx tsx scripts/admin/check-errors.ts",
+    "admin:test-apis": "npx tsx scripts/admin/test-apis.ts",
+    "admin:test-local": "npx tsx scripts/admin/test-local.ts",
+    "admin:ai-workflow": "npx tsx scripts/admin/ai-agent-workflow.ts",
+    "admin:test-browser-mcp": "npx tsx scripts/admin/test-browser-mcp.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

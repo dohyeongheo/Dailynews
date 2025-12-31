@@ -447,3 +447,4 @@ export default function SearchPage() {
 - [recharts Documentation](https://recharts.org/)
 - [GDPR Compliance](https://gdpr.eu/)
 
+

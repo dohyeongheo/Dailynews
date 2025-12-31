@@ -59,3 +59,4 @@ const isAnalyticsRoute = nextUrl.pathname.startsWith("/api/analytics");
 2. 브라우저 콘솔에서 Analytics 관련 에러 확인
 3. Supabase에서 `page_views`, `sessions` 테이블에 데이터가 쌓이는지 확인
 
+

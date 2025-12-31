@@ -78,7 +78,7 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
             </div>
           )}
 
-          <div className="prose max-w-none mb-10 text-gray-800 leading-relaxed whitespace-pre-wrap">{news.content_translated || news.content}</div>
+          <div className="prose max-w-none mb-10 text-gray-800 leading-relaxed whitespace-pre-wrap">{news.content}</div>
         </article>
 
         {/* 관련 뉴스 섹션 */}

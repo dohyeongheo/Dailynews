@@ -24,7 +24,6 @@ export default function NewsForm({ news, onSuccess, onCancel }: NewsFormProps) {
     news_category: (news?.news_category || null) as NewsTopicCategory | null,
     source_country: news?.source_country || "",
     source_media: news?.source_media || "",
-    original_link: news?.original_link || "",
     published_date: news?.published_date || new Date().toISOString().split("T")[0],
   });
   const [imageUrl, setImageUrl] = useState<string | null>(news?.image_url || null);
@@ -286,18 +285,6 @@ export default function NewsForm({ news, onSuccess, onCancel }: NewsFormProps) {
         </div>
       </div>
 
-      <div>
-        <label htmlFor="original_link" className="block text-sm font-medium text-gray-700 mb-1">
-          원문 링크
-        </label>
-        <input
-          id="original_link"
-          type="url"
-          value={formData.original_link}
-          onChange={(e) => setFormData({ ...formData, original_link: e.target.value })}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-      </div>
 
       {/* 이미지 관리 섹션 (수정 모드에서만 표시) */}
       {isEditMode && (

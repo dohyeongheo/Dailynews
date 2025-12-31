@@ -14,7 +14,6 @@ const updateNewsSchema = z.object({
   news_category: z.enum(["과학", "사회", "정치", "경제", "스포츠", "문화", "기술", "건강", "환경", "국제", "기타"]).nullable().optional(),
   source_country: z.string().optional(),
   source_media: z.string().optional(),
-  original_link: z.string().url().optional().or(z.literal("")),
   published_date: z.string().optional(),
   image_url: z.string().url().nullable().optional(),
 });
@@ -46,9 +45,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       }
       if (validatedData.source_media !== undefined) {
         updateData.source_media = validatedData.source_media;
-      }
-      if (validatedData.original_link !== undefined) {
-        updateData.original_link = validatedData.original_link || "";
       }
       if (validatedData.published_date) {
         updateData.published_date = validatedData.published_date;

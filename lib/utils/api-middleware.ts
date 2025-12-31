@@ -11,6 +11,14 @@ import { toAppError } from '@/lib/errors';
 import { ErrorType } from '@/lib/errors';
 import { isAdminAuthenticated } from './admin-auth';
 
+// Sentry는 선택적 의존성 (설정되지 않은 경우 무시)
+let Sentry: typeof import('@sentry/nextjs') | null = null;
+try {
+  Sentry = require('@sentry/nextjs');
+} catch {
+  // Sentry가 설정되지 않은 경우 무시
+}
+
 /**
  * 일반 요청 핸들러 타입
  */
@@ -70,14 +78,64 @@ export function withAdmin(handler: Handler): Handler {
 }
 
 /**
+ * Sentry에 에러를 안전하게 전송하는 헬퍼 함수
+ */
+function captureExceptionToSentry(error: unknown, request: NextRequest, context?: Record<string, unknown>) {
+  if (!Sentry) return;
+
+  try {
+    const appError = toAppError(error);
+
+    // 민감한 정보 제외한 헤더 생성
+    const safeHeaders: Record<string, string> = {};
+    const sensitiveHeaders = ['authorization', 'cookie', 'x-api-key', 'x-csrf-token'];
+
+    request.headers.forEach((value, key) => {
+      if (!sensitiveHeaders.includes(key.toLowerCase())) {
+        safeHeaders[key] = value;
+      }
+    });
+
+    Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+      tags: {
+        path: request.nextUrl.pathname,
+        method: request.method,
+        errorType: appError.type,
+        statusCode: String(appError.statusCode || 500),
+      },
+      extra: {
+        url: request.url,
+        pathname: request.nextUrl.pathname,
+        searchParams: Object.fromEntries(request.nextUrl.searchParams.entries()),
+        headers: safeHeaders,
+        ...context,
+      },
+      contexts: {
+        request: {
+          method: request.method,
+          url: request.url,
+          headers: safeHeaders,
+        },
+      },
+    });
+  } catch (sentryError) {
+    // Sentry 전송 실패는 무시 (에러 핸들링을 방해하지 않음)
+    console.warn('[Sentry] Failed to capture exception:', sentryError);
+  }
+}
+
+/**
  * 에러 핸들링 미들웨어
- * 핸들러에서 발생한 에러를 표준화된 형태로 변환
+ * 핸들러에서 발생한 에러를 표준화된 형태로 변환하고 Sentry에 전송
  */
 export function withErrorHandling(handler: Handler): Handler {
   return async (request: NextRequest) => {
     try {
       return await handler(request);
     } catch (error) {
+      // Sentry에 에러 전송
+      captureExceptionToSentry(error, request);
+
       const appError = toAppError(error);
       return createErrorResponse(appError);
     }
@@ -125,6 +183,7 @@ export function withAdminDynamic<T = Record<string, string>>(
 
 /**
  * 동적 라우트용 에러 핸들링 미들웨어
+ * 핸들러에서 발생한 에러를 표준화된 형태로 변환하고 Sentry에 전송
  */
 export function withErrorHandlingDynamic<T = Record<string, string>>(
   handler: DynamicHandler<T>
@@ -133,6 +192,11 @@ export function withErrorHandlingDynamic<T = Record<string, string>>(
     try {
       return await handler(request, context);
     } catch (error) {
+      // Sentry에 에러 전송 (동적 라우트 파라미터 포함)
+      captureExceptionToSentry(error, request, {
+        params: context.params,
+      });
+
       const appError = toAppError(error);
       return createErrorResponse(appError);
     }

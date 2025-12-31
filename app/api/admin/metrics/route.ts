@@ -24,7 +24,8 @@ export const GET = withAdmin(
       관련뉴스: await getNewsCount("관련뉴스"),
     };
 
-    // 번역 실패한 뉴스 개수 (간단한 조건: content_translated가 null이고 content가 있는 경우)
+    // 번역 실패한 뉴스 개수 (content가 한국어가 아닌 경우 - 애플리케이션 레벨에서 확인 필요)
+    // 참고: content_translated 필드는 더 이상 사용하지 않으므로 content만 확인
     const { data: failedTranslationData, count: failedTranslationCount, error: failedTranslationError } = await supabaseServer
       .from("news")
       .select("id", { count: "exact", head: false })

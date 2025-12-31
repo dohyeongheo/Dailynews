@@ -158,3 +158,31 @@ export async function getWorkflowRunLogsUrl(runId: number): Promise<string | nul
   }
 }
 
+/**
+ * 워크플로우 실행 (workflow_dispatch)
+ */
+export async function createWorkflowDispatch(
+  workflowId: number | string,
+  ref: string = "main",
+  inputs?: Record<string, string>
+) {
+  try {
+    const octokit = getOctokitClient();
+    log.info("워크플로우 실행 시작", { workflowId, ref, inputs });
+
+    const response = await octokit.rest.actions.createWorkflowDispatch({
+      owner,
+      repo,
+      workflow_id: workflowId,
+      ref,
+      inputs,
+    });
+
+    log.info("워크플로우 실행 성공", { workflowId, ref });
+    return response;
+  } catch (error) {
+    log.error("워크플로우 실행 실패", error);
+    throw new Error(handleRateLimitError(error));
+  }
+}
+

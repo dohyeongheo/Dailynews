@@ -14,7 +14,6 @@ const newsSchema = z.object({
   news_category: z.enum(["과학", "사회", "정치", "경제", "스포츠", "문화", "기술", "건강", "환경", "국제", "기타"]).nullable().optional(),
   source_country: z.string().optional(),
   source_media: z.string().optional(),
-  original_link: z.string().url().optional().or(z.literal("")),
   published_date: z.string(),
 });
 
@@ -35,7 +34,6 @@ export const POST = withAdmin(
       published_date: validatedData.published_date,
       source_country: validatedData.source_country || "",
       source_media: validatedData.source_media || "",
-      original_link: validatedData.original_link || "",
     });
 
     if (result.success) {

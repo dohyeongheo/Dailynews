@@ -141,3 +141,4 @@ git log --all --full-history -p | grep -E "(ghp_|AIza|sk-)" || echo "✅ 토큰 
 현재 Git 원격 저장소에는 토큰이나 민감한 정보가 포함되어 있지 않습니다.
 앞으로도 환경 변수를 사용하고 `.gitignore`를 준수하여 보안을 유지하세요.
 
+

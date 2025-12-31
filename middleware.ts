@@ -42,6 +42,12 @@ export default async function middleware(req: NextRequest) {
     }
   }
 
+  // Analytics API는 공개 API로 통과 (CSRF 보호 제외)
+  const isAnalyticsApi = nextUrl.pathname.startsWith("/api/analytics");
+  if (isAnalyticsApi) {
+    return NextResponse.next();
+  }
+
   // 관리자 인증 API는 통과
   if (isAdminAuthApi) {
     return NextResponse.next();

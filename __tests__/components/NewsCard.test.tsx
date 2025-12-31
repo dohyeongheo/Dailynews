@@ -30,7 +30,6 @@ const mockNews: News = {
   category: '태국뉴스',
   news_category: null,
   image_url: null,
-  original_link: 'https://example.com/news/1',
   created_at: '2024-01-01T00:00:00Z',
 };
 
@@ -50,17 +49,6 @@ describe('NewsCard', () => {
     expect(screen.getByText('태국뉴스')).toBeInTheDocument();
   });
 
-  it('원문 보기 링크가 표시되어야 함 (showOriginalLink=true)', () => {
-    render(<NewsCard news={mockNews} showOriginalLink={true} />);
-    const link = screen.getByText('원문 보기 →');
-    expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', 'https://example.com/news/1');
-  });
-
-  it('원문 보기 링크가 표시되지 않아야 함 (showOriginalLink=false)', () => {
-    render(<NewsCard news={mockNews} showOriginalLink={false} />);
-    expect(screen.queryByText('원문 보기 →')).not.toBeInTheDocument();
-  });
 
   it('번역된 내용이 있으면 번역된 내용을 표시해야 함', () => {
     const newsWithTranslation: News = {

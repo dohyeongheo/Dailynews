@@ -33,6 +33,7 @@ export default function GitHubWorkflows() {
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
   const [selectedWorkflow, setSelectedWorkflow] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingRuns, setIsLoadingRuns] = useState(false);
   const [filter, setFilter] = useState<{
     status?: string;
     conclusion?: string;
@@ -41,6 +42,7 @@ export default function GitHubWorkflows() {
   useEffect(() => {
     loadWorkflows();
     loadWorkflowRuns();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedWorkflow, filter]);
 
   async function loadWorkflows() {
@@ -74,6 +76,7 @@ export default function GitHubWorkflows() {
 
   async function loadWorkflowRuns() {
     try {
+      setIsLoadingRuns(true);
       const params = new URLSearchParams();
       if (selectedWorkflow) {
         params.append("workflowId", selectedWorkflow.toString());
@@ -91,16 +94,43 @@ export default function GitHubWorkflows() {
       });
 
       if (!response.ok) {
-        throw new Error("워크플로우 실행 기록을 불러올 수 없습니다.");
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData?.error?.message || `HTTP ${response.status} 오류가 발생했습니다.`;
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
+
+      // 디버깅: 응답 구조 확인
+      clientLog.info("워크플로우 실행 기록 API 응답", {
+        success: data.success,
+        hasData: !!data.data,
+        dataKeys: data.data ? Object.keys(data.data) : [],
+        workflowRunsType: typeof data.data?.workflow_runs,
+        workflowRunsLength: data.data?.workflow_runs?.length,
+        fullData: data.data,
+      });
+
       if (data.success) {
-        setRuns(data.data.workflow_runs || []);
+        // GitHub API 응답 구조: { total_count, workflow_runs }
+        const workflowRuns = data.data?.workflow_runs || [];
+        setRuns(workflowRuns);
+        clientLog.info("워크플로우 실행 기록 로드 성공", {
+          count: workflowRuns.length,
+          totalCount: data.data?.total_count || 0,
+          firstRun: workflowRuns[0] || null,
+        });
+      } else {
+        throw new Error(data.error?.message || "워크플로우 실행 기록을 불러올 수 없습니다.");
       }
     } catch (error) {
       clientLog.error("워크플로우 실행 기록 로드 실패", error);
-      showError("워크플로우 실행 기록을 불러오는 중 오류가 발생했습니다.");
+      const errorMessage = error instanceof Error ? error.message : "워크플로우 실행 기록을 불러오는 중 오류가 발생했습니다.";
+      showError(errorMessage);
+      // 에러 발생 시 빈 배열로 설정하여 이전 데이터가 남지 않도록 함
+      setRuns([]);
+    } finally {
+      setIsLoadingRuns(false);
     }
   }
 
@@ -204,7 +234,7 @@ export default function GitHubWorkflows() {
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">실행 기록</h3>
         </div>
-        {isLoading ? (
+        {isLoading || isLoadingRuns ? (
           <div className="p-6 text-center text-gray-500">로딩 중...</div>
         ) : runs.length === 0 ? (
           <div className="p-6 text-center text-gray-500">실행 기록이 없습니다.</div>

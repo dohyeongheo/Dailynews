@@ -80,7 +80,7 @@ if (!body.session_id || !body.page_path) {
 
 ```typescript
 if (process.env.NODE_ENV === 'development') {
-  clientLog.warn('페이지뷰 추적 실패 (네트워크 오류)', { 
+  clientLog.warn('페이지뷰 추적 실패 (네트워크 오류)', {
     pagePath: currentPath,
     sessionId,
     error: error instanceof Error ? error.message : String(error),
@@ -103,4 +103,5 @@ if (process.env.NODE_ENV === 'development') {
 1. 브라우저 콘솔에서 경고 메시지 확인
 2. 네트워크 탭에서 `/api/analytics/pageview` 요청 성공 여부 확인
 3. Supabase에서 `page_views` 테이블에 데이터가 정상적으로 저장되는지 확인
+
 
