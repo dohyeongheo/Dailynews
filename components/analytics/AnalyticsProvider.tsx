@@ -207,10 +207,10 @@ function AnalyticsProviderInner({ children }: AnalyticsProviderProps) {
   useEffect(() => {
     if (!isSessionInitialized || !sessionId) return;
 
-    // 약간의 지연을 두어 페이지 로드 완료 후 추적
+    // DOM 마운트 완료를 기다리기 위해 지연 시간을 늘림 (레이스 컨디션 방지)
     const timer = setTimeout(() => {
       trackPageView();
-    }, 300); // 지연 시간을 300ms로 증가하여 세션 초기화 완료 대기
+    }, 500); // 지연 시간을 500ms로 증가하여 DOM 마운트 완료 대기
 
     return () => clearTimeout(timer);
   }, [pathname, searchParams, sessionId, isSessionInitialized, trackPageView]);

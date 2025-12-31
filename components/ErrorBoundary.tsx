@@ -30,8 +30,15 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    // Sentry에 에러 전송
-    if (typeof window !== 'undefined') {
+    // DOM 타이밍 관련 에러는 Sentry에 전송하지 않음 (클라이언트 사이드 네비게이션 시 발생하는 레이스 컨디션)
+    const isDomTimingError = error.message && (
+      error.message.includes('Element not found') ||
+      error.message.includes('element not found') ||
+      /^Element not found/i.test(error.message)
+    );
+
+    // Sentry에 에러 전송 (DOM 타이밍 에러 제외)
+    if (typeof window !== 'undefined' && !isDomTimingError) {
       try {
         const Sentry = require('@sentry/nextjs');
         Sentry.captureException(error, {
@@ -44,6 +51,11 @@ export default class ErrorBoundary extends Component<Props, State> {
       } catch (sentryError) {
         // Sentry 초기화 실패 시 무시
         clientLog.warn('Sentry capture failed', { sentryError });
+      }
+    } else if (isDomTimingError) {
+      // 개발 환경에서만 로그 출력
+      if (process.env.NODE_ENV === 'development') {
+        clientLog.debug('Ignored DOM timing error in ErrorBoundary', { message: error.message });
       }
     }
 
