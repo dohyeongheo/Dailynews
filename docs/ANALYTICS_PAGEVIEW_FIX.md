@@ -105,3 +105,6 @@ if (process.env.NODE_ENV === 'development') {
 3. Supabase에서 `page_views` 테이블에 데이터가 정상적으로 저장되는지 확인
 
 
+
+
+

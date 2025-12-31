@@ -4,6 +4,24 @@ import { log } from "../utils/logger";
 import type { NewsRow } from "../types/supabase";
 import { calculateNewsSimilarity, similarityToPercent } from "../utils/text-similarity";
 
+/**
+ * original_link로 중복 뉴스 확인
+ */
+async function checkDuplicateNewsByLink(originalLink: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabaseServer.from("news").select("id").eq("original_link", originalLink).limit(1);
+
+    if (error) {
+      log.error("Error checking duplicate news by link", error instanceof Error ? error : new Error(String(error)));
+      return false; // 에러 발생 시 중복이 아닌 것으로 간주하고 진행
+    }
+
+    return (data && data.length > 0) || false;
+  } catch (error) {
+    log.error("Error checking duplicate news by link", error instanceof Error ? error : new Error(String(error)));
+    return false;
+  }
+}
 
 /**
  * 텍스트 유사도 기반으로 중복 뉴스 확인
@@ -16,18 +34,10 @@ async function checkDuplicateNewsBySimilarity(news: NewsInput): Promise<{ isDupl
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
 
-    // 카테고리가 없으면 중복 체크를 건너뜀
-    if (!news.category) {
-      log.warn("카테고리가 없어 중복 체크를 건너뜀", { title: news.title?.substring(0, 50) });
-      return { isDuplicate: false };
-    }
-
-    // 같은 카테고리 내에서만 비교
     const { data, error } = await supabaseServer
       .from("news")
-      .select("id, title, content, published_date, category")
+      .select("id, title, content, published_date")
       .gte("published_date", sevenDaysAgoStr)
-      .eq("category", news.category)
       .order("published_date", { ascending: false });
 
     if (error) {
@@ -39,7 +49,7 @@ async function checkDuplicateNewsBySimilarity(news: NewsInput): Promise<{ isDupl
       return { isDuplicate: false };
     }
 
-    const SIMILARITY_THRESHOLD = 0.75; // 75% 이상이면 중복으로 판단
+    const SIMILARITY_THRESHOLD = 0.85; // 85% 이상이면 중복으로 판단
 
     // 각 기존 뉴스와 유사도 계산
     for (const existingNews of data) {
@@ -56,15 +66,10 @@ async function checkDuplicateNewsBySimilarity(news: NewsInput): Promise<{ isDupl
       // 유사도가 임계값 이상이면 중복으로 판단
       if (similarity >= SIMILARITY_THRESHOLD) {
         log.info("중복 뉴스 감지 (유사도 기반)", {
-          newTitle: news.title.substring(0, 100),
-          existingTitle: existingNews.title?.substring(0, 100),
-          newCategory: news.category,
-          existingCategory: existingNews.category,
+          newTitle: news.title.substring(0, 50),
+          existingTitle: existingNews.title?.substring(0, 50),
           similarity: similarityToPercent(similarity),
-          similarityThreshold: similarityToPercent(SIMILARITY_THRESHOLD),
           existingNewsId: existingNews.id,
-          publishedDate: existingNews.published_date,
-          newPublishedDate: news.published_date,
         });
         return {
           isDuplicate: true,
@@ -82,11 +87,11 @@ async function checkDuplicateNewsBySimilarity(news: NewsInput): Promise<{ isDupl
 }
 
 /**
- * 중복 뉴스 확인 (텍스트 유사도 기반)
+ * 중복 뉴스 확인 (original_link 또는 텍스트 유사도 기반)
  */
 async function checkDuplicateNews(news: NewsInput): Promise<boolean> {
   try {
-    // 텍스트 유사도로 체크
+    // original_link 컬럼이 제거되었으므로 텍스트 유사도로만 체크
     const similarityResult = await checkDuplicateNewsBySimilarity(news);
     return similarityResult.isDuplicate;
   } catch (error) {
@@ -100,15 +105,10 @@ async function checkDuplicateNews(news: NewsInput): Promise<boolean> {
  */
 export async function insertNews(news: NewsInput): Promise<{ success: boolean; error?: string; id?: string | null }> {
   try {
-    // 중복 체크 (텍스트 유사도 기반)
-    const similarityResult = await checkDuplicateNewsBySimilarity(news);
-    if (similarityResult.isDuplicate) {
-      log.info("중복 뉴스 건너뜀", {
-        title: news.title.substring(0, 100),
-        category: news.category,
-        similarity: similarityResult.similarity ? similarityToPercent(similarityResult.similarity) : undefined,
-        matchedNewsId: similarityResult.matchedNewsId,
-      });
+    // 중복 체크 (original_link 또는 텍스트 유사도 기반)
+    const isDuplicate = await checkDuplicateNews(news);
+    if (isDuplicate) {
+      log.info("중복 뉴스 건너뜀", { title: news.title });
       return {
         success: false,
         error: "이미 존재하는 뉴스입니다.",
@@ -123,6 +123,7 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
         source_media: news.source_media,
         title: news.title,
         content: news.content,
+        // content_translated 컬럼이 제거되었으므로 제외
         category: news.category,
         news_category: news.news_category || null,
       })
@@ -132,14 +133,14 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
     if (error) {
       // 유니크 제약 조건 위반인 경우 중복으로 처리
       if (error.code === "23505" || error.message.includes("duplicate") || error.message.includes("unique")) {
-        log.info("중복 뉴스 건너뜀 (DB 제약 조건)");
+        log.info("중복 뉴스 건너뜀 (DB 제약 조건)", { title: news.title });
         return {
           success: false,
           error: "이미 존재하는 뉴스입니다.",
         };
       }
 
-      log.error("Error inserting news", new Error(error.message), { errorCode: error.code });
+      log.error("Error inserting news", new Error(error.message), { errorCode: error.code, title: news.title });
       return {
         success: false,
         error: error.message,
@@ -218,7 +219,8 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
       .from("news")
       .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
       .eq("category", category)
-      .order("created_at", { ascending: false })
+      .order("published_date", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false, nullsFirst: false })
       .range(offset, offset + limit - 1);
 
     if (error) {
@@ -247,7 +249,7 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: null,
+      content_translated: null, // content_translated 컬럼이 제거됨
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
       image_url: item.image_url || null,
@@ -279,7 +281,8 @@ export async function getNewsByTopicCategory(
       .from("news")
       .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
       .eq("news_category", newsCategory)
-      .order("created_at", { ascending: false })
+      .order("published_date", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false, nullsFirst: false })
       .range(offset, offset + limit - 1);
 
     if (error) {
@@ -308,7 +311,7 @@ export async function getNewsByTopicCategory(
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: null,
+      content_translated: null, // content_translated 컬럼이 제거됨
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
       image_url: item.image_url || null,
@@ -335,7 +338,8 @@ export async function getAllNews(limit: number = 30, offset: number = 0): Promis
     const { data, error } = await supabaseServer
       .from("news")
       .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
-      .order("created_at", { ascending: false })
+      .order("published_date", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false, nullsFirst: false })
       .range(offset, offset + limit - 1);
 
     if (error) {
@@ -363,7 +367,7 @@ export async function getAllNews(limit: number = 30, offset: number = 0): Promis
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: null,
+      content_translated: null, // content_translated 컬럼이 제거됨
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
       image_url: item.image_url || null,
@@ -392,7 +396,8 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         .from("news")
         .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
         .ilike("title", searchTerm)
-        .order("created_at", { ascending: false })
+        .order("published_date", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false, nullsFirst: false })
         .limit(limit);
 
       if (error) {
@@ -417,7 +422,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         source_media: item.source_media || "",
         title: item.title || "",
         content: item.content || "",
-        content_translated: null,
+        content_translated: null, // content_translated 컬럼이 제거됨
         category: item.category as NewsCategory,
         news_category: item.news_category || null,
         image_url: item.image_url || null,
@@ -426,12 +431,13 @@ export async function searchNews(query: string, searchType: "title" | "content" 
     }
 
     case "content": {
-      // content에서만 검색 (content_translated는 더 이상 사용하지 않음)
+      // content 또는 content_translated에서 검색
       const { data, error } = await supabaseServer
         .from("news")
         .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
         .ilike("content", searchTerm)
-        .order("created_at", { ascending: false })
+        .order("published_date", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false, nullsFirst: false })
         .limit(limit);
 
       if (error) {
@@ -456,7 +462,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         source_media: item.source_media || "",
         title: item.title || "",
         content: item.content || "",
-        content_translated: null,
+        content_translated: null, // content_translated 컬럼이 제거됨
         category: item.category as NewsCategory,
         news_category: item.news_category || null,
         image_url: item.image_url || null,
@@ -466,12 +472,13 @@ export async function searchNews(query: string, searchType: "title" | "content" 
 
     case "all":
     default: {
-      // title, content에서만 검색 (content_translated는 더 이상 사용하지 않음)
+      // title, content, content_translated에서 검색
       const { data, error } = await supabaseServer
         .from("news")
         .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
         .or(`title.ilike.${searchTerm},content.ilike.${searchTerm}`)
-        .order("created_at", { ascending: false })
+        .order("published_date", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false, nullsFirst: false })
         .limit(limit);
 
       if (error) {
@@ -496,7 +503,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         source_media: item.source_media || "",
         title: item.title || "",
         content: item.content || "",
-        content_translated: null,
+        content_translated: null, // content_translated 컬럼이 제거됨
         category: item.category as NewsCategory,
         news_category: item.news_category || null,
         image_url: item.image_url || null,
@@ -554,7 +561,7 @@ export async function getNewsById(id: string): Promise<News | null> {
       source_media: data.source_media || "",
       title: data.title || "",
       content: data.content || "",
-      content_translated: null,
+      content_translated: null, // content_translated 컬럼이 제거됨
       category: data.category as NewsCategory,
       news_category: data.news_category || null,
       image_url: data.image_url || null,
@@ -613,19 +620,20 @@ export async function updateNewsImageUrl(newsId: string, imageUrl: string): Prom
 
 /**
  * 번역 실패한 뉴스 조회
- * 조건: content가 한국어가 아닌 뉴스만 필터링
- * 참고: content_translated 필드는 더 이상 사용하지 않으므로 content만 확인
+ * content_translated 컬럼이 제거되었으므로 content가 한국어가 아닌 뉴스만 필터링
  */
 export async function getNewsWithFailedTranslation(limit: number = 100): Promise<News[]> {
   try {
     log.debug("번역 실패한 뉴스 조회 시작", { limit });
 
-    // 모든 뉴스 조회 후 애플리케이션 레벨에서 한국어가 아닌 뉴스만 필터링
+    // content_translated 컬럼이 제거되었으므로 모든 뉴스를 조회
+    // 한국어 판단은 애플리케이션 레벨에서 처리
     const { data, error } = await supabaseServer
       .from("news")
       .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
-      .order("created_at", { ascending: false })
-      .limit(limit * 2); // 필터링을 위해 더 많이 조회
+      .order("published_date", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false, nullsFirst: false })
+      .limit(limit);
 
     if (error) {
       log.error("getNewsWithFailedTranslation Supabase 에러 발생", new Error(error.message), {
@@ -661,7 +669,7 @@ export async function getNewsWithFailedTranslation(limit: number = 100): Promise
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: null,
+      content_translated: null, // content_translated 컬럼이 제거됨
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
       image_url: item.image_url || null,
@@ -681,15 +689,9 @@ export async function getNewsWithFailedTranslation(limit: number = 100): Promise
  */
 export async function updateNewsTranslation(newsId: string, contentTranslated: string | null): Promise<boolean> {
   try {
-    log.debug("뉴스 번역본 업데이트 시작", { newsId });
-
-    // content_translated 컬럼이 제거되어 더 이상 업데이트할 수 없습니다.
-    // 번역된 내용은 content 필드에 직접 저장되어야 합니다.
-    log.warn("updateNewsTranslation 호출됨 - content_translated 컬럼이 제거되어 더 이상 사용할 수 없습니다", { newsId });
+    log.warn("updateNewsTranslation은 더 이상 사용되지 않습니다. content_translated 컬럼이 제거되었습니다.", { newsId });
+    // content_translated 컬럼이 제거되었으므로 항상 false 반환
     return false;
-
-    log.info("뉴스 번역본 업데이트 완료", { newsId });
-    return true;
   } catch (error) {
     log.error("updateNewsTranslation 예외 발생", error instanceof Error ? error : new Error(String(error)), { newsId });
     return false;
@@ -706,7 +708,8 @@ export async function getRelatedNews(currentNewsId: string, category: NewsCatego
       .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
       .eq("category", category)
       .neq("id", currentNewsId)
-      .order("created_at", { ascending: false })
+      .order("published_date", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false, nullsFirst: false })
       .limit(limit);
 
     if (error) {
@@ -730,7 +733,7 @@ export async function getRelatedNews(currentNewsId: string, category: NewsCatego
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: null,
+      content_translated: null, // content_translated 컬럼이 제거됨
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
       image_url: item.image_url || null,

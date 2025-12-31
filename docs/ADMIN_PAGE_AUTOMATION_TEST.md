@@ -126,3 +126,6 @@ npm run admin:check-errors
 - 인터페이스와 API 엔드포인트는 정상적으로 작동합니다.
 - 실제 Browser MCP 서버 연결은 프로덕션 환경에서 테스트하는 것이 좋습니다.
 
+
+
+

@@ -128,3 +128,6 @@ for (const newsItem of translatedNewsItems) {
 - 번역 처리 후에 제한을 적용하므로, 번역 실패한 뉴스는 제외됨
 - 카테고리별로 순서대로 제한하므로, 일관된 결과를 보장
 
+
+
+

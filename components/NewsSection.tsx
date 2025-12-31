@@ -37,7 +37,7 @@ export default function NewsSection({ title, category, news, hideOriginalLink = 
       </div>
       <div className="grid grid-cols-1 gap-4 sm:gap-6">
         {news.map((item) => (
-          <NewsCard key={item.id} news={item} />
+          <NewsCard key={item.id} news={item} showOriginalLink={!hideOriginalLink} />
         ))}
       </div>
       <div className="mt-4 sm:mt-6 flex justify-end">

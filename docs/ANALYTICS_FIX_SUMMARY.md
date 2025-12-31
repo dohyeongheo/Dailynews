@@ -60,3 +60,6 @@ const isAnalyticsRoute = nextUrl.pathname.startsWith("/api/analytics");
 3. Supabase에서 `page_views`, `sessions` 테이블에 데이터가 쌓이는지 확인
 
 
+
+
+

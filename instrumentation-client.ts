@@ -1,5 +1,8 @@
 /**
- * Sentry 클라이언트 사이드 설정
+ * Sentry 클라이언트 사이드 설정 (Turbopack 지원)
+ *
+ * Next.js 15+ 및 Turbopack 사용 시 필수입니다.
+ * 기존 sentry.client.config.ts를 대체합니다.
  */
 
 import * as Sentry from '@sentry/nextjs';
@@ -24,9 +27,6 @@ Sentry.init({
     // 브라우저 확장 프로그램 에러
     'ResizeObserver loop limit exceeded',
     'Non-Error promise rejection captured',
-    // DOM 타이밍 관련 에러 (클라이언트 사이드 네비게이션 시 발생)
-    'Element not found',
-    /^Element not found/i,
   ],
 
   // 필터링할 URL
@@ -38,20 +38,6 @@ Sentry.init({
 
   // 초기화 옵션
   beforeSend(event, hint) {
-    // DOM 타이밍 관련 에러 필터링 (클라이언트 사이드 네비게이션 시 발생하는 레이스 컨디션)
-    const errorMessage = event.message || event.exception?.values?.[0]?.value || '';
-    if (errorMessage && (
-      errorMessage.includes('Element not found') ||
-      errorMessage.includes('element not found') ||
-      /^Element not found/i.test(errorMessage)
-    )) {
-      // 개발 환경에서만 로그 출력 (Sentry에는 전송하지 않음)
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('[Sentry] Ignored DOM timing error:', errorMessage);
-      }
-      return null; // Sentry에 전송하지 않음
-    }
-
     // 개발 환경에서는 콘솔에 출력
     if (process.env.NODE_ENV === 'development') {
       console.error('[Sentry] Error captured:', {
@@ -110,4 +96,10 @@ Sentry.init({
     return event;
   },
 });
+
+/**
+ * Router 전환 추적
+ * Next.js App Router의 네비게이션을 자동으로 추적합니다.
+ */
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
 

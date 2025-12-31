@@ -98,3 +98,6 @@
 - 현재 유지된 4개 서버로도 프로젝트의 모든 기능을 충분히 지원
 - 추가 최적화가 필요하면 `docs/MCP_SERVERS_OPTIMIZATION.md` 참조
 
+
+
+

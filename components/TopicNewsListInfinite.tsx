@@ -78,7 +78,7 @@ export default function TopicNewsListInfinite({ topic, initialNews, initialHasMo
     <>
       <div className="grid grid-cols-1 gap-4 sm:gap-6">
         {news.map((item) => (
-          <NewsCard key={item.id} news={item} />
+          <NewsCard key={item.id} news={item} showOriginalLink={false} />
         ))}
       </div>
 

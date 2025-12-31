@@ -142,3 +142,6 @@ git log --all --full-history -p | grep -E "(ghp_|AIza|sk-)" || echo "✅ 토큰 
 앞으로도 환경 변수를 사용하고 `.gitignore`를 준수하여 보안을 유지하세요.
 
 
+
+
+

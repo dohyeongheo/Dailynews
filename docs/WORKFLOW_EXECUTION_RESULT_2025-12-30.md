@@ -125,3 +125,6 @@ ORDER BY category;
 - 워크플로우 URL: https://github.com/dohyeongheo/Dailynews/actions/runs/20601167516
 - 실행 스크립트: `scripts/run-fetch-news-daily.ts`
 - 결과 확인 스크립트: `scripts/check-workflow-results.ts`
+
+
+

@@ -113,3 +113,6 @@ Next.js App Router는 `app/api/[경로]/route.ts` 형식의 파일을 API 라우
 3. ⏳ 해결 방안 적용 필요 (개발 서버 재시작 또는 캐시 삭제)
 4. ⏳ 재테스트 필요 (Browser MCP로 다시 확인)
 
+
+
+

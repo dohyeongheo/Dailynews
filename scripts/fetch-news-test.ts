@@ -1,73 +1,59 @@
 /**
  * GitHub Actions 테스트용 뉴스 수집 스크립트
- * 5개의 뉴스만 수집하고 이미지 생성까지 테스트합니다.
+ * 태국 뉴스만 5개 수집하고 이미지 생성까지 테스트합니다.
+ * fetch-news.ts와 동일한 로직을 사용하되, 태국 뉴스만 5개로 제한합니다.
+ * 뉴스 수집, 번역, 이미지 생성 로직은 fetch-news-daily와 동일하게 작동합니다.
  */
 
-import { fetchNewsFromGemini, saveNewsToDatabase } from "../lib/news-fetcher";
+import { fetchAndSaveNews } from "../lib/news-fetcher";
 import { log } from "../lib/utils/logger";
-import { getEnv } from "../lib/config/env";
 
 async function main() {
   try {
-    // 환경 변수 검증
-    try {
-      getEnv();
-      log.info("환경 변수 검증 완료");
-    } catch (envError) {
-      const errorObj = envError instanceof Error ? envError : new Error(String(envError));
-      log.error("환경 변수 검증 실패", errorObj);
-      // 사용자에게 보여줄 메시지는 console.error 유지 (GitHub Actions 로그 출력용)
-      console.error("❌ 환경 변수 검증 실패:", errorObj.message);
+    // 환경 변수 확인 (fetch-news.ts와 동일한 방식)
+    const requiredEnvVars = [
+      "GOOGLE_GEMINI_API_KEY",
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+      "SUPABASE_SERVICE_ROLE_KEY",
+    ];
+
+    const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
+    if (missingVars.length > 0) {
+      log.error("필수 환경 변수가 설정되지 않음", undefined, { missingVars });
+      console.error("❌ 필수 환경 변수가 설정되지 않았습니다:");
+      missingVars.forEach((varName) => console.error(`   - ${varName}`));
+      console.error("\nGitHub Secrets에 다음 변수들을 설정하세요:");
+      console.error("   - GOOGLE_GEMINI_API_KEY");
+      console.error("   - NEXT_PUBLIC_SUPABASE_URL");
+      console.error("   - NEXT_PUBLIC_SUPABASE_ANON_KEY");
+      console.error("   - SUPABASE_SERVICE_ROLE_KEY");
       process.exit(1);
     }
 
     const startTime = Date.now();
-    log.info("뉴스 수집 테스트 스크립트 시작 (5개 제한)");
+    log.info("뉴스 수집 테스트 스크립트 시작 (태국 뉴스 5개 제한)");
 
-    // 뉴스 수집 (최대 5개)
-    const newsItems = await fetchNewsFromGemini();
-
-    // 5개로 제한
-    const limitedNewsItems = newsItems.slice(0, 5);
-
-    log.info("뉴스 수집 완료", {
-      total: newsItems.length,
-      limited: limitedNewsItems.length,
-    });
-
-    // 사용자에게 보여줄 메시지는 console.log 유지 (GitHub Actions 로그 출력용)
-    console.log(`📰 수집된 뉴스: ${newsItems.length}개`);
-    console.log(`🔢 테스트용 제한: ${limitedNewsItems.length}개`);
-
-    if (limitedNewsItems.length === 0) {
-      log.error("수집된 뉴스가 없음", undefined, { total: newsItems.length });
-      console.error("❌ 수집된 뉴스가 없습니다.");
-      process.exit(1);
-    }
-
-    // 뉴스 저장 및 이미지 생성
-    const result = await saveNewsToDatabase(limitedNewsItems);
+    // fetch-news.ts와 동일한 fetchAndSaveNews 함수 사용
+    // 태국 뉴스만 5개로 제한 (뉴스 수집, 번역, 이미지 생성 로직은 동일)
+    const result = await fetchAndSaveNews(undefined, undefined, 5, "태국뉴스");
 
     const executionTime = Date.now() - startTime;
-    const total = limitedNewsItems.length;
-    const savedNewsIdsCount = result.savedNewsIds?.length || 0;
 
-    if (result.success > 0) {
-      log.info("뉴스 수집 및 이미지 생성 테스트 성공", {
+    // fetch-news.ts와 동일한 로직
+    if (result.success > 0 || result.failed === 0) {
+      log.info("뉴스 수집 테스트 성공", {
         success: result.success,
         failed: result.failed,
-        total,
-        savedNewsIds: savedNewsIdsCount,
+        total: result.total,
         executionTimeMs: executionTime,
         executionTimeSec: (executionTime / 1000).toFixed(2),
       });
 
       // 사용자에게 보여줄 메시지는 console.log 유지 (GitHub Actions 로그 출력용)
-      console.log(`\n✅ 테스트 완료!`);
       console.log(`✅ 성공: ${result.success}개`);
       console.log(`❌ 실패: ${result.failed}개`);
-      console.log(`📊 전체: ${total}개`);
-      console.log(`🖼️  저장된 뉴스 ID: ${savedNewsIdsCount}개`);
+      console.log(`📊 전체: ${result.total}개 (태국 뉴스 5개 제한)`);
       console.log(`⏱️  실행 시간: ${(executionTime / 1000).toFixed(2)}초`);
 
       // 실패가 있으면 exit code 1 반환
@@ -76,7 +62,7 @@ async function main() {
       log.error("뉴스 수집 테스트 실패", undefined, {
         success: result.success,
         failed: result.failed,
-        total,
+        total: result.total,
         executionTimeMs: executionTime,
       });
 
@@ -84,7 +70,7 @@ async function main() {
       console.error(`❌ 뉴스 수집 테스트 실패`);
       console.error(`성공: ${result.success}개`);
       console.error(`실패: ${result.failed}개`);
-      console.error(`전체: ${total}개`);
+      console.error(`전체: ${result.total}개`);
 
       process.exit(1);
     }

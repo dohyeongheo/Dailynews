@@ -161,3 +161,6 @@
 - 실행 스크립트: `scripts/run-fetch-news-daily.ts`
 - 결과 확인 스크립트: `scripts/check-workflow-results.ts`
 
+
+
+

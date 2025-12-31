@@ -5,6 +5,8 @@
 /.pnp
 .pnp.js
 
+#google cloud
+gen-lang-client-0408997230-2932de6cee8b.json
 # testing
 /coverage
 

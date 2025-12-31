@@ -7,6 +7,7 @@ import { GoogleGenerativeAI, GenerativeModel, type GenerateContentResult } from 
 import { getEnv } from "../config/env";
 import { log } from "./logger";
 import { createHash } from "crypto";
+import { trackGeminiUsage } from "./gemini-usage-tracker";
 
 /**
  * 작업 유형
@@ -86,51 +87,100 @@ export function getModelWithCaching(modelName: string, cacheKey?: string): Gener
  * @param cacheKey 캐시 키 (선택적)
  * @returns 생성 결과
  */
+/**
+ * Context Caching을 지원하는 generateContent 호출 (사용량 추적 포함)
+ * @param model GenerativeModel 인스턴스
+ * @param prompt 프롬프트 텍스트
+ * @param cacheKey 캐시 키 (선택적)
+ * @param taskType 작업 유형 (사용량 추적용)
+ * @returns 생성 결과
+ */
 export async function generateContentWithCaching(
   model: GenerativeModel,
   prompt: string,
-  cacheKey?: string
+  cacheKey?: string,
+  taskType?: TaskType
 ): Promise<GenerateContentResult> {
   const env = getEnv();
+  const startTime = Date.now();
+  const modelName = model.model || "unknown";
+  const actualTaskType = taskType || "translation"; // 기본값
 
-  // Context Caching이 비활성화되었거나 캐시 키가 없으면 일반 호출
-  if (!env.GEMINI_USE_CONTEXT_CACHING || !cacheKey) {
-    return await model.generateContent(prompt);
-  }
+  let result: GenerateContentResult | null = null;
+  let error: Error | null = null;
 
-  // Context Caching 활성화
-  // 참고: 실제 SDK API는 버전에 따라 다를 수 있습니다.
-  // 일반적으로 generateContent에 옵션 객체를 전달할 수 있습니다.
   try {
-    // @google/generative-ai SDK v0.24.1에서는 generateContent가 문자열을 직접 받거나
-    // GenerateContentRequest 객체를 받을 수 있습니다.
-    // Context Caching은 보통 request 옵션에 포함됩니다.
+    // Context Caching이 비활성화되었거나 캐시 키가 없으면 일반 호출
+    if (!env.GEMINI_USE_CONTEXT_CACHING || !cacheKey) {
+      result = await model.generateContent(prompt);
+    } else {
+      // Context Caching 활성화
+      // 참고: 실제 SDK API는 버전에 따라 다를 수 있습니다.
+      // 일반적으로 generateContent에 옵션 객체를 전달할 수 있습니다.
 
-    log.debug("Context Caching을 사용한 generateContent 호출", {
-      cacheKey: cacheKey.substring(0, 50) + "...",
+      log.debug("Context Caching을 사용한 generateContent 호출", {
+        cacheKey: cacheKey.substring(0, 50) + "...",
+        promptLength: prompt.length,
+      });
+
+      // SDK의 실제 API에 맞게 조정 필요
+      // 현재는 일반 호출로 대체하고, 실제 Context Caching은 SDK 업데이트 시 적용
+      // TODO: SDK가 Context Caching을 지원하는 경우 아래와 같이 수정:
+      // result = await model.generateContent({
+      //   contents: [{ role: "user", parts: [{ text: prompt }] }],
+      //   cacheControl: {
+      //     cacheKey: cacheKey,
+      //     ttl: 3600, // 1시간
+      //   },
+      // });
+
+      // 임시로 일반 호출 사용 (SDK가 Context Caching을 지원하지 않는 경우)
+      result = await model.generateContent(prompt);
+    }
+
+    // 사용량 추적 (비동기)
+    trackGeminiUsage(modelName, actualTaskType, result, null, startTime, {
+      cacheKey: cacheKey ? cacheKey.substring(0, 50) + "..." : undefined,
       promptLength: prompt.length,
+      useContextCaching: env.GEMINI_USE_CONTEXT_CACHING && !!cacheKey,
+    }).catch((trackError) => {
+      log.error("사용량 추적 실패 (비동기)", trackError instanceof Error ? trackError : new Error(String(trackError)));
     });
 
-    // SDK의 실제 API에 맞게 조정 필요
-    // 현재는 일반 호출로 대체하고, 실제 Context Caching은 SDK 업데이트 시 적용
-    // TODO: SDK가 Context Caching을 지원하는 경우 아래와 같이 수정:
-    // return await model.generateContent({
-    //   contents: [{ role: "user", parts: [{ text: prompt }] }],
-    //   cacheControl: {
-    //     cacheKey: cacheKey,
-    //     ttl: 3600, // 1시간
-    //   },
-    // });
-
-    // 임시로 일반 호출 사용 (SDK가 Context Caching을 지원하지 않는 경우)
-    return await model.generateContent(prompt);
-  } catch (error) {
-    log.error("Context Caching을 사용한 generateContent 호출 실패", error instanceof Error ? error : new Error(String(error)), {
+    return result;
+  } catch (err) {
+    error = err instanceof Error ? err : new Error(String(err));
+    log.error("Context Caching을 사용한 generateContent 호출 실패", error, {
       cacheKey,
       promptLength: prompt.length,
     });
-    // 실패 시 일반 호출로 폴백
-    return await model.generateContent(prompt);
+
+    // 사용량 추적 (에러 포함)
+    trackGeminiUsage(modelName, actualTaskType, null, error, startTime, {
+      cacheKey: cacheKey ? cacheKey.substring(0, 50) + "..." : undefined,
+      promptLength: prompt.length,
+      useContextCaching: env.GEMINI_USE_CONTEXT_CACHING && !!cacheKey,
+    }).catch((trackError) => {
+      log.error("사용량 추적 실패 (비동기)", trackError instanceof Error ? trackError : new Error(String(trackError)));
+    });
+
+    // 실패 시 일반 호출로 폴백 시도
+    try {
+      result = await model.generateContent(prompt);
+      // 폴백 성공 시 사용량 추적
+      trackGeminiUsage(modelName, actualTaskType, result, null, startTime, {
+        cacheKey: cacheKey ? cacheKey.substring(0, 50) + "..." : undefined,
+        promptLength: prompt.length,
+        useContextCaching: false,
+        fallback: true,
+      }).catch((trackError) => {
+        log.error("사용량 추적 실패 (비동기)", trackError instanceof Error ? trackError : new Error(String(trackError)));
+      });
+      return result;
+    } catch (fallbackError) {
+      // 폴백도 실패한 경우 원래 에러를 다시 throw
+      throw error;
+    }
   }
 }
 

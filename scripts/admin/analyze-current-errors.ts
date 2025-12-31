@@ -73,3 +73,6 @@ fullReport.networkErrors.forEach((error, index) => {
   console.log(`  ${index + 1}. ${error.method} ${error.url} => ${error.status}`);
 });
 
+
+
+

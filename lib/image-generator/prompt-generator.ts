@@ -52,9 +52,9 @@ export async function generateImagePrompt(news: NewsInput): Promise<string> {
 
 프롬프트:`;
 
-    // Context Caching을 지원하는 generateContent 호출
+    // Context Caching을 지원하는 generateContent 호출 (사용량 추적 포함)
     const cacheKey = `prompt_generation_${cacheKeySource}`;
-    const result = await generateContentWithCaching(model, prompt, cacheKey);
+    const result = await generateContentWithCaching(model, prompt, cacheKey, "prompt_generation");
     const response = await result.response;
     const generatedPrompt = response.text().trim();
 

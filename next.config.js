@@ -26,6 +26,8 @@ const nextConfig = {
   // 실험적 기능
   experimental: {
     optimizePackageImports: ['@google/generative-ai', '@supabase/supabase-js'],
+    // Instrumentation Hook 활성화 (Sentry 8.x+ 필수)
+    instrumentationHook: true,
   },
 
   // Webpack 설정: pino-pretty와 thread-stream 처리

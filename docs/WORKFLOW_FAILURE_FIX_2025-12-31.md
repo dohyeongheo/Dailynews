@@ -84,3 +84,6 @@ const { data, error } = await supabaseServer
 - `NewsInput` 타입에서 `category`는 필수 필드이지만, 런타임에서 `null`이나 `undefined`가 올 수 있는 경우를 대비하여 방어 로직을 추가했습니다.
 - Supabase 쿼리 빌더는 불변(immutable) 객체를 반환하므로, 변수에 재할당하는 방식보다 직접 체이닝하는 방식이 더 안전합니다.
 
+
+
+

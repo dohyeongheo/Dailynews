@@ -68,9 +68,9 @@ export const GET = withAdmin(
       // 성능 메트릭
       const metrics = {
         pageLoadTime: pageHealth.loadTime || 0,
-        consoleErrorCount: pageHealth.consoleErrors.length,
-        consoleWarningCount: pageHealth.consoleWarnings.length,
-        networkErrorCount: pageHealth.networkErrors.length,
+        consoleErrorCount: pageHealth.consoleErrors?.length || 0,
+        consoleWarningCount: pageHealth.consoleWarnings?.length || 0,
+        networkErrorCount: pageHealth.networkErrors?.length || 0,
         apiErrorCount: apiResults.filter((r) => !r.ok).length,
         overallStatus: pageHealth.status,
       };
@@ -123,8 +123,8 @@ export const POST = withAdmin(
             log.error(`탭 ${tab} 상태 확인 실패`, error);
             results[tab] = {
               url: tabUrls[tab],
-              title: '',
-              status: 'error',
+              status: 'unknown',
+              timestamp: Date.now(),
               consoleErrors: [],
               consoleWarnings: [],
               networkErrors: [],
@@ -137,10 +137,10 @@ export const POST = withAdmin(
       const summary = {
         totalTabs: tabsToCheck.length,
         healthyTabs: Object.values(results).filter((r) => r.status === 'healthy').length,
-        warningTabs: Object.values(results).filter((r) => r.status === 'warning').length,
-        errorTabs: Object.values(results).filter((r) => r.status === 'error').length,
-        totalErrors: Object.values(results).reduce((sum, r) => sum + r.consoleErrors.length, 0),
-        totalWarnings: Object.values(results).reduce((sum, r) => sum + r.consoleWarnings.length, 0),
+        unhealthyTabs: Object.values(results).filter((r) => r.status === 'unhealthy').length,
+        unknownTabs: Object.values(results).filter((r) => r.status === 'unknown').length,
+        totalErrors: Object.values(results).reduce((sum, r) => sum + (r.consoleErrors?.length || 0), 0),
+        totalWarnings: Object.values(results).reduce((sum, r) => sum + (r.consoleWarnings?.length || 0), 0),
       };
 
       return createSuccessResponse({
@@ -154,4 +154,7 @@ export const POST = withAdmin(
     }
   })
 );
+
+
+
 

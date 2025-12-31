@@ -249,3 +249,6 @@ setRuns(workflowRuns);
 - 테스트 스크립트: `scripts/test-github-connection.ts`
 - API 응답 테스트: `scripts/test-api-response.ts`
 - 상세 진단 결과: `docs/GITHUB_WORKFLOW_DIAGNOSIS_RESULT_2025-12-30.md`
+
+
+

@@ -8,9 +8,10 @@ import { formatNewsDate } from "@/lib/utils/date-format";
 
 interface NewsCardProps {
   news: News;
+  showOriginalLink?: boolean;
 }
 
-const NewsCard = React.memo(function NewsCard({ news }: NewsCardProps) {
+const NewsCard = React.memo(function NewsCard({ news, showOriginalLink = true }: NewsCardProps) {
 
   return (
     <article className="bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
