@@ -113,21 +113,99 @@ function getSearchQueryForCategory(category: NewsCategory, date: string): string
 function classifyNewsCategory(title: string, description: string): NewsTopicCategory | null {
   const text = `${title} ${description}`.toLowerCase();
 
-  const categories: Array<{ keywords: string[]; category: NewsTopicCategory }> = [
-    { keywords: ["과학", "연구", "발견", "실험", "science"], category: "과학" },
-    { keywords: ["사회", "사건", "사고", "인물", "사회"], category: "사회" },
-    { keywords: ["정치", "선거", "정책", "국회", "정부", "politics"], category: "정치" },
-    { keywords: ["경제", "기업", "금융", "주식", "경제", "economy"], category: "경제" },
-    { keywords: ["스포츠", "경기", "선수", "대회", "sports"], category: "스포츠" },
-    { keywords: ["문화", "예술", "엔터테인먼트", "문화", "culture"], category: "문화" },
-    { keywords: ["기술", "IT", "디지털", "소프트웨어", "tech", "technology"], category: "기술" },
-    { keywords: ["건강", "의료", "질병", "병원", "health"], category: "건강" },
-    { keywords: ["환경", "기후", "생태", "환경", "climate", "environment"], category: "환경" },
-    { keywords: ["국제", "외교", "해외", "국제", "international"], category: "국제" },
+  const categories: Array<{ keywords: string[]; category: NewsTopicCategory; priority: number }> = [
+    // 우선순위가 높은 카테고리부터 검사 (더 구체적인 키워드 우선)
+    {
+      keywords: [
+        "과학", "연구", "발견", "실험", "연구소", "과학자", "논문", "발표",
+        "science", "research", "study", "discovery", "experiment",
+      ],
+      category: "과학",
+      priority: 1,
+    },
+    {
+      keywords: [
+        "정치", "선거", "정책", "국회", "정부", "대통령", "총리", "의원", "당", "여당", "야당",
+        "politics", "election", "government", "parliament", "president",
+      ],
+      category: "정치",
+      priority: 2,
+    },
+    {
+      keywords: [
+        "경제", "기업", "금융", "주식", "증시", "코스피", "코스닥", "은행", "투자", "경기",
+        "economy", "economic", "finance", "stock", "market", "business", "company",
+      ],
+      category: "경제",
+      priority: 3,
+    },
+    {
+      keywords: [
+        "스포츠", "경기", "선수", "대회", "올림픽", "월드컵", "축구", "야구", "농구", "골프",
+        "sports", "sport", "game", "match", "player", "olympic", "world cup",
+      ],
+      category: "스포츠",
+      priority: 4,
+    },
+    {
+      keywords: [
+        "기술", "IT", "디지털", "소프트웨어", "인공지능", "AI", "빅데이터", "클라우드", "스마트폰",
+        "tech", "technology", "digital", "software", "artificial intelligence", "cloud",
+      ],
+      category: "기술",
+      priority: 5,
+    },
+    {
+      keywords: [
+        "건강", "의료", "질병", "병원", "의사", "치료", "약", "백신", "코로나", "감염",
+        "health", "medical", "hospital", "doctor", "disease", "treatment", "medicine",
+      ],
+      category: "건강",
+      priority: 6,
+    },
+    {
+      keywords: [
+        "환경", "기후", "생태", "탄소", "온실가스", "재생에너지", "친환경", "기후변화",
+        "climate", "environment", "eco", "carbon", "green", "renewable",
+      ],
+      category: "환경",
+      priority: 7,
+    },
+    {
+      keywords: [
+        "문화", "예술", "엔터테인먼트", "영화", "드라마", "음악", "공연", "전시", "박물관",
+        "culture", "art", "entertainment", "movie", "music", "concert", "exhibition",
+      ],
+      category: "문화",
+      priority: 8,
+    },
+    {
+      keywords: [
+        "국제", "외교", "해외", "국제관계", "외교부", "대사관", "국제기구", "유엔", "NATO",
+        "international", "diplomacy", "foreign", "global", "UN", "NATO",
+      ],
+      category: "국제",
+      priority: 9,
+    },
+    {
+      keywords: [
+        "사회", "사건", "사고", "인물", "범죄", "교통사고", "화재", "재난", "구조", "소방",
+        "society", "social", "incident", "accident", "crime", "disaster",
+      ],
+      category: "사회",
+      priority: 10, // 가장 낮은 우선순위 (일반적인 키워드)
+    },
   ];
 
-  for (const { keywords, category } of categories) {
-    if (keywords.some((keyword) => text.includes(keyword))) {
+  // 우선순위 순으로 정렬
+  const sortedCategories = categories.sort((a, b) => a.priority - b.priority);
+
+  // 우선순위가 높은 카테고리부터 매칭
+  for (const { keywords, category } of sortedCategories) {
+    // 키워드 매칭 개수 계산
+    const matchCount = keywords.filter((keyword) => text.includes(keyword)).length;
+    // 최소 1개 이상의 키워드가 매칭되면 해당 카테고리로 분류
+    if (matchCount > 0) {
       return category;
     }
   }

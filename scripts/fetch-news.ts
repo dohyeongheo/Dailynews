@@ -3,29 +3,49 @@
  * fetchAndSaveNews 함수를 호출하여 뉴스를 수집하고 저장합니다.
  */
 
-import { fetchAndSaveNews } from "../lib/news-fetcher";
-import { log } from "../lib/utils/logger";
+import { config } from "dotenv";
+import { resolve } from "path";
+
+// 환경 변수를 먼저 로드 (다른 모듈 import 전에)
+// .env.local 파일 로드 (로컬 개발 환경용)
+config({ path: resolve(process.cwd(), ".env.local") });
+// .env 파일도 시도 (fallback)
+config({ path: resolve(process.cwd(), ".env") });
 
 async function main() {
   try {
-    // 환경 변수 확인
-    const requiredEnvVars = [
-      "GOOGLE_GEMINI_API_KEY",
-      "NEXT_PUBLIC_SUPABASE_URL",
-      "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-      "SUPABASE_SERVICE_ROLE_KEY",
-    ];
+    // 환경 변수 로드 후 모듈 import
+    const { fetchAndSaveNews } = await import("../lib/news-fetcher");
+    const { log } = await import("../lib/utils/logger");
 
-    const missingVars = requiredEnvVars.filter((varName) => !process.env[varName]);
-    if (missingVars.length > 0) {
-      log.error("필수 환경 변수가 설정되지 않음", undefined, { missingVars });
-      console.error("❌ 필수 환경 변수가 설정되지 않았습니다:");
-      missingVars.forEach((varName) => console.error(`   - ${varName}`));
-      console.error("\nGitHub Secrets에 다음 변수들을 설정하세요:");
-      console.error("   - GOOGLE_GEMINI_API_KEY");
+    // 환경 변수 확인 (NEWS_COLLECTION_METHOD에 따라 필수 변수 다름)
+    const { getEnv } = await import("../lib/config/env");
+    let env;
+    try {
+      env = getEnv();
+    } catch (error) {
+      console.error("❌ 환경 변수 검증 실패:");
+      if (error instanceof Error) {
+        console.error(error.message);
+      }
+      console.error("\n필수 환경 변수를 확인하세요:");
+      console.error("   - GOOGLE_GEMINI_API_KEY (Gemini 방식 사용 시)");
+      console.error("   - BRAVE_SEARCH_API_KEY (Brave 방식 사용 시)");
       console.error("   - NEXT_PUBLIC_SUPABASE_URL");
       console.error("   - NEXT_PUBLIC_SUPABASE_ANON_KEY");
       console.error("   - SUPABASE_SERVICE_ROLE_KEY");
+      console.error("\n선택적 환경 변수:");
+      console.error("   - NEWS_COLLECTION_METHOD (기본값: gemini)");
+      console.error("\n.env.local 파일이 있는지 확인하세요.");
+      process.exit(1);
+    }
+
+    // 수집 방식 확인
+    const collectionMethod = env.NEWS_COLLECTION_METHOD || "gemini";
+    console.log(`📰 뉴스 수집 방식: ${collectionMethod}`);
+
+    if (collectionMethod === "brave" && !env.BRAVE_SEARCH_API_KEY) {
+      console.error("❌ Brave 방식 사용 시 BRAVE_SEARCH_API_KEY가 필요합니다.");
       process.exit(1);
     }
 
