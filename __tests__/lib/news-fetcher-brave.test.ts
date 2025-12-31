@@ -2,7 +2,6 @@
  * news-fetcher-brave 모듈 테스트
  */
 
-import { fetchNewsFromBrave } from '@/lib/news-fetcher-brave';
 import type { NewsInput } from '@/types/news';
 
 // fetch 모킹
@@ -71,10 +70,13 @@ describe('news-fetcher-brave', () => {
         json: async () => mockBraveResponse,
       });
 
+      const { fetchNewsFromBrave } = await import('@/lib/news-fetcher-brave');
       const result = await fetchNewsFromBrave('2025-01-15');
 
-      expect(result).toBeInstanceOf(Array);
-      expect(result.length).toBeGreaterThan(0);
+      expect(result).toHaveProperty('newsItems');
+      expect(result).toHaveProperty('thumbnailMap');
+      expect(result.newsItems).toBeInstanceOf(Array);
+      expect(result.newsItems.length).toBeGreaterThan(0);
       expect(global.fetch).toHaveBeenCalled();
     });
 
@@ -84,6 +86,7 @@ describe('news-fetcher-brave', () => {
         BRAVE_SEARCH_API_KEY: undefined,
       });
 
+      const { fetchNewsFromBrave } = await import('@/lib/news-fetcher-brave');
       await expect(fetchNewsFromBrave('2025-01-15')).rejects.toThrow('BRAVE_SEARCH_API_KEY가 설정되지 않았습니다');
     });
 
@@ -95,6 +98,7 @@ describe('news-fetcher-brave', () => {
         text: async () => 'Error message',
       });
 
+      const { fetchNewsFromBrave } = await import('@/lib/news-fetcher-brave');
       await expect(fetchNewsFromBrave('2025-01-15')).rejects.toThrow();
     });
 
@@ -104,6 +108,7 @@ describe('news-fetcher-brave', () => {
         json: async () => ({ web: { results: [] } }),
       });
 
+      const { fetchNewsFromBrave } = await import('@/lib/news-fetcher-brave');
       await fetchNewsFromBrave();
 
       expect(global.fetch).toHaveBeenCalled();
@@ -118,6 +123,7 @@ describe('news-fetcher-brave', () => {
         json: async () => ({ web: { results: [] } }),
       });
 
+      const { fetchNewsFromBrave } = await import('@/lib/news-fetcher-brave');
       await fetchNewsFromBrave(futureDate);
 
       expect(global.fetch).toHaveBeenCalled();
@@ -138,13 +144,14 @@ describe('news-fetcher-brave', () => {
         }),
       });
 
+      const { fetchNewsFromBrave } = await import('@/lib/news-fetcher-brave');
       const result = await fetchNewsFromBrave('2025-01-15');
 
       // 태국뉴스, 관련뉴스, 한국뉴스 각각 10개씩 = 총 30개
-      expect(result.length).toBe(30);
+      expect(result.newsItems.length).toBe(30);
       
       // 카테고리별로 분류 확인
-      const categories = result.map(item => item.category);
+      const categories = result.newsItems.map(item => item.category);
       expect(categories.filter(c => c === '태국뉴스').length).toBe(10);
       expect(categories.filter(c => c === '관련뉴스').length).toBe(10);
       expect(categories.filter(c => c === '한국뉴스').length).toBe(10);
@@ -156,10 +163,11 @@ describe('news-fetcher-brave', () => {
         json: async () => mockBraveResponse,
       });
 
+      const { fetchNewsFromBrave } = await import('@/lib/news-fetcher-brave');
       const result = await fetchNewsFromBrave('2025-01-15');
 
-      expect(result.length).toBeGreaterThan(0);
-      const newsItem = result[0];
+      expect(result.newsItems.length).toBeGreaterThan(0);
+      const newsItem = result.newsItems[0];
       expect(newsItem).toHaveProperty('title');
       expect(newsItem).toHaveProperty('content');
       expect(newsItem).toHaveProperty('category');

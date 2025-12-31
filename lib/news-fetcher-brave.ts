@@ -2,6 +2,8 @@ import type { NewsInput, NewsCategory, NewsTopicCategory } from "@/types/news";
 import { log } from "./utils/logger";
 import { getEnv } from "./config/env";
 import { translateToKorean } from "./news-fetcher";
+import { uploadNewsImage } from "./storage/image-storage";
+import { updateNewsImageUrl } from "./db/news";
 
 /**
  * Brave Search API 응답 타입
@@ -63,6 +65,29 @@ async function searchBraveNews(query: string, count: number = 10): Promise<Brave
 
     if (!response.ok) {
       const errorText = await response.text();
+      
+      // Rate limit 오류 처리
+      if (response.status === 429) {
+        let retryAfter = 60; // 기본 60초
+        try {
+          const errorData = JSON.parse(errorText);
+          if (errorData?.error?.meta?.rate_limit) {
+            // Rate limit 정보가 있으면 재시도 시간 계산
+            retryAfter = Math.ceil(60 / errorData.error.meta.rate_limit);
+          }
+        } catch {
+          // JSON 파싱 실패 시 기본값 사용
+        }
+        
+        log.error("Brave Search API Rate Limit 초과", new Error(`HTTP ${response.status}: ${errorText}`), {
+          status: response.status,
+          statusText: response.statusText,
+          query,
+          retryAfter,
+        });
+        throw new Error(`Brave Search API Rate Limit 초과. ${retryAfter}초 후 다시 시도해주세요.`);
+      }
+      
       log.error("Brave Search API 오류", new Error(`HTTP ${response.status}: ${errorText}`), {
         status: response.status,
         statusText: response.statusText,
@@ -105,6 +130,163 @@ function getSearchQueryForCategory(category: NewsCategory, date: string): string
     default:
       return `뉴스 ${dateStr}`;
   }
+}
+
+/**
+ * HTML 태그를 제거하고 텍스트만 추출합니다.
+ */
+function stripHtmlTags(text: string): string {
+  if (!text) return "";
+  // HTML 태그 제거
+  return text
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+}
+
+/**
+ * 에러 메시지나 불필요한 텍스트를 필터링합니다.
+ */
+function filterErrorMessages(text: string): string {
+  if (!text) return "";
+  const lowerText = text.toLowerCase();
+  
+  // 에러 메시지 패턴
+  const errorPatterns = [
+    /we cannot provide a description/i,
+    /cannot provide/i,
+    /no description available/i,
+    /description not available/i,
+  ];
+  
+  for (const pattern of errorPatterns) {
+    if (pattern.test(text)) {
+      return "";
+    }
+  }
+  
+  return text;
+}
+
+/**
+ * description에서 제목을 추출 시도합니다.
+ */
+function extractTitleFromDescription(description: string): string | null {
+  if (!description) return null;
+  
+  // description이 제목처럼 보이는 경우 (짧고, 문장 끝이 아닌 경우)
+  const cleaned = stripHtmlTags(description);
+  const sentences = cleaned.split(/[.!?]\s+/);
+  
+  // 첫 문장이 100자 이하이고 제목처럼 보이면 추출
+  if (sentences.length > 0) {
+    const firstSentence = sentences[0].trim();
+    if (firstSentence.length > 10 && firstSentence.length < 100 && !firstSentence.endsWith(".")) {
+      return firstSentence;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * 제목에서 언론사 이름을 제거합니다.
+ */
+function removePublisherName(title: string, sourceMedia: string): string {
+  if (!title || !sourceMedia) return title;
+  
+  let cleaned = title;
+  
+  // 언론사 이름 패턴 제거
+  const publisherPatterns = [
+    new RegExp(`\\s*\\|\\s*${sourceMedia.replace(/\./g, "\\.")}\\s*$`, "i"),
+    new RegExp(`^${sourceMedia.replace(/\./g, "\\.")}\\s*$`, "i"),
+    new RegExp(`^${sourceMedia.replace(/\./g, "\\.")}\\s*\\|\\s*`, "i"),
+    /\s*\|\s*(중앙일보|서울신문|연합뉴스|KBS|MBC|SBS|경향신문|한겨레|조선일보|동아일보|매일경제|한국경제|조선비즈|이데일리|아시아경제|YTN|JTBC|채널A|TV조선|MBN)\s*$/i,
+    /^(중앙일보|서울신문|연합뉴스|KBS|MBC|SBS|경향신문|한겨레|조선일보|동아일보|매일경제|한국경제|조선비즈|이데일리|아시아경제|YTN|JTBC|채널A|TV조선|MBN)\s*$/i,
+    /^(경제|정치|사회|국제|문화|스포츠|기술|과학|건강|환경)\s*\|\s*(중앙일보|서울신문|연합뉴스|KBS|MBC|SBS|경향신문|한겨레|조선일보|동아일보|매일경제|한국경제|조선비즈|이데일리|아시아경제|YTN|JTBC|채널A|TV조선|MBN)\s*$/i,
+  ];
+  
+  for (const pattern of publisherPatterns) {
+    cleaned = cleaned.replace(pattern, "").trim();
+  }
+  
+  // 카테고리만 있는 경우 제거
+  cleaned = cleaned.replace(/^(경제|정치|사회|국제|문화|스포츠|기술|과학|건강|환경)\s*\|\s*$/i, "").trim();
+  
+  return cleaned || title; // 제거 후 빈 문자열이면 원본 반환
+}
+
+/**
+ * 제목을 정제합니다.
+ */
+function cleanTitle(title: string, description: string, url: string, sourceMedia: string): string {
+  if (!title) return "";
+  
+  // HTML 태그 제거
+  let cleaned = stripHtmlTags(title);
+  
+  // 언론사 이름 제거
+  cleaned = removePublisherName(cleaned, sourceMedia);
+  
+  // 제목이 너무 짧거나 언론사 이름만 있는 경우 description에서 추출 시도
+  if (cleaned.length < 10 || cleaned === sourceMedia || cleaned.match(/^(중앙일보|서울신문|연합뉴스|KBS|MBC|SBS|경향신문|한겨레|조선일보|동아일보|매일경제|한국경제|조선비즈|이데일리|아시아경제|YTN|JTBC|채널A|TV조선|MBN|뉴스)$/i)) {
+    const extractedTitle = extractTitleFromDescription(description);
+    if (extractedTitle && extractedTitle.length > cleaned.length) {
+      cleaned = extractedTitle;
+    }
+  }
+  
+  // URL에서 제목 추출 시도 (마지막 경로에서)
+  if (cleaned.length < 10) {
+    try {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split("/").filter((p) => p && p.length > 5);
+      if (pathParts.length > 0) {
+        const lastPart = decodeURIComponent(pathParts[pathParts.length - 1])
+          .replace(/[-_]/g, " ")
+          .replace(/\.[^.]+$/, "");
+        if (lastPart.length > cleaned.length && lastPart.length < 100) {
+          cleaned = lastPart;
+        }
+      }
+    } catch {
+      // URL 파싱 실패 시 무시
+    }
+  }
+  
+  return cleaned.trim() || title; // 최종적으로 빈 문자열이면 원본 반환
+}
+
+/**
+ * 본문 내용을 정제합니다.
+ */
+function cleanContent(description: string, url: string): string {
+  if (!description) return "";
+  
+  // 에러 메시지 필터링
+  let cleaned = filterErrorMessages(description);
+  if (!cleaned) {
+    return `자세한 내용은 원문을 참고하세요: ${url}`;
+  }
+  
+  // HTML 태그 제거
+  cleaned = stripHtmlTags(cleaned);
+  
+  // 연속된 공백 정리
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+  
+  // 최소 길이 보장 (100자 미만이면 URL 추가)
+  if (cleaned.length < 100) {
+    cleaned = `${cleaned}\n\n자세한 내용은 원문을 참고하세요: ${url}`;
+  }
+  
+  return cleaned;
 }
 
 /**
@@ -214,37 +396,114 @@ function classifyNewsCategory(title: string, description: string): NewsTopicCate
 }
 
 /**
+ * URL에서 이미지를 다운로드하여 Buffer로 변환합니다.
+ */
+async function downloadImageFromUrl(imageUrl: string): Promise<Buffer | null> {
+  try {
+    log.debug("이미지 다운로드 시작", { imageUrl });
+    
+    const response = await fetch(imageUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    });
+
+    if (!response.ok) {
+      log.warn("이미지 다운로드 실패", { imageUrl, status: response.status });
+      return null;
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    // 이미지 크기 확인 (최대 10MB)
+    if (buffer.length > 10 * 1024 * 1024) {
+      log.warn("이미지 크기가 너무 큼", { imageUrl, size: buffer.length });
+      return null;
+    }
+
+    log.debug("이미지 다운로드 완료", { imageUrl, size: buffer.length });
+    return buffer;
+  } catch (error) {
+    log.error("이미지 다운로드 오류", error instanceof Error ? error : new Error(String(error)), {
+      imageUrl,
+    });
+    return null;
+  }
+}
+
+/**
+ * Brave Search API의 thumbnail 이미지를 저장합니다.
+ */
+export async function saveBraveThumbnailImage(newsId: string, thumbnailUrl: string): Promise<string | null> {
+  try {
+    const imageBuffer = await downloadImageFromUrl(thumbnailUrl);
+    if (!imageBuffer) {
+      return null;
+    }
+
+    const imageUrl = await uploadNewsImage(newsId, imageBuffer);
+    await updateNewsImageUrl(newsId, imageUrl);
+
+    log.info("Brave thumbnail 이미지 저장 완료", {
+      newsId,
+      thumbnailUrl,
+      imageUrl,
+      size: imageBuffer.length,
+    });
+
+    return imageUrl;
+  } catch (error) {
+    log.error("Brave thumbnail 이미지 저장 실패", error instanceof Error ? error : new Error(String(error)), {
+      newsId,
+      thumbnailUrl,
+    });
+    return null;
+  }
+}
+
+/**
  * Brave Search 결과를 NewsInput 형식으로 변환
  */
 function convertBraveResultToNewsInput(
   result: BraveSearchResult,
   category: NewsCategory,
   date: string
-): NewsInput {
+): NewsInput & { thumbnailUrl?: string } {
   const sourceMedia = result.meta_url?.hostname || new URL(result.url).hostname || "알 수 없음";
   const sourceCountry = category === "태국뉴스" ? "태국" : "한국";
 
-  // 설명을 content로 사용 (실제 뉴스 본문은 API에서 제공하지 않으므로)
-  const content = result.description || result.title || "";
+  // 제목 정제
+  const cleanedTitle = cleanTitle(result.title, result.description, result.url, sourceMedia);
+  
+  // 본문 정제
+  const cleanedContent = cleanContent(result.description, result.url);
 
-  // 뉴스 주제 분류
-  const newsCategory = classifyNewsCategory(result.title, result.description);
+  // 뉴스 주제 분류 (정제된 제목과 본문 사용)
+  const newsCategory = classifyNewsCategory(cleanedTitle, cleanedContent);
+
+  // thumbnail URL 추출
+  const thumbnailUrl = result.thumbnail?.src;
 
   return {
     published_date: date,
     source_country: sourceCountry,
     source_media: sourceMedia,
-    title: result.title,
-    content: content.length > 300 ? content : `${content}\n\n자세한 내용은 원문을 참고하세요: ${result.url}`,
+    title: cleanedTitle,
+    content: cleanedContent,
     category,
     news_category: newsCategory,
+    thumbnailUrl,
   };
 }
 
 /**
  * Brave Search API를 사용하여 뉴스를 수집합니다.
+ * @returns 뉴스 항목과 thumbnail URL 매핑 정보
  */
-export async function fetchNewsFromBrave(date: string = new Date().toISOString().split("T")[0]): Promise<NewsInput[]> {
+export async function fetchNewsFromBrave(
+  date: string = new Date().toISOString().split("T")[0]
+): Promise<{ newsItems: NewsInput[]; thumbnailMap: Map<string, string> }> {
   // 날짜 검증
   const today = new Date();
   const todayStr = today.toISOString().split("T")[0];
@@ -261,7 +520,8 @@ export async function fetchNewsFromBrave(date: string = new Date().toISOString()
 
   const categories: NewsCategory[] = ["태국뉴스", "관련뉴스", "한국뉴스"];
   const CATEGORY_LIMIT = 10;
-  const allNewsItems: NewsInput[] = [];
+  const allNewsItems: (NewsInput & { thumbnailUrl?: string })[] = [];
+  const thumbnailMap = new Map<string, string>();
 
   try {
     // 각 카테고리별로 뉴스 수집
@@ -285,8 +545,8 @@ export async function fetchNewsFromBrave(date: string = new Date().toISOString()
           requested: CATEGORY_LIMIT,
         });
 
-        // API Rate Limit 방지를 위한 짧은 대기
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // API Rate Limit 방지를 위한 대기 (Free 플랜은 1 req/sec)
+        await new Promise((resolve) => setTimeout(resolve, 1200)); // 1.2초 대기
       } catch (error) {
         log.error("카테고리별 뉴스 수집 실패", error instanceof Error ? error : new Error(String(error)), {
           category,
@@ -304,7 +564,7 @@ export async function fetchNewsFromBrave(date: string = new Date().toISOString()
 
     // 한국어가 아닌 뉴스 항목들을 번역 처리
     log.debug("한국어 번역이 필요한 뉴스 확인 중");
-    const translatedNewsItems: NewsInput[] = [];
+    const translatedNewsItems: (NewsInput & { thumbnailUrl?: string })[] = [];
     const BATCH_SIZE = 5;
 
     for (let i = 0; i < allNewsItems.length; i += BATCH_SIZE) {
@@ -348,7 +608,23 @@ export async function fetchNewsFromBrave(date: string = new Date().toISOString()
       }, {} as Record<NewsCategory, number>),
     });
 
-    return translatedNewsItems;
+    // thumbnail URL 정보를 별도 맵으로 추출하고 NewsInput만 반환
+    // 인덱스를 키로 사용하여 나중에 savedNewsIds와 매칭
+    const finalNewsItems: NewsInput[] = translatedNewsItems.map((item, index) => {
+      const { thumbnailUrl, ...newsInput } = item;
+      // thumbnail URL을 인덱스 기반으로 맵에 저장
+      if (thumbnailUrl) {
+        thumbnailMap.set(String(index), thumbnailUrl);
+      }
+      return newsInput;
+    });
+
+    log.info("Brave Search API 뉴스 수집 완료 (최종)", {
+      total: finalNewsItems.length,
+      thumbnailCount: thumbnailMap.size,
+    });
+
+    return { newsItems: finalNewsItems, thumbnailMap };
   } catch (error) {
     log.error("Error fetching news from Brave", error);
     throw new Error(`Failed to fetch news from Brave: ${error instanceof Error ? error.message : "Unknown error"}`);

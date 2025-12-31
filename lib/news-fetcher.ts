@@ -1534,17 +1534,52 @@ export async function fetchAndSaveNews(
 
     let newsItems: NewsInput[];
 
+    let braveThumbnailMap: Map<string, string> | null = null;
+
     if (collectionMethod === "brave") {
       // Brave Search API 사용
       if (!date) {
         date = new Date().toISOString().split("T")[0];
       }
-      newsItems = await fetchNewsFromBrave(date);
+      // fetchNewsFromBrave는 thumbnail 정보를 포함한 확장된 형식으로 반환
+      const braveResult = await fetchNewsFromBrave(date);
+      newsItems = braveResult.newsItems;
+      braveThumbnailMap = braveResult.thumbnailMap;
     } else {
       // 기본: Gemini API 사용
       newsItems = await fetchNewsFromGemini(date);
     }
     const result = await saveNewsToDatabase(newsItems, maxImageGenerationTimeMs);
+
+    // Brave Search API의 thumbnail 이미지 처리
+    if (collectionMethod === "brave" && braveThumbnailMap && result.savedNewsIds.length > 0) {
+      const { saveBraveThumbnailImage } = await import("./news-fetcher-brave");
+      
+      // thumbnail 이미지를 비동기로 처리 (뉴스 저장 응답 시간에 영향을 주지 않음)
+      Promise.allSettled(
+        result.savedNewsIds.map(async (newsId, index) => {
+          const thumbnailUrl = braveThumbnailMap!.get(String(index));
+          if (thumbnailUrl) {
+            try {
+              const savedImageUrl = await saveBraveThumbnailImage(newsId, thumbnailUrl);
+              if (savedImageUrl) {
+                log.debug("Brave thumbnail 이미지 저장 완료", { newsId, thumbnailUrl, savedImageUrl });
+              } else {
+                log.warn("Brave thumbnail 이미지 저장 실패 (null 반환)", { newsId, thumbnailUrl });
+              }
+            } catch (error) {
+              log.warn("Brave thumbnail 이미지 저장 실패", {
+                newsId,
+                thumbnailUrl,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          }
+        })
+      ).catch((error) => {
+        log.error("Brave thumbnail 이미지 처리 중 오류 발생 (비동기)", error instanceof Error ? error : new Error(String(error)));
+      });
+    }
 
     // result가 유효한지 확인
     if (!result || typeof result !== "object") {
