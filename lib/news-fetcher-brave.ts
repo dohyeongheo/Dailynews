@@ -213,7 +213,14 @@ export async function fetchNewsFromBrave(date: string = new Date().toISOString()
         log.error("카테고리별 뉴스 수집 실패", error instanceof Error ? error : new Error(String(error)), {
           category,
         });
-        // 한 카테고리 실패해도 다른 카테고리는 계속 진행
+        // API 키 오류나 초기 설정 오류, 또는 HTTP 오류는 즉시 throw
+        if (
+          error instanceof Error &&
+          (error.message.includes("BRAVE_SEARCH_API_KEY") || error.message.includes("Brave Search API 오류"))
+        ) {
+          throw error;
+        }
+        // 네트워크 오류 등은 한 카테고리 실패해도 다른 카테고리는 계속 진행
       }
     }
 
