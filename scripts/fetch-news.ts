@@ -18,34 +18,21 @@ async function main() {
     const { fetchAndSaveNews } = await import("../lib/news-fetcher");
     const { log } = await import("../lib/utils/logger");
 
-    // 환경 변수 확인 (NEWS_COLLECTION_METHOD에 따라 필수 변수 다름)
+    // 환경 변수 확인
     const { getEnv } = await import("../lib/config/env");
-    let env;
     try {
-      env = getEnv();
+      getEnv();
     } catch (error) {
       console.error("❌ 환경 변수 검증 실패:");
       if (error instanceof Error) {
         console.error(error.message);
       }
       console.error("\n필수 환경 변수를 확인하세요:");
-      console.error("   - GOOGLE_GEMINI_API_KEY (Gemini 방식 사용 시)");
-      console.error("   - BRAVE_SEARCH_API_KEY (Brave 방식 사용 시)");
+      console.error("   - GOOGLE_GEMINI_API_KEY");
       console.error("   - NEXT_PUBLIC_SUPABASE_URL");
       console.error("   - NEXT_PUBLIC_SUPABASE_ANON_KEY");
       console.error("   - SUPABASE_SERVICE_ROLE_KEY");
-      console.error("\n선택적 환경 변수:");
-      console.error("   - NEWS_COLLECTION_METHOD (기본값: gemini)");
       console.error("\n.env.local 파일이 있는지 확인하세요.");
-      process.exit(1);
-    }
-
-    // 수집 방식 확인
-    const collectionMethod = env.NEWS_COLLECTION_METHOD || "gemini";
-    console.log(`📰 뉴스 수집 방식: ${collectionMethod}`);
-
-    if (collectionMethod === "brave" && !env.BRAVE_SEARCH_API_KEY) {
-      console.error("❌ Brave 방식 사용 시 BRAVE_SEARCH_API_KEY가 필요합니다.");
       process.exit(1);
     }
 

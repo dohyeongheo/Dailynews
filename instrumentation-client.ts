@@ -1,5 +1,6 @@
 /**
- * Sentry 클라이언트 사이드 설정
+ * Sentry 클라이언트 사이드 설정 (Next.js App Router)
+ * 이 파일은 sentry.client.config.ts를 대체합니다.
  */
 
 import * as Sentry from '@sentry/nextjs';
@@ -93,4 +94,7 @@ Sentry.init({
     return event;
   },
 });
+
+// Router transition tracking for Next.js App Router
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
 

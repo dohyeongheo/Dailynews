@@ -26,7 +26,6 @@ const mockNews: News = {
   source_media: 'Test Media',
   title: '테스트 뉴스 제목',
   content: '테스트 뉴스 내용입니다.',
-  content_translated: null,
   category: '태국뉴스',
   news_category: null,
   image_url: null,
@@ -50,15 +49,6 @@ describe('NewsCard', () => {
   });
 
 
-  it('번역된 내용이 있으면 번역된 내용을 표시해야 함', () => {
-    const newsWithTranslation: News = {
-      ...mockNews,
-      content_translated: '번역된 뉴스 내용입니다.',
-    };
-    render(<NewsCard news={newsWithTranslation} />);
-    expect(screen.getByText('번역된 뉴스 내용입니다.')).toBeInTheDocument();
-    expect(screen.queryByText('테스트 뉴스 내용입니다.')).not.toBeInTheDocument();
-  });
 
   it('날짜를 올바르게 포맷팅해야 함', () => {
     render(<NewsCard news={mockNews} />);

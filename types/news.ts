@@ -8,7 +8,6 @@ export interface News {
   source_media: string;
   title: string;
   content: string;
-  content_translated: string | null;
   category: NewsCategory;
   news_category: NewsTopicCategory | null;
   image_url: string | null;
@@ -21,7 +20,6 @@ export interface NewsInput {
   source_media: string;
   title: string;
   content: string;
-  content_translated?: string | null;
   category: NewsCategory;
   news_category?: NewsTopicCategory | null;
 }
@@ -30,7 +28,6 @@ export interface GeminiNewsResponse {
   news: Array<{
     title: string;
     content: string;
-    content_translated?: string;
     source_country: string;
     source_media: string;
     category: NewsCategory;

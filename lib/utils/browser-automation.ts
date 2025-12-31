@@ -256,8 +256,8 @@ export async function checkPageHealth(url: string): Promise<PageHealth> {
 
     const loadTime = Date.now() - startTime;
 
-    const consoleErrors = []; // consoleMessages.filter((m) => m.level === 'error');
-    const consoleWarnings = []; // consoleMessages.filter((m) => m.level === 'warning');
+    const consoleErrors: any[] = []; // consoleMessages.filter((m) => m.level === 'error');
+    const consoleWarnings: any[] = []; // consoleMessages.filter((m) => m.level === 'warning');
     const networkErrors: PageHealth['networkErrors'] = [];
 
     // 네트워크 요청 중 실패한 것 필터링

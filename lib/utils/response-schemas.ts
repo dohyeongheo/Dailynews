@@ -15,7 +15,6 @@ export const NewsSchema = z.object({
   source_media: z.string(),
   title: z.string(),
   content: z.string(),
-  content_translated: z.string().nullable(),
   category: z.enum(["태국뉴스", "관련뉴스", "한국뉴스"]),
   news_category: z.enum(["과학", "사회", "정치", "경제", "스포츠", "문화", "기술", "건강", "환경", "국제", "기타"]).nullable(),
   image_url: z.string().nullable(),

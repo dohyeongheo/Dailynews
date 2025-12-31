@@ -9,7 +9,6 @@ import { BadRequestError } from "@/lib/errors";
 const newsSchema = z.object({
   title: z.string().min(1, "제목은 필수입니다."),
   content: z.string().min(1, "내용은 필수입니다."),
-  content_translated: z.string().optional(),
   category: z.enum(["태국뉴스", "관련뉴스", "한국뉴스"]),
   news_category: z.enum(["과학", "사회", "정치", "경제", "스포츠", "문화", "기술", "건강", "환경", "국제", "기타"]).nullable().optional(),
   source_country: z.string().optional(),
@@ -28,7 +27,6 @@ export const POST = withAdmin(
     const result = await insertNews({
       title: validatedData.title,
       content: validatedData.content,
-      content_translated: validatedData.content_translated || null,
       category: validatedData.category,
       news_category: validatedData.news_category || null,
       published_date: validatedData.published_date,

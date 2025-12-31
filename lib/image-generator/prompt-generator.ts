@@ -16,7 +16,7 @@ export async function generateImagePrompt(news: NewsInput): Promise<string> {
     const model = getModelForTask("prompt_generation", cacheKeySource);
 
     // 뉴스 내용 요약 (더 많은 컨텍스트 제공)
-    const newsContent = news.content_translated || news.content;
+    const newsContent = news.content;
     const newsTitle = news.title;
     const category = news.news_category || news.category;
     const sourceCountry = news.source_country;

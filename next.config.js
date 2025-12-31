@@ -93,5 +93,9 @@ module.exports = isSentryEnabled
       // 기존에 nextConfig.sentry 안에 두었던 옵션들을 여기로 이동
       hideSourceMaps: true,
       widenClientFileUpload: true,
+      // instrumentation 파일 사용
+      webpack: {
+        automaticVercelMonitors: true,
+      },
     })
   : nextConfig;

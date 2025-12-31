@@ -19,7 +19,6 @@ export default function NewsForm({ news, onSuccess, onCancel }: NewsFormProps) {
   const [formData, setFormData] = useState({
     title: news?.title || "",
     content: news?.content || "",
-    content_translated: news?.content_translated || "",
     category: (news?.category || "태국뉴스") as NewsCategory,
     news_category: (news?.news_category || null) as NewsTopicCategory | null,
     source_country: news?.source_country || "",
@@ -179,18 +178,6 @@ export default function NewsForm({ news, onSuccess, onCancel }: NewsFormProps) {
         />
       </div>
 
-      <div>
-        <label htmlFor="content_translated" className="block text-sm font-medium text-gray-700 mb-1">
-          번역된 내용
-        </label>
-        <textarea
-          id="content_translated"
-          rows={6}
-          value={formData.content_translated}
-          onChange={(e) => setFormData({ ...formData, content_translated: e.target.value })}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-        />
-      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>

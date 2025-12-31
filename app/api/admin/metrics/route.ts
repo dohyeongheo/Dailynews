@@ -24,16 +24,10 @@ export const GET = withAdmin(
       관련뉴스: await getNewsCount("관련뉴스"),
     };
 
-    // 번역 실패한 뉴스 개수 (content가 한국어가 아닌 경우 - 애플리케이션 레벨에서 확인 필요)
-    // 참고: content_translated 필드는 더 이상 사용하지 않으므로 content만 확인
-    const { data: failedTranslationData, count: failedTranslationCount, error: failedTranslationError } = await supabaseServer
-      .from("news")
-      .select("id", { count: "exact", head: false })
-      .is("content_translated", null)
-      .not("content", "is", null);
-    const failedTranslationCountResult = failedTranslationError
-      ? 0
-      : (failedTranslationCount !== null ? failedTranslationCount : (failedTranslationData?.length || 0));
+    // 번역 실패한 뉴스 개수는 더 이상 확인할 수 없음
+    // content_translated 필드가 제거되어 번역 상태를 별도로 추적할 수 없음
+    // 번역된 내용은 content 필드에 직접 저장되므로, 번역 실패 여부는 애플리케이션 로직에서만 확인 가능
+    const failedTranslationCountResult = 0;
 
     // 이미지 없는 뉴스 개수 (실제 데이터 조회로 count 확인)
     const { data: newsWithoutImageData, count: newsWithoutImageCount, error: newsWithoutImageError } = await supabaseServer

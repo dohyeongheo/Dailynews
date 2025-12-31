@@ -172,9 +172,26 @@ export async function getNewsWithFailedTranslation(limit: number = 100): Promise
 
 /**
  * 뉴스의 번역본 업데이트 (캐시 무효화 포함)
+ * @deprecated content_translated 필드가 제거되어 더 이상 사용하지 않습니다.
+ * 대신 updateNewsContent를 사용하세요.
  */
 export async function updateNewsTranslation(newsId: string, contentTranslated: string | null): Promise<boolean> {
   const result = await supabaseNews.updateNewsTranslation(newsId, contentTranslated);
+
+  // 업데이트 성공 시 관련 캐시 무효화
+  if (result) {
+    await invalidateNewsCache(newsId);
+  }
+
+  return result;
+}
+
+/**
+ * 뉴스의 제목과 내용을 업데이트합니다 (캐시 무효화 포함)
+ * 번역된 내용을 저장할 때 사용합니다.
+ */
+export async function updateNewsContent(newsId: string, title: string, content: string): Promise<boolean> {
+  const result = await supabaseNews.updateNewsContent(newsId, title, content);
 
   // 업데이트 성공 시 관련 캐시 무효화
   if (result) {

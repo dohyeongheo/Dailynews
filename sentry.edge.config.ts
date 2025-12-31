@@ -1,9 +1,11 @@
 /**
  * Sentry Edge Runtime 설정
+ * 이 파일은 instrumentation.ts에서 import됩니다.
  */
 
 import * as Sentry from '@sentry/nextjs';
 
+// instrumentation.ts에서만 호출되도록 보장
 Sentry.init({
   dsn: process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN,
 

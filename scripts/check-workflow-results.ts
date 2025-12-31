@@ -133,7 +133,7 @@ async function checkWorkflowResults() {
           // 직접 쿼리 시도
           const { data: newsData, error: queryError } = await supabase
             .from('news')
-            .select('category, content_translated, image_url')
+            .select('category, image_url')
             .eq('published_date', today)
             .order('created_at', { ascending: false })
             .limit(100);
@@ -148,7 +148,8 @@ async function checkWorkflowResults() {
                 stats[item.category] = { count: 0, translated: 0, images: 0 };
               }
               stats[item.category].count++;
-              if (item.content_translated) stats[item.category].translated++;
+              // content_translated 필드가 제거되어 번역 상태를 별도로 확인할 수 없음
+              // 번역된 내용은 content 필드에 직접 저장됨
               if (item.image_url) stats[item.category].images++;
             });
 

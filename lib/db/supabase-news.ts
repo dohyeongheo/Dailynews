@@ -247,7 +247,6 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: null,
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
       image_url: item.image_url || null,
@@ -308,7 +307,6 @@ export async function getNewsByTopicCategory(
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: null,
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
       image_url: item.image_url || null,
@@ -363,7 +361,6 @@ export async function getAllNews(limit: number = 30, offset: number = 0): Promis
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: null,
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
       image_url: item.image_url || null,
@@ -417,7 +414,6 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         source_media: item.source_media || "",
         title: item.title || "",
         content: item.content || "",
-        content_translated: null,
         category: item.category as NewsCategory,
         news_category: item.news_category || null,
         image_url: item.image_url || null,
@@ -456,7 +452,6 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         source_media: item.source_media || "",
         title: item.title || "",
         content: item.content || "",
-        content_translated: null,
         category: item.category as NewsCategory,
         news_category: item.news_category || null,
         image_url: item.image_url || null,
@@ -496,7 +491,6 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         source_media: item.source_media || "",
         title: item.title || "",
         content: item.content || "",
-        content_translated: null,
         category: item.category as NewsCategory,
         news_category: item.news_category || null,
         image_url: item.image_url || null,
@@ -554,7 +548,6 @@ export async function getNewsById(id: string): Promise<News | null> {
       source_media: data.source_media || "",
       title: data.title || "",
       content: data.content || "",
-      content_translated: null,
       category: data.category as NewsCategory,
       news_category: data.news_category || null,
       image_url: data.image_url || null,
@@ -661,7 +654,6 @@ export async function getNewsWithFailedTranslation(limit: number = 100): Promise
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: null,
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
       image_url: item.image_url || null,
@@ -678,6 +670,8 @@ export async function getNewsWithFailedTranslation(limit: number = 100): Promise
 
 /**
  * 뉴스의 번역본 업데이트
+ * @deprecated content_translated 필드가 제거되어 더 이상 사용하지 않습니다.
+ * 대신 updateNewsContent를 사용하세요.
  */
 export async function updateNewsTranslation(newsId: string, contentTranslated: string | null): Promise<boolean> {
   try {
@@ -687,9 +681,30 @@ export async function updateNewsTranslation(newsId: string, contentTranslated: s
     // 번역된 내용은 content 필드에 직접 저장되어야 합니다.
     log.warn("updateNewsTranslation 호출됨 - content_translated 컬럼이 제거되어 더 이상 사용할 수 없습니다", { newsId });
     return false;
+  } catch (error) {
+    log.error("updateNewsTranslation 예외 발생", error instanceof Error ? error : new Error(String(error)), { newsId });
+    return false;
+  }
+}
+
+/**
+ * 뉴스의 제목과 내용을 업데이트합니다.
+ * 번역된 내용을 저장할 때 사용합니다.
+ */
+export async function updateNewsContent(newsId: string, title: string, content: string): Promise<boolean> {
+  try {
+    log.debug("뉴스 내용 업데이트 시작", { newsId });
+
+    const { error } = await supabaseServer
+      .from("news")
+      .update({
+        title,
+        content,
+      })
+      .eq("id", newsId);
 
     if (error) {
-      log.error("updateNewsTranslation Supabase 에러 발생", new Error(error.message), {
+      log.error("updateNewsContent Supabase 에러 발생", new Error(error.message), {
         details: error.details,
         hint: error.hint,
         code: error.code,
@@ -698,10 +713,10 @@ export async function updateNewsTranslation(newsId: string, contentTranslated: s
       return false;
     }
 
-    log.info("뉴스 번역본 업데이트 완료", { newsId });
+    log.info("뉴스 내용 업데이트 완료", { newsId });
     return true;
   } catch (error) {
-    log.error("updateNewsTranslation 예외 발생", error instanceof Error ? error : new Error(String(error)), { newsId });
+    log.error("updateNewsContent 예외 발생", error instanceof Error ? error : new Error(String(error)), { newsId });
     return false;
   }
 }
@@ -740,7 +755,6 @@ export async function getRelatedNews(currentNewsId: string, category: NewsCatego
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: null,
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
       image_url: item.image_url || null,

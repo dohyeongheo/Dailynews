@@ -8,7 +8,6 @@ import { uploadNewsImage } from "./storage/image-storage";
 import { createNewsInputFromDB } from "./utils/news-helpers";
 import { saveMetricSnapshot } from "./utils/metrics-storage";
 import { getEnv } from "./config/env";
-import { fetchNewsFromBrave } from "./news-fetcher-brave";
 
 /**
  * 할당량 초과 에러인지 확인합니다.
@@ -1403,14 +1402,24 @@ export async function retryFailedTranslations(limit: number = 50): Promise<{ suc
             const result = await translateNewsIfNeeded(newsItem);
 
             // 번역 성공 여부 확인
-            // content_translated 필드가 제거되어 더 이상 별도 업데이트가 필요 없음
-            // 번역된 내용은 이미 content 필드에 저장됨
             if (!result.translationFailed) {
-              log.info("뉴스 번역 재처리 성공", {
-                newsId: news.id,
-                title: news.title.substring(0, 50),
-              });
-              return { success: true, newsId: news.id };
+              // 번역된 내용을 데이터베이스에 저장
+              const { updateNewsContent } = await import("./db/news");
+              const updateSuccess = await updateNewsContent(news.id, result.newsItem.title, result.newsItem.content);
+
+              if (updateSuccess) {
+                log.info("뉴스 번역 재처리 성공 및 DB 저장 완료", {
+                  newsId: news.id,
+                  title: result.newsItem.title.substring(0, 50),
+                });
+                return { success: true, newsId: news.id };
+              } else {
+                log.error("뉴스 번역 재처리 성공했으나 DB 저장 실패", {
+                  newsId: news.id,
+                  title: result.newsItem.title.substring(0, 50),
+                });
+                return { success: false, newsId: news.id };
+              }
             } else {
               log.warn("뉴스 번역 재처리 실패 (번역 결과가 원본과 동일)", {
                 newsId: news.id,
@@ -1527,59 +1536,9 @@ export async function fetchAndSaveNews(
   maxImageGenerationTimeMs?: number
 ): Promise<{ success: number; failed: number; total: number; savedNewsIds: string[] }> {
   try {
-    const { NEWS_COLLECTION_METHOD } = getEnv();
-    const collectionMethod = NEWS_COLLECTION_METHOD || "gemini";
-
-    log.info("뉴스 수집 방식 선택", { method: collectionMethod, date });
-
-    let newsItems: NewsInput[];
-
-    let braveThumbnailMap: Map<string, string> | null = null;
-
-    if (collectionMethod === "brave") {
-      // Brave Search API 사용
-      if (!date) {
-        date = new Date().toISOString().split("T")[0];
-      }
-      // fetchNewsFromBrave는 thumbnail 정보를 포함한 확장된 형식으로 반환
-      const braveResult = await fetchNewsFromBrave(date);
-      newsItems = braveResult.newsItems;
-      braveThumbnailMap = braveResult.thumbnailMap;
-    } else {
-      // 기본: Gemini API 사용
-      newsItems = await fetchNewsFromGemini(date);
-    }
+    // Gemini API를 사용하여 뉴스 수집
+    const newsItems = await fetchNewsFromGemini(date);
     const result = await saveNewsToDatabase(newsItems, maxImageGenerationTimeMs);
-
-    // Brave Search API의 thumbnail 이미지 처리
-    if (collectionMethod === "brave" && braveThumbnailMap && result.savedNewsIds.length > 0) {
-      const { saveBraveThumbnailImage } = await import("./news-fetcher-brave");
-      
-      // thumbnail 이미지를 비동기로 처리 (뉴스 저장 응답 시간에 영향을 주지 않음)
-      Promise.allSettled(
-        result.savedNewsIds.map(async (newsId, index) => {
-          const thumbnailUrl = braveThumbnailMap!.get(String(index));
-          if (thumbnailUrl) {
-            try {
-              const savedImageUrl = await saveBraveThumbnailImage(newsId, thumbnailUrl);
-              if (savedImageUrl) {
-                log.debug("Brave thumbnail 이미지 저장 완료", { newsId, thumbnailUrl, savedImageUrl });
-              } else {
-                log.warn("Brave thumbnail 이미지 저장 실패 (null 반환)", { newsId, thumbnailUrl });
-              }
-            } catch (error) {
-              log.warn("Brave thumbnail 이미지 저장 실패", {
-                newsId,
-                thumbnailUrl,
-                error: error instanceof Error ? error.message : String(error),
-              });
-            }
-          }
-        })
-      ).catch((error) => {
-        log.error("Brave thumbnail 이미지 처리 중 오류 발생 (비동기)", error instanceof Error ? error : new Error(String(error)));
-      });
-    }
 
     // result가 유효한지 확인
     if (!result || typeof result !== "object") {

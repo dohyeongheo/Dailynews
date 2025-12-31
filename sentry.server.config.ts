@@ -1,10 +1,13 @@
 /**
  * Sentry 서버 사이드 설정
+ * 이 파일은 instrumentation.ts에서 import됩니다.
  */
 
 import * as Sentry from '@sentry/nextjs';
 
-Sentry.init({
+// instrumentation.ts에서만 호출되도록 보장
+if (typeof window === 'undefined') {
+  Sentry.init({
   dsn: process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN,
 
   // 환경별 설정
@@ -87,5 +90,7 @@ Sentry.init({
 
     return event;
   },
-});
+  });
+}
+
 

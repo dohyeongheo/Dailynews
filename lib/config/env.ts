@@ -27,12 +27,6 @@ const envSchema = z.object({
   GEMINI_NEWS_COLLECTION_MODEL: z.enum(["flash", "pro"]).default("pro"),
   GEMINI_TRANSLATION_MODEL: z.enum(["flash", "pro"]).default("flash"),
 
-  // Brave Search API (선택적)
-  BRAVE_SEARCH_API_KEY: z.string().optional(),
-
-  // 뉴스 수집 방식 선택
-  NEWS_COLLECTION_METHOD: z.enum(["gemini", "brave"]).default("gemini"),
-
   // Node 환경
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
 });
