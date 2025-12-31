@@ -51,8 +51,6 @@ function validateEnv(): Env {
       GEMINI_USE_CONTEXT_CACHING: process.env.GEMINI_USE_CONTEXT_CACHING === "true" || process.env.GEMINI_USE_CONTEXT_CACHING === undefined,
       GEMINI_NEWS_COLLECTION_MODEL: (process.env.GEMINI_NEWS_COLLECTION_MODEL as "flash" | "pro") || "pro",
       GEMINI_TRANSLATION_MODEL: (process.env.GEMINI_TRANSLATION_MODEL as "flash" | "pro") || "flash",
-      BRAVE_SEARCH_API_KEY: process.env.BRAVE_SEARCH_API_KEY,
-      NEWS_COLLECTION_METHOD: (process.env.NEWS_COLLECTION_METHOD as "gemini" | "brave") || "gemini",
       NODE_ENV: process.env.NODE_ENV || "development",
     });
   } catch (error) {
