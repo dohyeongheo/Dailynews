@@ -1,4 +1,4 @@
-import { insertNewsBatch, updateNewsImageUrl, getNewsById, getNewsWithFailedTranslation, updateNewsTranslation } from "./db/news";
+import { insertNewsBatch, updateNewsImageUrl, getNewsById, getNewsWithFailedTranslation, updateNewsTranslation, updateNewsContent } from "./db/news";
 import type { NewsInput, GeminiNewsResponse, NewsCategory, NewsTopicCategory } from "@/types/news";
 import { log } from "./utils/logger";
 import { getModelForTask, generateContentWithCaching, type TaskType } from "./utils/gemini-client";
@@ -376,7 +376,6 @@ function isTranslationFailed(original: string, translated: string | null): boole
 async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: NewsInput; translationFailed: boolean }> {
   let title = newsItem.title;
   let content = newsItem.content;
-  let contentTranslated = newsItem.content_translated;
   let translationFailed = false;
 
   const MAX_TRANSLATION_RETRIES = 3;
@@ -423,35 +422,42 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
     }
   }
 
-  // 모든 카테고리: content가 한국어가 아니면 무조건 번역
-  if (!isKorean(content)) {
-    // content_translated가 없거나, 있더라도 한국어가 아니면 번역
-    if (!contentTranslated || !isKorean(contentTranslated)) {
-      log.debug("내용 번역 중", {
+  // 태국 뉴스인 경우 무조건 번역 (프롬프트에서 이미 번역하라고 요청했지만, 혹시 태국어가 그대로 왔을 경우를 대비)
+  // 다른 카테고리: content가 한국어가 아니면 번역
+  // 번역된 내용은 content 필드에 직접 저장 (content_translated 컬럼은 더 이상 사용하지 않음)
+  const isThaiNews = newsItem.category === "태국뉴스";
+  if (isThaiNews || !isKorean(content)) {
+    if (isThaiNews && !isKorean(content)) {
+      log.warn("태국 뉴스가 한국어가 아닌 상태로 수집됨, 번역 시도", {
         category: newsItem.category,
-        news_category: newsItem.news_category,
         contentPreview: content.substring(0, 50),
       });
+    }
+    log.debug("내용 번역 중", {
+      category: newsItem.category,
+      news_category: newsItem.news_category,
+      contentPreview: content.substring(0, 50),
+    });
 
-      let translatedContent = await translateToKorean(content);
-      let contentRetryCount = 0;
+    let translatedContent = await translateToKorean(content);
+    let contentRetryCount = 0;
 
-      // 번역 결과가 원본과 같으면 재시도
-      while (isTranslationFailed(content, translatedContent) && contentRetryCount < MAX_TRANSLATION_RETRIES) {
-        contentRetryCount++;
-        log.warn("내용 번역 실패 감지, 재시도 중", {
-          category: newsItem.category,
-          contentPreview: content.substring(0, 50),
-          attempt: contentRetryCount,
-          maxRetries: MAX_TRANSLATION_RETRIES,
-        });
+    // 번역 결과가 원본과 같으면 재시도
+    while (isTranslationFailed(content, translatedContent) && contentRetryCount < MAX_TRANSLATION_RETRIES) {
+      contentRetryCount++;
+      log.warn("내용 번역 실패 감지, 재시도 중", {
+        category: newsItem.category,
+        contentPreview: content.substring(0, 50),
+        attempt: contentRetryCount,
+        maxRetries: MAX_TRANSLATION_RETRIES,
+      });
 
-        // 재시도 전 대기 (지수 백오프)
-        const delay = TRANSLATION_RETRY_DELAY * Math.pow(2, contentRetryCount - 1);
-        await new Promise((resolve) => setTimeout(resolve, delay));
+      // 재시도 전 대기 (지수 백오프)
+      const delay = TRANSLATION_RETRY_DELAY * Math.pow(2, contentRetryCount - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
 
-        translatedContent = await translateToKorean(content);
-      }
+      translatedContent = await translateToKorean(content);
+    }
 
       // 재시도 후에도 실패하면 실패로 표시
       if (isTranslationFailed(content, translatedContent)) {
@@ -461,30 +467,36 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
           totalAttempts: contentRetryCount + 1,
         });
         translationFailed = true;
-        // 실패한 경우 null로 설정하여 나중에 재처리 가능하도록 함
-        contentTranslated = null;
-      } else {
-        contentTranslated = translatedContent;
-        if (contentRetryCount > 0) {
-          log.info("내용 번역 재시도 성공", {
+
+        // 태국 뉴스인 경우 번역 실패는 치명적 오류이므로 강력한 경고 로그
+        if (isThaiNews) {
+          log.error("태국 뉴스 번역 실패 - 이 뉴스는 한국어가 아닌 상태로 저장됩니다", undefined, {
             category: newsItem.category,
-            contentPreview: content.substring(0, 50),
-            attempts: contentRetryCount + 1,
+            title: newsItem.title,
+            contentPreview: content.substring(0, 100),
+            totalAttempts: contentRetryCount + 1,
           });
         }
+        // 번역 실패 시 원본 content 그대로 유지 (한국어가 아닌 상태로 저장됨)
+      } else {
+      // 번역 성공: 번역된 내용을 content 필드에 직접 저장
+      content = translatedContent;
+      if (contentRetryCount > 0) {
+        log.info("내용 번역 재시도 성공", {
+          category: newsItem.category,
+          contentPreview: content.substring(0, 50),
+          attempts: contentRetryCount + 1,
+        });
       }
     }
-  } else {
-    // content가 이미 한국어인 경우 content_translated를 null로 유지
-    contentTranslated = null;
   }
 
   return {
     newsItem: {
       ...newsItem,
       title,
-      content,
-      content_translated: contentTranslated,
+      content, // 번역된 내용이 content에 직접 저장됨
+      content_translated: null, // content_translated 컬럼은 더 이상 사용하지 않음
     },
     translationFailed,
   };
@@ -501,13 +513,23 @@ export async function fetchNewsFromGemini(
   limit?: number,
   categoryFilter?: NewsCategory
 ): Promise<NewsInput[]> {
-  // 날짜 검증: 미래 날짜가 아닌지 확인
-  const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
+  // 한국 시간 기준으로 오늘 날짜 계산 (시간대 차이 고려)
+  const now = new Date();
+  const koreaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
+  const todayStr = koreaTime.toISOString().split("T")[0];
   const requestDate = date || todayStr;
 
-  // 미래 날짜인 경우 오늘 날짜로 변경
-  if (requestDate > todayStr) {
+  // 날짜 차이 계산 (과거/미래 확인용)
+  const requestDateObj = new Date(requestDate + "T00:00:00");
+  const todayDateObj = new Date(todayStr + "T00:00:00");
+  const daysDiff = Math.floor((requestDateObj.getTime() - todayDateObj.getTime()) / (1000 * 60 * 60 * 24));
+
+  // 과거 날짜인 경우 오늘 날짜로 변경
+  if (daysDiff < 0) {
+    log.warn("과거 날짜 감지 - 오늘 날짜로 변경", { requestDate, todayStr, daysDiff });
+    date = todayStr;
+  } else if (requestDate > todayStr) {
+    // 미래 날짜인 경우 오늘 날짜로 변경
     log.warn("미래 날짜 감지 - 오늘 날짜로 변경", { requestDate, todayStr });
     date = todayStr;
   } else {
@@ -516,7 +538,7 @@ export async function fetchNewsFromGemini(
 
   // 날짜가 비정상적으로 미래인 경우 (예: 2025년) 오늘 날짜로 강제 변경
   const requestYear = parseInt(requestDate.substring(0, 4), 10);
-  const currentYear = today.getFullYear();
+  const currentYear = koreaTime.getFullYear();
   if (requestYear > currentYear) {
     log.warn("비정상적인 미래 날짜 감지 - 오늘 날짜로 강제 변경", { requestDate, requestYear, currentYear, todayStr });
     date = todayStr;
@@ -533,23 +555,23 @@ export async function fetchNewsFromGemini(
   let newsCountInstruction: string;
 
   if (categoryFilter === "태국뉴스") {
-    newsSourceInstruction = `${date}의 태국 주요 뉴스(한국어 번역)만 수집하여 JSON 포맷으로 출력해주세요.`;
+    newsSourceInstruction = `${date}의 최신 태국 주요 뉴스를 수집하여 **반드시 한국어로 번역하여** JSON 포맷으로 출력해주세요. 날짜가 정확히 ${date}인 뉴스만 수집해주세요. **중요: 제목과 본문 내용(content) 모두 반드시 한국어로 번역되어야 합니다. 태국어 원문을 그대로 출력하지 마세요.**`;
     newsCountInstruction = limit
       ? `정확히 ${limit}개의 태국 뉴스를 수집해주세요.`
       : `정확히 10개의 태국 뉴스를 수집해주세요.`;
   } else if (categoryFilter === "관련뉴스") {
-    newsSourceInstruction = `${date}의 한국에서 태국과 관련된 뉴스만 수집하여 JSON 포맷으로 출력해주세요.`;
+    newsSourceInstruction = `${date}의 최신 한국에서 태국과 관련된 뉴스만 수집하여 JSON 포맷으로 출력해주세요. 날짜가 정확히 ${date}인 뉴스만 수집해주세요.`;
     newsCountInstruction = limit
       ? `정확히 ${limit}개의 관련 뉴스를 수집해주세요.`
       : `정확히 10개의 관련 뉴스를 수집해주세요.`;
   } else if (categoryFilter === "한국뉴스") {
-    newsSourceInstruction = `${date}의 한국 주요 뉴스만 수집하여 JSON 포맷으로 출력해주세요.`;
+    newsSourceInstruction = `${date}의 최신 한국 주요 뉴스만 수집하여 JSON 포맷으로 출력해주세요. 날짜가 정확히 ${date}인 뉴스만 수집해주세요.`;
     newsCountInstruction = limit
       ? `정확히 ${limit}개의 한국 뉴스를 수집해주세요.`
       : `정확히 10개의 한국 뉴스를 수집해주세요.`;
   } else {
     // categoryFilter가 없으면 모든 카테고리 수집
-    newsSourceInstruction = `${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴스, 한국 주요 뉴스를 수집하여 JSON 포맷으로 출력해주세요.`;
+    newsSourceInstruction = `${date}의 최신 태국 주요 뉴스(**반드시 한국어로 번역**), 한국의 태국 관련 뉴스, 한국 주요 뉴스를 수집하여 JSON 포맷으로 출력해주세요. 날짜가 정확히 ${date}인 뉴스만 수집해주세요. **중요: 태국 뉴스의 경우 제목과 본문 내용(content) 모두 반드시 한국어로 번역되어야 합니다. 태국어 원문을 그대로 출력하지 마세요.**`;
     newsCountInstruction = limit
       ? `정확히 ${limit}개의 뉴스를 수집해주세요.`
       : `**중요: 각 카테고리별로 정확히 10개씩 수집해주세요. 총 30개의 뉴스를 수집해야 합니다.**
@@ -566,9 +588,8 @@ ${newsCountInstruction}
 {
   "news": [
     {
-      "title": "뉴스 제목",
-      "content": "뉴스 본문 내용",
-      "content_translated": "번역된 내용 (태국 뉴스인 경우)",
+      "title": "뉴스 제목 (태국 뉴스인 경우 한국어로 번역)",
+      "content": "뉴스 본문 내용 (태국 뉴스인 경우 한국어로 번역)",
       "source_country": "태국" 또는 "한국",
       "source_media": "언론사 이름",
       "category": "태국뉴스" 또는 "관련뉴스" 또는 "한국뉴스",
@@ -580,7 +601,7 @@ ${newsCountInstruction}
 
 중요 사항:
 - 각 뉴스의 본문 내용(content)은 상세하게 작성해주세요. 가능한 한 자세히 작성하되, 최소 300자 이상으로 작성해주세요. 뉴스의 핵심 내용, 배경 정보, 영향 등을 포함해주세요.
-- content_translated도 원문과 동일한 수준의 상세함을 유지하여 가능한 한 자세히 작성해주세요.
+- **태국 뉴스(category가 "태국뉴스"인 경우)의 제목(title)과 본문 내용(content)은 반드시 한국어로 번역되어야 합니다. 태국어 원문을 그대로 출력하지 마세요.**
 - news_category는 뉴스의 제목과 내용을 분석하여 가장 적합한 주제 분류를 선택해주세요. 뉴스의 주요 주제가 명확하지 않은 경우 null로 설정할 수 있습니다.
 
 카테고리 분류 기준:
@@ -814,8 +835,18 @@ ${limit
         }
       }
 
+      // published_date가 요청한 날짜와 일치하지 않으면 경고 (항상 요청한 날짜 사용)
+      const itemPublishedDate = item.published_date || date;
+      if (itemPublishedDate !== date) {
+        log.debug("뉴스 항목의 published_date가 요청한 날짜와 불일치", {
+          requestedDate: date,
+          itemPublishedDate,
+          title: item.title?.substring(0, 50),
+        });
+      }
+
       return {
-        published_date: item.published_date || date,
+        published_date: date, // 항상 요청한 날짜 사용
         source_country: item.source_country,
         source_media: item.source_media,
         title: item.title,
@@ -826,6 +857,20 @@ ${limit
         // original_link 컬럼이 제거되었으므로 제외
       };
     });
+
+    // 수집된 뉴스의 원본 published_date가 요청한 날짜와 일치하지 않은 항목 확인 (로깅용)
+    const dateMismatchItems = validNewsItems.filter(item => {
+      const itemPublishedDate = item.published_date || date;
+      return itemPublishedDate !== date;
+    });
+    if (dateMismatchItems.length > 0) {
+      log.warn("날짜 불일치 뉴스 감지", {
+        requestedDate: date,
+        total: validNewsItems.length,
+        mismatched: dateMismatchItems.length,
+        matched: validNewsItems.length - dateMismatchItems.length,
+      });
+    }
 
     // 한국어가 아닌 뉴스 항목들을 번역 처리
     // 성능 개선: 병렬 처리로 번역 시간 단축
@@ -1110,10 +1155,14 @@ export async function retryFailedTranslations(limit: number = 50): Promise<{ suc
             // 번역 시도
             const result = await translateNewsIfNeeded(newsItem);
 
-            // 번역 성공 여부 확인
-            if (!result.translationFailed && result.newsItem.content_translated) {
-              // DB에 번역본 업데이트
-              const updated = await updateNewsTranslation(news.id, result.newsItem.content_translated);
+            // 번역 성공 여부 확인 (content_translated 대신 content 필드가 한국어인지 확인)
+            const originalContent = newsItem.content;
+            const translatedContent = result.newsItem.content;
+            const isTranslated = !isTranslationFailed(originalContent, translatedContent) && isKorean(translatedContent);
+
+            if (!result.translationFailed && isTranslated) {
+              // DB에 번역본 업데이트 (content 필드 업데이트)
+              const updated = await updateNewsContent(news.id, translatedContent);
               if (updated) {
                 log.info("뉴스 번역 재처리 성공", {
                   newsId: news.id,
@@ -1125,9 +1174,11 @@ export async function retryFailedTranslations(limit: number = 50): Promise<{ suc
                 return { success: false, newsId: news.id };
               }
             } else {
-              log.warn("뉴스 번역 재처리 실패 (번역 결과가 원본과 동일)", {
+              log.warn("뉴스 번역 재처리 실패", {
                 newsId: news.id,
                 title: news.title.substring(0, 50),
+                translationFailed: result.translationFailed,
+                isTranslated,
               });
               return { success: false, newsId: news.id };
             }

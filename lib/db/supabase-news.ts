@@ -431,7 +431,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
     }
 
     case "content": {
-      // content 또는 content_translated에서 검색
+      // content 필드에서 검색 (content_translated 컬럼은 더 이상 사용하지 않음)
       const { data, error } = await supabaseServer
         .from("news")
         .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
@@ -472,7 +472,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
 
     case "all":
     default: {
-      // title, content, content_translated에서 검색
+      // title, content에서 검색 (content_translated 컬럼은 더 이상 사용하지 않음)
       const { data, error } = await supabaseServer
         .from("news")
         .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
@@ -694,6 +694,32 @@ export async function updateNewsTranslation(newsId: string, contentTranslated: s
     return false;
   } catch (error) {
     log.error("updateNewsTranslation 예외 발생", error instanceof Error ? error : new Error(String(error)), { newsId });
+    return false;
+  }
+}
+
+/**
+ * 뉴스의 content 필드 업데이트 (번역 재처리용)
+ */
+export async function updateNewsContent(newsId: string, content: string): Promise<boolean> {
+  try {
+    const { error } = await supabaseServer
+      .from("news")
+      .update({ content })
+      .eq("id", newsId);
+
+    if (error) {
+      log.error("updateNewsContent Supabase 에러 발생", new Error(error.message), {
+        newsId,
+        errorCode: error.code,
+      });
+      return false;
+    }
+
+    log.debug("뉴스 content 업데이트 완료", { newsId, contentPreview: content.substring(0, 50) });
+    return true;
+  } catch (error) {
+    log.error("updateNewsContent 예외 발생", error instanceof Error ? error : new Error(String(error)), { newsId });
     return false;
   }
 }

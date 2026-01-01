@@ -34,7 +34,7 @@ const NewsCard = React.memo(function NewsCard({ news, showOriginalLink = true }:
           </div>
         </div>
 
-        <p className="text-sm sm:text-base text-gray-700 mb-4 whitespace-pre-wrap break-words leading-relaxed">{news.content_translated || news.content}</p>
+        <p className="text-sm sm:text-base text-gray-700 mb-4 whitespace-pre-wrap break-words leading-relaxed">{news.content}</p>
 
       </Link>
     </article>
