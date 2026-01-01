@@ -24,7 +24,6 @@ export const GET = withAdmin(
       const apiEndpoints = [
         '/api/admin/metrics',
         '/api/admin/analytics',
-        '/api/admin/github/workflows',
       ];
 
       const apiStatuses = await Promise.allSettled(
@@ -96,7 +95,7 @@ export const POST = withAdmin(
   withErrorHandling(async (request: NextRequest) => {
     try {
       const body = await request.json();
-      const { tabs } = body; // ['news', 'users', 'monitoring', 'github', 'analytics']
+      const { tabs } = body; // ['news', 'users', 'monitoring', 'analytics']
 
       log.info('관리자 페이지 탭별 에러 확인 요청', { tabs });
 
@@ -108,7 +107,6 @@ export const POST = withAdmin(
         news: `${baseUrl}/admin`,
         users: `${baseUrl}/admin`,
         monitoring: `${baseUrl}/admin`,
-        github: `${baseUrl}/admin`,
         analytics: `${baseUrl}/admin`,
       };
 
