@@ -76,6 +76,11 @@ jest.mock('@/lib/utils/metrics-storage', () => ({
   saveMetricSnapshot: jest.fn(),
 }));
 
+// hallucination-detector 모킹
+jest.mock('@/lib/utils/hallucination-detector', () => ({
+  isHallucinatedNews: jest.fn(() => false), // 테스트에서는 항상 false (정상 뉴스)
+}));
+
 // date-helper 모킹 (오늘 날짜 고정)
 jest.mock('@/lib/utils/date-helper', () => {
   const mockToday = '2025-01-15';

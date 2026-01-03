@@ -1,6 +1,6 @@
 "use server";
 
-import { fetchAndSaveNews, retryFailedTranslations } from "./news-fetcher";
+import { fetchAndSaveNews } from "./news-fetcher";
 import * as newsDB from "./db/news";
 import type { News, NewsCategory } from "@/types/news";
 import { toAppError, getErrorMessage, ErrorType } from "./errors";
@@ -228,28 +228,6 @@ export async function searchNewsAction(
     };
   } catch (error) {
     return handleActionError(error, ErrorType.DATABASE_ERROR, { query, searchType, limit });
-  }
-}
-
-/**
- * 번역 실패한 뉴스를 재번역하는 Server Action
- * @param limit 재번역할 최대 뉴스 개수 (기본값: 50, 최대: 100)
- */
-export async function retryFailedTranslationsAction(limit: number = 50) {
-  try {
-    const result = await retryFailedTranslations(Math.min(limit, 100));
-
-    return {
-      success: true,
-      message: `${result.total}개의 뉴스 중 ${result.success}개가 성공적으로 재번역되었습니다.`,
-      data: result,
-    };
-  } catch (error) {
-    const errorResult = handleActionError(error, ErrorType.API_ERROR, { limit });
-    return {
-      ...errorResult,
-      message: errorResult.error,
-    };
   }
 }
 

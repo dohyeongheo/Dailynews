@@ -20,7 +20,8 @@
     "admin:test-apis": "npx tsx scripts/admin/test-apis.ts",
     "admin:test-local": "npx tsx scripts/admin/test-local.ts",
     "admin:ai-workflow": "npx tsx scripts/admin/ai-agent-workflow.ts",
-    "admin:test-browser-mcp": "npx tsx scripts/admin/test-browser-mcp.ts"
+    "admin:test-browser-mcp": "npx tsx scripts/admin/test-browser-mcp.ts",
+    "delete-hallucination": "npx tsx scripts/delete-hallucination-news.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
