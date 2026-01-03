@@ -24,6 +24,7 @@ jest.mock('@/lib/db/news', () => ({
 // 로거 모킹
 jest.mock('@/lib/utils/logger', () => ({
   log: {
+    debug: jest.fn(),
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
