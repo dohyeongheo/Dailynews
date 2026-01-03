@@ -3,7 +3,7 @@ import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import dynamic from "next/dynamic";
 import { log } from "@/lib/utils/logger";
-import { Analytics } from "@vercel/analytics/react";
+import { Analytics } from "@vercel/analytics/next";
 
 // 동적 임포트로 성능 최적화
 const Header = dynamic(() => import("@/components/Header"), { ssr: true });
