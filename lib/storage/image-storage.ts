@@ -1,26 +1,43 @@
 import { put, del } from "@vercel/blob";
 import { log } from "../utils/logger";
+import { optimizeImage } from "../utils/image-optimizer";
 
 /**
- * 뉴스 이미지를 Vercel Blob Storage에 업로드하고 Public URL을 반환합니다.
+ * 뉴스 이미지를 최적화하고 Vercel Blob Storage에 업로드하여 Public URL을 반환합니다.
  * @param newsId 뉴스 ID
- * @param imageBuffer 이미지 Buffer
+ * @param imageBuffer 원본 이미지 Buffer
  * @returns Public URL
  */
 export async function uploadNewsImage(newsId: string, imageBuffer: Buffer): Promise<string> {
   try {
-    const filename = `news/${newsId}.png`;
+    // 이미지 최적화 (WebP 형식, 최대 1024px, 품질 80%)
+    const { buffer: optimizedBuffer, mimeType, originalSize, optimizedSize } = await optimizeImage(
+      imageBuffer,
+      {
+        maxWidth: 1024,
+        maxHeight: 1024,
+        quality: 80,
+        useWebP: true,
+      }
+    );
 
-    const blob = await put(filename, imageBuffer, {
+    // 파일 확장자 결정 (WebP 또는 PNG)
+    const extension = mimeType === "image/webp" ? "webp" : "png";
+    const filename = `news/${newsId}.${extension}`;
+
+    const blob = await put(filename, optimizedBuffer, {
       access: "public",
-      contentType: "image/png",
+      contentType: mimeType,
       addRandomSuffix: false, // newsId가 이미 고유하므로 랜덤 접미사 불필요
     });
 
-    log.debug("Vercel Blob 이미지 업로드 완료", {
+    log.info("Vercel Blob 이미지 업로드 완료", {
       newsId,
       url: blob.url,
-      size: imageBuffer.length,
+      originalSize,
+      optimizedSize,
+      compressionRatio: (((originalSize - optimizedSize) / originalSize) * 100).toFixed(2) + "%",
+      mimeType,
     });
 
     return blob.url;
