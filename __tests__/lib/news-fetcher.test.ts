@@ -34,7 +34,23 @@ jest.mock('@/lib/utils/logger', () => ({
 jest.mock('@/lib/config/env', () => ({
   getEnv: jest.fn(() => ({
     GOOGLE_GEMINI_API_KEY: 'test-api-key',
+    NEXT_PUBLIC_SUPABASE_URL: 'https://test.supabase.co',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: 'test-anon-key',
+    SUPABASE_SERVICE_ROLE_KEY: 'test-service-key',
   })),
+}));
+
+// Supabase 서버 모킹 (환경 변수 모킹 후에 로드되어야 함)
+jest.mock('@/lib/supabase/server', () => ({
+  supabaseServer: {
+    from: jest.fn(),
+  },
+}));
+
+// Storage 모듈 모킹 (TextDecoder 문제 방지)
+jest.mock('@/lib/storage/image-storage', () => ({
+  uploadNewsImage: jest.fn(),
+  deleteNewsImage: jest.fn(),
 }));
 
 describe('news-fetcher', () => {
@@ -45,7 +61,6 @@ describe('news-fetcher', () => {
     title: 'Test News Title',
     content: 'Test news content with enough length to be valid',
     category: '태국뉴스',
-    original_link: 'https://example.com/news/1',
   };
 
   beforeEach(() => {

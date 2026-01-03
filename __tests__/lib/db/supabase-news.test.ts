@@ -15,12 +15,11 @@ jest.mock('@/lib/supabase/server', () => ({
             limit: jest.fn(() => ({
               range: jest.fn(() => Promise.resolve({ data: [], error: null })),
             })),
+            range: jest.fn(() => Promise.resolve({ data: [], error: null })),
           })),
+          range: jest.fn(() => Promise.resolve({ data: [], error: null })),
         })),
         gte: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            order: jest.fn(() => Promise.resolve({ data: [], error: null })),
-          })),
           order: jest.fn(() => Promise.resolve({ data: [], error: null })),
         })),
         limit: jest.fn(),
@@ -59,9 +58,7 @@ describe('supabase-news', () => {
       // 유사도 체크: 최근 7일간 같은 카테고리 뉴스 조회 - 없음
       const mockSelect = jest.fn(() => ({
         gte: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            order: jest.fn(() => Promise.resolve({ data: [], error: null })),
-          })),
+          order: jest.fn(() => Promise.resolve({ data: [], error: null })),
         })),
       }));
       mockFrom.mockReturnValueOnce({
@@ -98,21 +95,19 @@ describe('supabase-news', () => {
       // 유사도 체크: 최근 7일간 같은 카테고리 뉴스 조회 - 유사한 뉴스 발견
       const mockSelect = jest.fn(() => ({
         gte: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            order: jest.fn(() =>
-              Promise.resolve({
-                data: [
-                  {
-                    id: 'existing-news-id',
-                    title: '테스트 뉴스', // 동일한 제목
-                    content: '테스트 내용', // 동일한 내용
-                    published_date: '2025-01-01',
-                  },
-                ],
-                error: null,
-              })
-            ),
-          })),
+          order: jest.fn(() =>
+            Promise.resolve({
+              data: [
+                {
+                  id: 'existing-news-id',
+                  title: '테스트 뉴스', // 동일한 제목
+                  content: '테스트 내용', // 동일한 내용
+                  published_date: '2025-01-01',
+                },
+              ],
+              error: null,
+            })
+          ),
         })),
       }));
       mockFrom.mockReturnValueOnce({
@@ -140,21 +135,19 @@ describe('supabase-news', () => {
       // 유사도 체크: 최근 7일간 같은 카테고리 뉴스 조회 - 다른 뉴스 (유사도 낮음)
       const mockSelect = jest.fn(() => ({
         gte: jest.fn(() => ({
-          eq: jest.fn(() => ({
-            order: jest.fn(() =>
-              Promise.resolve({
-                data: [
-                  {
-                    id: 'existing-news-id',
-                    title: '완전히 다른 뉴스',
-                    content: '완전히 다른 내용입니다.',
-                    published_date: '2025-01-01',
-                  },
-                ],
-                error: null,
-              })
-            ),
-          })),
+          order: jest.fn(() =>
+            Promise.resolve({
+              data: [
+                {
+                  id: 'existing-news-id',
+                  title: '완전히 다른 뉴스',
+                  content: '완전히 다른 내용입니다.',
+                  published_date: '2025-01-01',
+                },
+              ],
+              error: null,
+            })
+          ),
         })),
       }));
       mockFrom.mockReturnValueOnce({
