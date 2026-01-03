@@ -24,15 +24,9 @@ export const GET = withAdmin(
       관련뉴스: await getNewsCount("관련뉴스"),
     };
 
-    // 번역 실패한 뉴스 개수 (간단한 조건: content_translated가 null이고 content가 있는 경우)
-    const { data: failedTranslationData, count: failedTranslationCount, error: failedTranslationError } = await supabaseServer
-      .from("news")
-      .select("id", { count: "exact", head: false })
-      .is("content_translated", null)
-      .not("content", "is", null);
-    const failedTranslationCountResult = failedTranslationError
-      ? 0
-      : (failedTranslationCount !== null ? failedTranslationCount : (failedTranslationData?.length || 0));
+    // 번역 실패한 뉴스 개수 (getNewsWithFailedTranslation 함수 사용)
+    const failedTranslationNews = await getNewsWithFailedTranslation(1000);
+    const failedTranslationCountResult = failedTranslationNews.length;
 
     // 이미지 없는 뉴스 개수 (실제 데이터 조회로 count 확인)
     const { data: newsWithoutImageData, count: newsWithoutImageCount, error: newsWithoutImageError } = await supabaseServer

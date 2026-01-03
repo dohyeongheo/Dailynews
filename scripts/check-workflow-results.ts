@@ -88,7 +88,6 @@ async function checkWorkflowResults() {
         SELECT
           category,
           COUNT(*) as count,
-          COUNT(CASE WHEN content_translated IS NOT NULL THEN 1 END) as translated_count,
           COUNT(CASE WHEN image_url IS NOT NULL THEN 1 END) as image_count
         FROM news
         WHERE published_date = '${today}'
@@ -109,19 +108,18 @@ async function checkWorkflowResults() {
           // RPC가 없으면 직접 쿼리
           const { data, error } = await supabase
             .from('news')
-            .select('category, content_translated, image_url')
+            .select('category, image_url')
             .eq('published_date', today);
 
           if (error) throw error;
 
           // 카테고리별 집계
-          const stats: Record<string, { count: number; translated: number; images: number }> = {};
+          const stats: Record<string, { count: number; images: number }> = {};
           data?.forEach((item: any) => {
             if (!stats[item.category]) {
-              stats[item.category] = { count: 0, translated: 0, images: 0 };
+              stats[item.category] = { count: 0, images: 0 };
             }
             stats[item.category].count++;
-            if (item.content_translated) stats[item.category].translated++;
             if (item.image_url) stats[item.category].images++;
           });
 

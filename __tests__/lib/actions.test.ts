@@ -101,8 +101,6 @@ describe('actions', () => {
           published_date: '2025-01-15',
           source_country: '태국',
           source_media: 'Test Media',
-          original_link: 'https://example.com',
-          content_translated: null,
           created_at: '2025-01-15T00:00:00Z',
         },
       ];
