@@ -131,7 +131,7 @@ async function checkWorkflowResults() {
           // 직접 쿼리 시도
           const { data: newsData, error: queryError } = await supabase
             .from('news')
-            .select('category, content_translated, image_url')
+            .select('category, image_url')
             .eq('published_date', today)
             .order('created_at', { ascending: false })
             .limit(100);
@@ -140,13 +140,12 @@ async function checkWorkflowResults() {
             console.log(`⚠️  데이터베이스 쿼리 실패: ${queryError.message}\n`);
           } else if (newsData) {
             // 카테고리별 집계
-            const stats: Record<string, { count: number; translated: number; images: number }> = {};
+            const stats: Record<string, { count: number; images: number }> = {};
             newsData.forEach((item: any) => {
               if (!stats[item.category]) {
-                stats[item.category] = { count: 0, translated: 0, images: 0 };
+                stats[item.category] = { count: 0, images: 0 };
               }
               stats[item.category].count++;
-              if (item.content_translated) stats[item.category].translated++;
               if (item.image_url) stats[item.category].images++;
             });
 
@@ -154,7 +153,6 @@ async function checkWorkflowResults() {
             for (const [category, stat] of Object.entries(stats)) {
               console.log(`  ${category}:`);
               console.log(`    총 개수: ${stat.count}개`);
-              console.log(`    번역 완료: ${stat.translated}개 (${((stat.translated / stat.count) * 100).toFixed(1)}%)`);
               console.log(`    이미지 생성: ${stat.images}개 (${((stat.images / stat.count) * 100).toFixed(1)}%)`);
             }
             console.log(`\n  총합: ${newsData.length}개\n`);
