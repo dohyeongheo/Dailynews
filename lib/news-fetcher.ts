@@ -537,7 +537,12 @@ ${date}의 ${categoryKoreanName} 뉴스를 ${count}개 정확히 수집하여 JS
 
     const jsonText = extractJSON(text);
     if (!jsonText) {
-      log.warn("추가 뉴스 수집 실패: JSON 추출 실패", { category, count });
+      log.warn("추가 뉴스 수집 실패: JSON 추출 실패", {
+        category,
+        count,
+        responsePreview: text.substring(0, 500),
+        responseLength: text.length,
+      });
       return [];
     }
 
@@ -1027,6 +1032,12 @@ ${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴�
         break;
       }
 
+      // 재시도 간 지연 시간 추가 (API 제한 방지)
+      if (retryAttempt > 0) {
+        const delay = 1000 * retryAttempt; // 1초, 2초
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+
       log.info("할루시네이션 필터링 후 추가 수집 시작", {
         retryAttempt: retryAttempt + 1,
         maxRetries: MAX_RETRY_ATTEMPTS,
@@ -1036,7 +1047,9 @@ ${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴�
       // 부족한 카테고리별로 추가 수집
       for (const missing of missingCategories) {
         try {
-          const additionalNews = await fetchAdditionalNewsByCategory(date, missing.category, missing.needed, model);
+          // 부족한 개수의 150%를 요청 (최소 3개) - 할루시네이션 필터링 후에도 목표 개수 달성 가능하도록
+          const requestCount = Math.max(3, Math.ceil(missing.needed * 1.5));
+          const additionalNews = await fetchAdditionalNewsByCategory(date, missing.category, requestCount, model);
 
           if (additionalNews.length > 0) {
             // 추가 수집한 뉴스 번역 처리
@@ -1056,7 +1069,8 @@ ${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴�
 
             log.info("추가 뉴스 수집 완료", {
               category: missing.category,
-              requested: missing.needed,
+              requested: requestCount,
+              needed: missing.needed,
               collected: additionalNews.length,
               added: Math.min(additionalNews.length, missing.needed),
               currentCount: categoryCounts[missing.category],
