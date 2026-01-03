@@ -9,13 +9,15 @@
  */
 export function getTodayKST(): string {
   const now = new Date();
-  // KST는 UTC+9이므로 9시간을 더함
-  const kstOffset = 9 * 60 * 60 * 1000; // 9시간을 밀리초로 변환
-  const kstTime = new Date(now.getTime() + kstOffset);
-
-  // ISO 문자열을 생성하고 날짜 부분만 추출 (YYYY-MM-DD)
-  const kstDateStr = kstTime.toISOString().split("T")[0];
-  return kstDateStr;
+  // Intl.DateTimeFormat을 사용하여 Asia/Seoul 시간대의 날짜를 가져옴
+  // en-CA locale은 YYYY-MM-DD 형식을 반환함
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  return formatter.format(now);
 }
 
 /**
