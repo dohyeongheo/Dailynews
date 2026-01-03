@@ -33,11 +33,7 @@ const NewsCard = React.memo(function NewsCard({ news }: NewsCardProps) {
           </div>
         </div>
 
-        <p className="text-sm sm:text-base text-gray-700 mb-4 whitespace-pre-wrap break-words leading-relaxed">{news.content}</p>
-
-        <div className="flex items-center justify-end text-xs sm:text-sm text-gray-500">
-          <span>더보기 →</span>
-        </div>
+        <p className="text-sm sm:text-base text-gray-700 whitespace-pre-wrap break-words leading-relaxed">{news.content}</p>
       </Link>
     </article>
   );
