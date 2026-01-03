@@ -65,8 +65,8 @@ export async function optimizeImage(
     if (useWebP) {
       sharpInstance = sharpInstance.webp({ quality });
     } else {
-      // PNG 사용 시에도 최적화
-      sharpInstance = sharpInstance.png({ quality, compressionLevel: 9 });
+      // PNG 사용 시에도 최적화 (PNG는 compressionLevel만 사용, 0-9, 높을수록 더 압축)
+      sharpInstance = sharpInstance.png({ compressionLevel: 9 });
     }
 
     // 최적화된 이미지 Buffer 생성
