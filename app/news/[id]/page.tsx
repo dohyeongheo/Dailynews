@@ -2,31 +2,10 @@ import { getNewsById, getRelatedNews } from "@/lib/db/news";
 import RelatedNews from "@/components/RelatedNews";
 import CategoryBadge from "@/components/CategoryBadge";
 import { notFound } from "next/navigation";
-import { Metadata } from "next";
 import Image from "next/image";
 
 // 페이지 캐싱 설정: 300초마다 재검증 (5분)
 export const revalidate = 300;
-
-// 메타데이터 생성
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const news = await getNewsById(params.id);
-
-  if (!news) {
-    return { title: "뉴스 없음" };
-  }
-
-  return {
-    title: news.title,
-    description: news.content.substring(0, 160),
-    openGraph: {
-      title: news.title,
-      description: news.content.substring(0, 160),
-      type: "article",
-      publishedTime: news.published_date,
-    },
-  };
-}
 
 export default async function NewsDetailPage({ params }: { params: { id: string } }) {
   // 뉴스 조회 (없으면 404)

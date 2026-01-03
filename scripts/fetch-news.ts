@@ -41,6 +41,7 @@ async function main() {
         success: result.success,
         failed: result.failed,
         total: result.total,
+        categoryCounts: result.categoryCounts,
         executionTimeMs: executionTime,
         executionTimeSec: (executionTime / 1000).toFixed(2),
       });
@@ -49,6 +50,9 @@ async function main() {
       console.log(`✅ 성공: ${result.success}개`);
       console.log(`❌ 실패: ${result.failed}개`);
       console.log(`📊 전체: ${result.total}개`);
+      console.log(`📰 태국 뉴스: ${result.categoryCounts.태국뉴스}개`);
+      console.log(`📰 한국 뉴스: ${result.categoryCounts.한국뉴스}개`);
+      console.log(`📰 관련 뉴스: ${result.categoryCounts.관련뉴스}개`);
       console.log(`⏱️  실행 시간: ${(executionTime / 1000).toFixed(2)}초`);
 
       // 실패가 있으면 exit code 1 반환
@@ -58,6 +62,7 @@ async function main() {
         success: result.success,
         failed: result.failed,
         total: result.total,
+        categoryCounts: result.categoryCounts,
         executionTimeMs: executionTime,
       });
 
@@ -66,6 +71,9 @@ async function main() {
       console.error(`성공: ${result.success}개`);
       console.error(`실패: ${result.failed}개`);
       console.error(`전체: ${result.total}개`);
+      console.error(`📰 태국 뉴스: ${result.categoryCounts.태국뉴스}개`);
+      console.error(`📰 한국 뉴스: ${result.categoryCounts.한국뉴스}개`);
+      console.error(`📰 관련 뉴스: ${result.categoryCounts.관련뉴스}개`);
 
       process.exit(1);
     }

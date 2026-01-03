@@ -149,7 +149,7 @@ describe('news-fetcher', () => {
   describe('fetchAndSaveNews', () => {
     it('뉴스 수집 및 저장에 성공해야 함', async () => {
       const { generateContentWithCaching } = await import('@/lib/utils/gemini-client');
-      
+
       const mockResponse = {
         response: {
           text: jest.fn().mockReturnValue(JSON.stringify({
@@ -161,8 +161,8 @@ describe('news-fetcher', () => {
       (generateContentWithCaching as jest.Mock).mockResolvedValue(mockResponse);
 
       const { insertNewsBatch } = await import('@/lib/db/news');
-      (insertNewsBatch as jest.Mock).mockResolvedValueOnce({ 
-        success: 1, 
+      (insertNewsBatch as jest.Mock).mockResolvedValueOnce({
+        success: 1,
         failed: 0,
         savedNewsIds: ['test-news-id'],
       });
@@ -177,7 +177,7 @@ describe('news-fetcher', () => {
 
     it('뉴스 수집 실패 시 에러를 throw해야 함', async () => {
       const { generateContentWithCaching } = await import('@/lib/utils/gemini-client');
-      
+
       (generateContentWithCaching as jest.Mock).mockRejectedValue(new Error('API Error'));
 
       await expect(fetchAndSaveNews(mockToday)).rejects.toThrow('Failed to fetch news');
@@ -186,7 +186,7 @@ describe('news-fetcher', () => {
     it('날짜가 지정되지 않으면 오늘 날짜를 사용해야 함', async () => {
       const { generateContentWithCaching } = await import('@/lib/utils/gemini-client');
       const { getTodayKST } = await import('@/lib/utils/date-helper');
-      
+
       const mockResponse = {
         response: {
           text: jest.fn().mockReturnValue(JSON.stringify({
@@ -198,8 +198,8 @@ describe('news-fetcher', () => {
       (generateContentWithCaching as jest.Mock).mockResolvedValue(mockResponse);
 
       const { insertNewsBatch } = await import('@/lib/db/news');
-      (insertNewsBatch as jest.Mock).mockResolvedValueOnce({ 
-        success: 1, 
+      (insertNewsBatch as jest.Mock).mockResolvedValueOnce({
+        success: 1,
         failed: 0,
         savedNewsIds: ['test-news-id'],
       });

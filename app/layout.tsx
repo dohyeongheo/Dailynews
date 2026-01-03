@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import dynamic from "next/dynamic";
@@ -18,14 +17,6 @@ if (typeof window === "undefined" && process.env.NEXT_PUBLIC_SUPABASE_URL) {
     log.warn("Env 환경 변수 검증 건너뜀 (런타임에 검증됨)");
   }
 }
-
-export const metadata: Metadata = {
-  title: "Daily News - 태국 및 한국 뉴스 요약",
-  description: "매일 태국 및 한국의 최신 뉴스를 수집하고 요약하는 서비스",
-  icons: {
-    icon: "/icon.svg",
-  },
-};
 
 import { Providers } from "./providers";
 import SearchBar from "@/components/SearchBar";

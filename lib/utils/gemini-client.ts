@@ -7,7 +7,6 @@ import { GoogleGenerativeAI, GenerativeModel, type GenerateContentResult } from 
 import { getEnv } from "../config/env";
 import { log } from "./logger";
 import { createHash } from "crypto";
-import { trackGeminiUsage } from "./gemini-usage-tracker";
 
 /**
  * 작업 유형
@@ -155,27 +154,9 @@ export async function generateContentWithCaching(
       promptLength: prompt.length,
     });
 
-    // 사용량 추적 (에러 포함)
-    trackGeminiUsage(modelName, actualTaskType, null, error, startTime, {
-      cacheKey: cacheKey ? cacheKey.substring(0, 50) + "..." : undefined,
-      promptLength: prompt.length,
-      useContextCaching: env.GEMINI_USE_CONTEXT_CACHING && !!cacheKey,
-    }).catch((trackError) => {
-      log.error("사용량 추적 실패 (비동기)", trackError instanceof Error ? trackError : new Error(String(trackError)));
-    });
-
     // 실패 시 일반 호출로 폴백 시도
     try {
       result = await model.generateContent(prompt);
-      // 폴백 성공 시 사용량 추적
-      trackGeminiUsage(modelName, actualTaskType, result, null, startTime, {
-        cacheKey: cacheKey ? cacheKey.substring(0, 50) + "..." : undefined,
-        promptLength: prompt.length,
-        useContextCaching: false,
-        fallback: true,
-      }).catch((trackError) => {
-        log.error("사용량 추적 실패 (비동기)", trackError instanceof Error ? trackError : new Error(String(trackError)));
-      });
       return result;
     } catch (fallbackError) {
       // 폴백도 실패한 경우 원래 에러를 다시 throw
