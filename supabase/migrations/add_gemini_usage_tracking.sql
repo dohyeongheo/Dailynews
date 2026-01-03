@@ -87,3 +87,4 @@ CREATE POLICY "cost_budgets_block_anon" ON public.cost_budgets
   FOR ALL
   USING (false);
 
+

@@ -11,6 +11,7 @@ export interface News {
   content_translated: string | null;
   category: NewsCategory;
   news_category: NewsTopicCategory | null;
+  original_link: string;
   image_url: string | null;
   created_at: string;
 }
@@ -24,6 +25,7 @@ export interface NewsInput {
   content_translated?: string | null;
   category: NewsCategory;
   news_category?: NewsTopicCategory | null;
+  original_link?: string;
 }
 
 export interface GeminiNewsResponse {
@@ -36,6 +38,7 @@ export interface GeminiNewsResponse {
     category: NewsCategory;
     news_category?: NewsTopicCategory | null;
     published_date: string;
+    original_link?: string;
   }>;
 }
 

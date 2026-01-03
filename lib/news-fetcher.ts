@@ -1,4 +1,4 @@
-import { insertNewsBatch, updateNewsImageUrl, getNewsById, getNewsWithFailedTranslation, updateNewsTranslation, updateNewsContent } from "./db/news";
+import { insertNewsBatch, updateNewsImageUrl, getNewsById, getNewsWithFailedTranslation, updateNewsTranslation } from "./db/news";
 import type { NewsInput, GeminiNewsResponse, NewsCategory, NewsTopicCategory } from "@/types/news";
 import { log } from "./utils/logger";
 import { getModelForTask, generateContentWithCaching, type TaskType } from "./utils/gemini-client";
@@ -7,6 +7,7 @@ import { generateAIImage } from "./image-generator/ai-image-generator";
 import { uploadNewsImage } from "./storage/image-storage";
 import { createNewsInputFromDB } from "./utils/news-helpers";
 import { saveMetricSnapshot } from "./utils/metrics-storage";
+import { getTodayKST, isPastDate, isFutureDate } from "./utils/date-helper";
 
 /**
  * 할당량 초과 에러인지 확인합니다.
@@ -301,8 +302,8 @@ async function translateToKorean(text: string, retryCount: number = 0): Promise<
 원문:
 ${text}`;
 
-    // Context Caching을 지원하는 generateContent 호출 (사용량 추적 포함)
-    const result = await generateContentWithCaching(model, prompt, text, "translation");
+    // Context Caching을 지원하는 generateContent 호출
+    const result = await generateContentWithCaching(model, prompt, text);
     const response = await result.response;
     const translatedText = response.text().trim();
 
@@ -376,6 +377,7 @@ function isTranslationFailed(original: string, translated: string | null): boole
 async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: NewsInput; translationFailed: boolean }> {
   let title = newsItem.title;
   let content = newsItem.content;
+  let contentTranslated = newsItem.content_translated;
   let translationFailed = false;
 
   const MAX_TRANSLATION_RETRIES = 3;
@@ -422,42 +424,35 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
     }
   }
 
-  // 태국 뉴스인 경우 무조건 번역 (프롬프트에서 이미 번역하라고 요청했지만, 혹시 태국어가 그대로 왔을 경우를 대비)
-  // 다른 카테고리: content가 한국어가 아니면 번역
-  // 번역된 내용은 content 필드에 직접 저장 (content_translated 컬럼은 더 이상 사용하지 않음)
-  const isThaiNews = newsItem.category === "태국뉴스";
-  if (isThaiNews || !isKorean(content)) {
-    if (isThaiNews && !isKorean(content)) {
-      log.warn("태국 뉴스가 한국어가 아닌 상태로 수집됨, 번역 시도", {
+  // 모든 카테고리: content가 한국어가 아니면 무조건 번역
+  if (!isKorean(content)) {
+    // content_translated가 없거나, 있더라도 한국어가 아니면 번역
+    if (!contentTranslated || !isKorean(contentTranslated)) {
+      log.debug("내용 번역 중", {
         category: newsItem.category,
+        news_category: newsItem.news_category,
         contentPreview: content.substring(0, 50),
       });
-    }
-    log.debug("내용 번역 중", {
-      category: newsItem.category,
-      news_category: newsItem.news_category,
-      contentPreview: content.substring(0, 50),
-    });
 
-    let translatedContent = await translateToKorean(content);
-    let contentRetryCount = 0;
+      let translatedContent = await translateToKorean(content);
+      let contentRetryCount = 0;
 
-    // 번역 결과가 원본과 같으면 재시도
-    while (isTranslationFailed(content, translatedContent) && contentRetryCount < MAX_TRANSLATION_RETRIES) {
-      contentRetryCount++;
-      log.warn("내용 번역 실패 감지, 재시도 중", {
-        category: newsItem.category,
-        contentPreview: content.substring(0, 50),
-        attempt: contentRetryCount,
-        maxRetries: MAX_TRANSLATION_RETRIES,
-      });
+      // 번역 결과가 원본과 같으면 재시도
+      while (isTranslationFailed(content, translatedContent) && contentRetryCount < MAX_TRANSLATION_RETRIES) {
+        contentRetryCount++;
+        log.warn("내용 번역 실패 감지, 재시도 중", {
+          category: newsItem.category,
+          contentPreview: content.substring(0, 50),
+          attempt: contentRetryCount,
+          maxRetries: MAX_TRANSLATION_RETRIES,
+        });
 
-      // 재시도 전 대기 (지수 백오프)
-      const delay = TRANSLATION_RETRY_DELAY * Math.pow(2, contentRetryCount - 1);
-      await new Promise((resolve) => setTimeout(resolve, delay));
+        // 재시도 전 대기 (지수 백오프)
+        const delay = TRANSLATION_RETRY_DELAY * Math.pow(2, contentRetryCount - 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
 
-      translatedContent = await translateToKorean(content);
-    }
+        translatedContent = await translateToKorean(content);
+      }
 
       // 재시도 후에도 실패하면 실패로 표시
       if (isTranslationFailed(content, translatedContent)) {
@@ -467,36 +462,30 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
           totalAttempts: contentRetryCount + 1,
         });
         translationFailed = true;
-
-        // 태국 뉴스인 경우 번역 실패는 치명적 오류이므로 강력한 경고 로그
-        if (isThaiNews) {
-          log.error("태국 뉴스 번역 실패 - 이 뉴스는 한국어가 아닌 상태로 저장됩니다", undefined, {
+        // 실패한 경우 null로 설정하여 나중에 재처리 가능하도록 함
+        contentTranslated = null;
+      } else {
+        contentTranslated = translatedContent;
+        if (contentRetryCount > 0) {
+          log.info("내용 번역 재시도 성공", {
             category: newsItem.category,
-            title: newsItem.title,
-            contentPreview: content.substring(0, 100),
-            totalAttempts: contentRetryCount + 1,
+            contentPreview: content.substring(0, 50),
+            attempts: contentRetryCount + 1,
           });
         }
-        // 번역 실패 시 원본 content 그대로 유지 (한국어가 아닌 상태로 저장됨)
-      } else {
-      // 번역 성공: 번역된 내용을 content 필드에 직접 저장
-      content = translatedContent;
-      if (contentRetryCount > 0) {
-        log.info("내용 번역 재시도 성공", {
-          category: newsItem.category,
-          contentPreview: content.substring(0, 50),
-          attempts: contentRetryCount + 1,
-        });
       }
     }
+  } else {
+    // content가 이미 한국어인 경우 content_translated를 null로 유지
+    contentTranslated = null;
   }
 
   return {
     newsItem: {
       ...newsItem,
       title,
-      content, // 번역된 내용이 content에 직접 저장됨
-      content_translated: null, // content_translated 컬럼은 더 이상 사용하지 않음
+      content,
+      content_translated: contentTranslated,
     },
     translationFailed,
   };
@@ -504,44 +493,21 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
 
 /**
  * Google Gemini API를 사용하여 뉴스를 수집합니다.
- * @param date 수집할 뉴스의 날짜 (기본값: 오늘)
- * @param limit 수집할 뉴스의 최대 개수 (기본값: 30, 테스트용으로 5개 사용 가능)
- * @param categoryFilter 특정 카테고리만 수집 (기본값: undefined, 모든 카테고리 수집)
  */
-export async function fetchNewsFromGemini(
-  date: string = new Date().toISOString().split("T")[0],
-  limit?: number,
-  categoryFilter?: NewsCategory
-): Promise<NewsInput[]> {
-  // 한국 시간 기준으로 오늘 날짜 계산 (시간대 차이 고려)
-  const now = new Date();
-  const koreaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Seoul" }));
-  const todayStr = koreaTime.toISOString().split("T")[0];
-  const requestDate = date || todayStr;
+export async function fetchNewsFromGemini(date: string = getTodayKST()): Promise<NewsInput[]> {
+  // KST 기준 오늘 날짜 계산
+  const todayKST = getTodayKST();
+  const requestDate = date || todayKST;
 
-  // 날짜 차이 계산 (과거/미래 확인용)
-  const requestDateObj = new Date(requestDate + "T00:00:00");
-  const todayDateObj = new Date(todayStr + "T00:00:00");
-  const daysDiff = Math.floor((requestDateObj.getTime() - todayDateObj.getTime()) / (1000 * 60 * 60 * 24));
-
-  // 과거 날짜인 경우 오늘 날짜로 변경
-  if (daysDiff < 0) {
-    log.warn("과거 날짜 감지 - 오늘 날짜로 변경", { requestDate, todayStr, daysDiff });
-    date = todayStr;
-  } else if (requestDate > todayStr) {
-    // 미래 날짜인 경우 오늘 날짜로 변경
-    log.warn("미래 날짜 감지 - 오늘 날짜로 변경", { requestDate, todayStr });
-    date = todayStr;
+  // 과거 또는 미래 날짜인 경우 오늘 날짜로 변경
+  if (isPastDate(requestDate)) {
+    log.warn("과거 날짜 감지 - 오늘 날짜로 변경", { requestDate, todayKST });
+    date = todayKST;
+  } else if (isFutureDate(requestDate)) {
+    log.warn("미래 날짜 감지 - 오늘 날짜로 변경", { requestDate, todayKST });
+    date = todayKST;
   } else {
     date = requestDate;
-  }
-
-  // 날짜가 비정상적으로 미래인 경우 (예: 2025년) 오늘 날짜로 강제 변경
-  const requestYear = parseInt(requestDate.substring(0, 4), 10);
-  const currentYear = koreaTime.getFullYear();
-  if (requestYear > currentYear) {
-    log.warn("비정상적인 미래 날짜 감지 - 오늘 날짜로 강제 변경", { requestDate, requestYear, currentYear, todayStr });
-    date = todayStr;
   }
 
   // Context Caching을 지원하는 모델 생성 (날짜 기반 캐시 키)
@@ -550,59 +516,33 @@ export async function fetchNewsFromGemini(
   const modelName = model.model || "gemini-2.5-pro";
   log.info("모델 선택", { model: modelName, date, useContextCaching: true });
 
-  // categoryFilter와 limit에 따라 프롬프트 동적 생성
-  let newsSourceInstruction: string;
-  let newsCountInstruction: string;
+  const prompt = `반드시 ${date} 날짜의 최신 뉴스만 수집해주세요. 과거 날짜나 미래 날짜의 뉴스는 수집하지 마세요.
 
-  if (categoryFilter === "태국뉴스") {
-    newsSourceInstruction = `${date}의 최신 태국 주요 뉴스를 수집하여 **반드시 한국어로 번역하여** JSON 포맷으로 출력해주세요. 날짜가 정확히 ${date}인 뉴스만 수집해주세요. **중요: 제목과 본문 내용(content) 모두 반드시 한국어로 번역되어야 합니다. 태국어 원문을 그대로 출력하지 마세요.**`;
-    newsCountInstruction = limit
-      ? `정확히 ${limit}개의 태국 뉴스를 수집해주세요.`
-      : `정확히 10개의 태국 뉴스를 수집해주세요.`;
-  } else if (categoryFilter === "관련뉴스") {
-    newsSourceInstruction = `${date}의 최신 한국에서 태국과 관련된 뉴스만 수집하여 JSON 포맷으로 출력해주세요. 날짜가 정확히 ${date}인 뉴스만 수집해주세요.`;
-    newsCountInstruction = limit
-      ? `정확히 ${limit}개의 관련 뉴스를 수집해주세요.`
-      : `정확히 10개의 관련 뉴스를 수집해주세요.`;
-  } else if (categoryFilter === "한국뉴스") {
-    newsSourceInstruction = `${date}의 최신 한국 주요 뉴스만 수집하여 JSON 포맷으로 출력해주세요. 날짜가 정확히 ${date}인 뉴스만 수집해주세요.`;
-    newsCountInstruction = limit
-      ? `정확히 ${limit}개의 한국 뉴스를 수집해주세요.`
-      : `정확히 10개의 한국 뉴스를 수집해주세요.`;
-  } else {
-    // categoryFilter가 없으면 모든 카테고리 수집
-    newsSourceInstruction = `${date}의 최신 태국 주요 뉴스(**반드시 한국어로 번역**), 한국의 태국 관련 뉴스, 한국 주요 뉴스를 수집하여 JSON 포맷으로 출력해주세요. 날짜가 정확히 ${date}인 뉴스만 수집해주세요. **중요: 태국 뉴스의 경우 제목과 본문 내용(content) 모두 반드시 한국어로 번역되어야 합니다. 태국어 원문을 그대로 출력하지 마세요.**`;
-    newsCountInstruction = limit
-      ? `정확히 ${limit}개의 뉴스를 수집해주세요.`
-      : `**중요: 각 카테고리별로 정확히 10개씩 수집해주세요. 총 30개의 뉴스를 수집해야 합니다.**
-- "태국뉴스": 정확히 10개
-- "관련뉴스": 정확히 10개
-- "한국뉴스": 정확히 10개`;
-  }
-
-  const prompt = `${newsSourceInstruction}
-
-${newsCountInstruction}
+${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴스, 한국 주요 뉴스를 가능한 한 많은 뉴스를 수집하여 JSON 포맷으로 출력해주세요. (최소 20개 이상)
 
 다음 JSON 형식을 정확히 따라주세요:
 {
   "news": [
     {
-      "title": "뉴스 제목 (태국 뉴스인 경우 한국어로 번역)",
-      "content": "뉴스 본문 내용 (태국 뉴스인 경우 한국어로 번역)",
+      "title": "뉴스 제목",
+      "content": "뉴스 본문 내용",
+      "content_translated": "번역된 내용 (태국 뉴스인 경우)",
       "source_country": "태국" 또는 "한국",
       "source_media": "언론사 이름",
       "category": "태국뉴스" 또는 "관련뉴스" 또는 "한국뉴스",
       "news_category": "과학" 또는 "사회" 또는 "정치" 또는 "경제" 또는 "스포츠" 또는 "문화" 또는 "기술" 또는 "건강" 또는 "환경" 또는 "국제" 또는 "기타" (뉴스 내용을 분석하여 가장 적합한 주제 분류를 선택, 없으면 null),
       "published_date": "${date}",
+      "original_link": "뉴스 원문 URL (실제 뉴스 기사 링크, 없으면 빈 문자열)"
     }
   ]
 }
 
 중요 사항:
+- 반드시 ${date} 날짜의 최신 뉴스만 수집해주세요. 과거 날짜나 미래 날짜의 뉴스는 수집하지 마세요.
 - 각 뉴스의 본문 내용(content)은 상세하게 작성해주세요. 가능한 한 자세히 작성하되, 최소 300자 이상으로 작성해주세요. 뉴스의 핵심 내용, 배경 정보, 영향 등을 포함해주세요.
-- **태국 뉴스(category가 "태국뉴스"인 경우)의 제목(title)과 본문 내용(content)은 반드시 한국어로 번역되어야 합니다. 태국어 원문을 그대로 출력하지 마세요.**
+- content_translated도 원문과 동일한 수준의 상세함을 유지하여 가능한 한 자세히 작성해주세요.
 - news_category는 뉴스의 제목과 내용을 분석하여 가장 적합한 주제 분류를 선택해주세요. 뉴스의 주요 주제가 명확하지 않은 경우 null로 설정할 수 있습니다.
+- published_date는 반드시 "${date}"로 설정해주세요.
 
 카테고리 분류 기준:
 - "태국뉴스": 태국에서 발생한 주요 뉴스
@@ -623,9 +563,7 @@ ${newsCountInstruction}
 - "기타": 위 분류에 해당하지 않는 경우
 - null: 주제 분류가 명확하지 않은 경우
 
-${limit
-    ? `총 ${limit}개의 뉴스를 수집해주세요. 카테고리는 균형있게 분배해주세요.`
-    : `각 카테고리별로 정확히 10개씩 수집해주세요.`}`;
+각 카테고리별로 가능한 한 많은 뉴스를 포함해주세요. (최소 10개 이상 권장)`;
 
   try {
     let result;
@@ -641,8 +579,8 @@ ${limit
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
         log.debug("뉴스 수집 시도 중", { attempt: attempt + 1, maxRetries: MAX_RETRIES + 1, cacheKey });
-        // Context Caching을 지원하는 generateContent 호출 (사용량 추적 포함)
-        result = await generateContentWithCaching(model, prompt, cacheKey, "news_collection");
+        // Context Caching을 지원하는 generateContent 호출
+        result = await generateContentWithCaching(model, prompt, cacheKey);
         response = await result.response;
         text = response.text();
         log.info("뉴스 수집 성공", { cacheKey });
@@ -769,6 +707,7 @@ ${limit
     }
 
     // 데이터 검증 및 필터링
+    const todayKST = getTodayKST();
     const validNewsItems = parsedData.news.filter((item, index) => {
       // 필수 필드 검증
       if (!item.title || typeof item.title !== "string" || item.title.trim().length === 0) {
@@ -803,7 +742,44 @@ ${limit
         return false;
       }
 
-      // original_link 컬럼이 제거되었으므로 검증 제거
+      // published_date 검증: 과거 또는 미래 날짜인 뉴스 필터링
+      const publishedDate = item.published_date || date;
+      if (isPastDate(publishedDate)) {
+        log.warn("과거 날짜 뉴스 필터링", {
+          index: index + 1,
+          title: item.title.substring(0, 50),
+          publishedDate,
+          todayKST,
+        });
+        return false;
+      }
+      if (isFutureDate(publishedDate)) {
+        log.warn("미래 날짜 뉴스 필터링", {
+          index: index + 1,
+          title: item.title.substring(0, 50),
+          publishedDate,
+          todayKST,
+        });
+        return false;
+      }
+
+      // original_link 검증 (선택적 필드, URL 형식이거나 빈 문자열)
+      if (item.original_link !== undefined && item.original_link !== null && item.original_link !== "") {
+        if (typeof item.original_link !== "string") {
+          log.warn("뉴스 항목 original_link가 유효하지 않음", { index: index + 1, title: item.title });
+          // original_link가 유효하지 않으면 빈 문자열로 설정
+          item.original_link = "";
+        } else {
+          // URL 형식 검증 (간단한 검증)
+          try {
+            new URL(item.original_link);
+          } catch {
+            log.warn("뉴스 항목 original_link가 유효한 URL 형식이 아님", { index: index + 1, title: item.title, original_link: item.original_link });
+            // 유효하지 않은 URL이면 빈 문자열로 설정
+            item.original_link = "";
+          }
+        }
+      }
 
       // news_category 유효성 검증 (선택적 필드이지만 유효한 값이어야 함)
       if (item.news_category !== null && item.news_category !== undefined) {
@@ -835,18 +811,19 @@ ${limit
         }
       }
 
-      // published_date가 요청한 날짜와 일치하지 않으면 경고 (항상 요청한 날짜 사용)
-      const itemPublishedDate = item.published_date || date;
-      if (itemPublishedDate !== date) {
-        log.debug("뉴스 항목의 published_date가 요청한 날짜와 불일치", {
-          requestedDate: date,
-          itemPublishedDate,
-          title: item.title?.substring(0, 50),
+      // published_date 정규화: 요청한 날짜(date)로 강제 설정
+      // 이미 필터링 단계에서 과거/미래 날짜 뉴스는 제외되었으므로, 모든 뉴스는 오늘 날짜로 정규화
+      const normalizedPublishedDate = date;
+      if (item.published_date && item.published_date !== date) {
+        log.warn("뉴스 항목 published_date 정규화", {
+          title: item.title.substring(0, 50),
+          originalDate: item.published_date,
+          normalizedDate: normalizedPublishedDate,
         });
       }
 
       return {
-        published_date: date, // 항상 요청한 날짜 사용
+        published_date: normalizedPublishedDate,
         source_country: item.source_country,
         source_media: item.source_media,
         title: item.title,
@@ -854,23 +831,9 @@ ${limit
         content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
         news_category: newsCategory,
-        // original_link 컬럼이 제거되었으므로 제외
+        original_link: item.original_link || "", // Gemini API에서 받은 original_link 사용, 없으면 빈 문자열
       };
     });
-
-    // 수집된 뉴스의 원본 published_date가 요청한 날짜와 일치하지 않은 항목 확인 (로깅용)
-    const dateMismatchItems = validNewsItems.filter(item => {
-      const itemPublishedDate = item.published_date || date;
-      return itemPublishedDate !== date;
-    });
-    if (dateMismatchItems.length > 0) {
-      log.warn("날짜 불일치 뉴스 감지", {
-        requestedDate: date,
-        total: validNewsItems.length,
-        mismatched: dateMismatchItems.length,
-        matched: validNewsItems.length - dateMismatchItems.length,
-      });
-    }
 
     // 한국어가 아닌 뉴스 항목들을 번역 처리
     // 성능 개선: 병렬 처리로 번역 시간 단축
@@ -908,58 +871,7 @@ ${limit
       log.warn("번역 실패한 뉴스가 있습니다", { failedCount: failedTranslationCount[0] });
     }
 
-    // categoryFilter가 지정된 경우 해당 카테고리만 필터링
-    let filteredNewsItems = translatedNewsItems;
-    if (categoryFilter) {
-      filteredNewsItems = translatedNewsItems.filter((item) => item.category === categoryFilter);
-      log.info("카테고리 필터링 적용", {
-        category: categoryFilter,
-        before: translatedNewsItems.length,
-        after: filteredNewsItems.length,
-      });
-    }
-
-    // limit이 지정된 경우 번역 후 제한 적용
-    if (limit && limit > 0 && filteredNewsItems.length > limit) {
-      log.info("뉴스 개수 제한 적용", {
-        before: filteredNewsItems.length,
-        after: limit,
-      });
-      return filteredNewsItems.slice(0, limit);
-    }
-
-    // limit이 없고 categoryFilter도 없는 경우, 카테고리별로 정확히 10개씩 제한
-    if (!limit && !categoryFilter) {
-      const CATEGORY_LIMIT = 10;
-      const categoryCounts: Record<NewsCategory, number> = {
-        태국뉴스: 0,
-        관련뉴스: 0,
-        한국뉴스: 0,
-      };
-
-      const limitedNewsItems: NewsInput[] = [];
-
-      // 카테고리별로 정렬하여 일관된 순서로 제한
-      for (const newsItem of translatedNewsItems) {
-        const category = newsItem.category;
-        if (categoryCounts[category] < CATEGORY_LIMIT) {
-          limitedNewsItems.push(newsItem);
-          categoryCounts[category]++;
-        }
-      }
-
-      if (limitedNewsItems.length !== 30) {
-        log.warn("카테고리별 제한 적용 결과", {
-          total: limitedNewsItems.length,
-          categoryCounts,
-          expected: 30,
-        });
-      }
-
-      return limitedNewsItems;
-    }
-
-    return filteredNewsItems;
+    return translatedNewsItems;
   } catch (error) {
     log.error("Error fetching news from Gemini", error);
     throw new Error(`Failed to fetch news: ${error instanceof Error ? error.message : "Unknown error"}`);
@@ -1155,14 +1067,10 @@ export async function retryFailedTranslations(limit: number = 50): Promise<{ suc
             // 번역 시도
             const result = await translateNewsIfNeeded(newsItem);
 
-            // 번역 성공 여부 확인 (content_translated 대신 content 필드가 한국어인지 확인)
-            const originalContent = newsItem.content;
-            const translatedContent = result.newsItem.content;
-            const isTranslated = !isTranslationFailed(originalContent, translatedContent) && isKorean(translatedContent);
-
-            if (!result.translationFailed && isTranslated) {
-              // DB에 번역본 업데이트 (content 필드 업데이트)
-              const updated = await updateNewsContent(news.id, translatedContent);
+            // 번역 성공 여부 확인
+            if (!result.translationFailed && result.newsItem.content_translated) {
+              // DB에 번역본 업데이트
+              const updated = await updateNewsTranslation(news.id, result.newsItem.content_translated);
               if (updated) {
                 log.info("뉴스 번역 재처리 성공", {
                   newsId: news.id,
@@ -1174,11 +1082,9 @@ export async function retryFailedTranslations(limit: number = 50): Promise<{ suc
                 return { success: false, newsId: news.id };
               }
             } else {
-              log.warn("뉴스 번역 재처리 실패", {
+              log.warn("뉴스 번역 재처리 실패 (번역 결과가 원본과 동일)", {
                 newsId: news.id,
                 title: news.title.substring(0, 50),
-                translationFailed: result.translationFailed,
-                isTranslated,
               });
               return { success: false, newsId: news.id };
             }
@@ -1285,17 +1191,13 @@ export async function saveNewsToDatabase(
  * 뉴스 수집 및 저장을 한 번에 수행합니다.
  * @param date 수집할 뉴스의 날짜 (기본값: 오늘)
  * @param maxImageGenerationTimeMs 이미지 생성에 사용할 수 있는 최대 시간(밀리초). 설정하지 않으면 제한 없음.
- * @param limit 수집할 뉴스의 최대 개수 (기본값: undefined, 30개 수집)
- * @param categoryFilter 특정 카테고리만 수집 (기본값: undefined, 모든 카테고리 수집)
  */
 export async function fetchAndSaveNews(
   date?: string,
-  maxImageGenerationTimeMs?: number,
-  limit?: number,
-  categoryFilter?: NewsCategory
+  maxImageGenerationTimeMs?: number
 ): Promise<{ success: number; failed: number; total: number; savedNewsIds: string[] }> {
   try {
-    const newsItems = await fetchNewsFromGemini(date, limit, categoryFilter);
+    const newsItems = await fetchNewsFromGemini(date);
     const result = await saveNewsToDatabase(newsItems, maxImageGenerationTimeMs);
 
     // result가 유효한지 확인

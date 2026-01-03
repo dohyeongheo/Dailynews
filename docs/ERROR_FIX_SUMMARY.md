@@ -51,3 +51,4 @@ Error: Unsupported Server Component type: undefined
 
 **작성자**: AI Agent
 **최종 업데이트**: 2025-12-31
+

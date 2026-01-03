@@ -9,11 +9,12 @@ import { BadRequestError } from "@/lib/errors";
 const newsSchema = z.object({
   title: z.string().min(1, "제목은 필수입니다."),
   content: z.string().min(1, "내용은 필수입니다."),
-  // content_translated 컬럼은 더 이상 사용하지 않음 (번역된 내용은 content에 직접 저장)
+  content_translated: z.string().optional(),
   category: z.enum(["태국뉴스", "관련뉴스", "한국뉴스"]),
   news_category: z.enum(["과학", "사회", "정치", "경제", "스포츠", "문화", "기술", "건강", "환경", "국제", "기타"]).nullable().optional(),
   source_country: z.string().optional(),
   source_media: z.string().optional(),
+  original_link: z.string().url().optional().or(z.literal("")),
   published_date: z.string(),
 });
 
@@ -28,12 +29,13 @@ export const POST = withAdmin(
     const result = await insertNews({
       title: validatedData.title,
       content: validatedData.content,
-      content_translated: null, // content_translated 컬럼은 더 이상 사용하지 않음
+      content_translated: validatedData.content_translated || null,
       category: validatedData.category,
       news_category: validatedData.news_category || null,
       published_date: validatedData.published_date,
       source_country: validatedData.source_country || "",
       source_media: validatedData.source_media || "",
+      original_link: validatedData.original_link || "",
     });
 
     if (result.success) {

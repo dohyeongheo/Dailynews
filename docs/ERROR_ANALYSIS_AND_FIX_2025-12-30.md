@@ -116,3 +116,4 @@ Next.js App Router는 `app/api/[경로]/route.ts` 형식의 파일을 API 라우
 
 
 
+

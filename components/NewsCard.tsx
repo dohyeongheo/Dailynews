@@ -34,8 +34,29 @@ const NewsCard = React.memo(function NewsCard({ news, showOriginalLink = true }:
           </div>
         </div>
 
-        <p className="text-sm sm:text-base text-gray-700 mb-4 whitespace-pre-wrap break-words leading-relaxed">{news.content}</p>
+        <p className="text-sm sm:text-base text-gray-700 mb-4 whitespace-pre-wrap break-words leading-relaxed">{news.content_translated || news.content}</p>
 
+        <div className="flex items-center justify-end text-xs sm:text-sm text-gray-500">
+          {showOriginalLink && news.original_link && news.original_link.trim() !== "" ? (
+            <a
+              href={news.original_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
+            >
+              원문 보기
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                />
+              </svg>
+            </a>
+          ) : null}
+        </div>
       </Link>
     </article>
   );

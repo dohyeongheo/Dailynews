@@ -153,3 +153,4 @@ GROUP BY model_name;
 
 **작성자**: AI Agent
 **최종 업데이트**: 2025-12-31
+

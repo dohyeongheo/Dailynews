@@ -1,0 +1,83 @@
+/**
+ * 날짜 관련 유틸리티 함수
+ * KST(한국 표준시) 기준으로 날짜를 처리합니다.
+ */
+
+/**
+ * KST(한국 표준시) 기준으로 오늘 날짜를 반환합니다.
+ * @returns YYYY-MM-DD 형식의 오늘 날짜 문자열
+ */
+export function getTodayKST(): string {
+  const now = new Date();
+  // KST는 UTC+9이므로 9시간을 더함
+  const kstOffset = 9 * 60 * 60 * 1000; // 9시간을 밀리초로 변환
+  const kstTime = new Date(now.getTime() + kstOffset);
+
+  // ISO 문자열을 생성하고 날짜 부분만 추출 (YYYY-MM-DD)
+  const kstDateStr = kstTime.toISOString().split("T")[0];
+  return kstDateStr;
+}
+
+/**
+ * 날짜 문자열이 유효한 YYYY-MM-DD 형식인지 확인합니다.
+ * @param date 날짜 문자열
+ * @returns 유효한 날짜 형식이면 true, 아니면 false
+ */
+export function isValidDate(date: string): boolean {
+  if (!date || typeof date !== "string") {
+    return false;
+  }
+
+  // YYYY-MM-DD 형식 검증
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(date)) {
+    return false;
+  }
+
+  // 실제로 유효한 날짜인지 확인
+  const dateObj = new Date(date);
+  if (isNaN(dateObj.getTime())) {
+    return false;
+  }
+
+  // 입력한 날짜와 파싱된 날짜가 일치하는지 확인 (예: 2024-13-45 같은 경우 방지)
+  const [year, month, day] = date.split("-").map(Number);
+  if (
+    dateObj.getFullYear() !== year ||
+    dateObj.getMonth() + 1 !== month ||
+    dateObj.getDate() !== day
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * 주어진 날짜가 오늘(KST 기준)보다 과거인지 확인합니다.
+ * @param date 날짜 문자열 (YYYY-MM-DD 형식)
+ * @returns 과거 날짜이면 true, 오늘 또는 미래이면 false
+ */
+export function isPastDate(date: string): boolean {
+  if (!isValidDate(date)) {
+    return false;
+  }
+
+  const todayKST = getTodayKST();
+  return date < todayKST;
+}
+
+/**
+ * 주어진 날짜가 오늘(KST 기준)보다 미래인지 확인합니다.
+ * @param date 날짜 문자열 (YYYY-MM-DD 형식)
+ * @returns 미래 날짜이면 true, 오늘 또는 과거이면 false
+ */
+export function isFutureDate(date: string): boolean {
+  if (!isValidDate(date)) {
+    return false;
+  }
+
+  const todayKST = getTodayKST();
+  return date > todayKST;
+}
+

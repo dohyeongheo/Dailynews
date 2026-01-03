@@ -15,8 +15,10 @@ export interface NewsRow {
   source_media: string;
   title: string;
   content: string;
+  content_translated?: string | null; // 제거 예정이지만 현재 코드에서 사용 중
   category: NewsCategory;
   news_category: NewsTopicCategory | null;
+  original_link?: string;
   image_url: string | null;
   created_at: string; // TIMESTAMPTZ -> string (ISO format)
   updated_at?: string; // TIMESTAMPTZ -> string (ISO format), optional

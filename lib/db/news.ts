@@ -183,17 +183,3 @@ export async function updateNewsTranslation(newsId: string, contentTranslated: s
 
   return result;
 }
-
-/**
- * 뉴스의 content 필드 업데이트 (번역 재처리용, 캐시 무효화 포함)
- */
-export async function updateNewsContent(newsId: string, content: string): Promise<boolean> {
-  const result = await supabaseNews.updateNewsContent(newsId, content);
-
-  // 업데이트 성공 시 관련 캐시 무효화
-  if (result) {
-    await invalidateNewsCache(newsId);
-  }
-
-  return result;
-}
