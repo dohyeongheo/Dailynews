@@ -10,12 +10,13 @@ import { optimizeImage } from "../utils/image-optimizer";
  */
 export async function uploadNewsImage(newsId: string, imageBuffer: Buffer): Promise<string> {
   try {
-    // 이미지 최적화 (WebP 형식, 최대 1024px, 품질 80%)
+    // 이미지 최적화 (WebP 형식, 최대 768px, 품질 80%)
+    // Gemini API에서 768x768로 생성하므로 동일한 해상도로 유지하여 추가 용량 절감
     const { buffer: optimizedBuffer, mimeType, originalSize, optimizedSize } = await optimizeImage(
       imageBuffer,
       {
-        maxWidth: 1024,
-        maxHeight: 1024,
+        maxWidth: 768,
+        maxHeight: 768,
         quality: 80,
         useWebP: true,
       }
