@@ -54,13 +54,51 @@ jest.mock('@/lib/storage/image-storage', () => ({
   deleteNewsImage: jest.fn(),
 }));
 
+// gemini-client 모킹
+jest.mock('@/lib/utils/gemini-client', () => {
+  const mockGenerateContentResult = {
+    response: {
+      text: jest.fn(),
+    },
+  };
+
+  return {
+    getModelForTask: jest.fn(() => ({
+      model: 'gemini-2.5-pro',
+      generateContent: jest.fn(),
+    })),
+    generateContentWithCaching: jest.fn(),
+  };
+});
+
+// metrics-storage 모킹
+jest.mock('@/lib/utils/metrics-storage', () => ({
+  saveMetricSnapshot: jest.fn(),
+}));
+
+// date-helper 모킹 (오늘 날짜 고정)
+jest.mock('@/lib/utils/date-helper', () => {
+  const mockToday = '2025-01-15';
+  return {
+    getTodayKST: jest.fn(() => mockToday),
+    isPastDate: jest.fn((date: string) => {
+      return date < mockToday;
+    }),
+    isFutureDate: jest.fn((date: string) => {
+      return date > mockToday;
+    }),
+  };
+});
+
 describe('news-fetcher', () => {
+  // 오늘 날짜를 사용 (검증 로직 통과)
+  const mockToday = '2025-01-15';
   const mockNewsInput: NewsInput = {
-    published_date: '2025-01-15',
+    published_date: mockToday,
     source_country: '태국',
     source_media: 'Test Media',
     title: 'Test News Title',
-    content: 'Test news content with enough length to be valid',
+    content: 'Test news content with enough length to be valid'.repeat(10), // 최소 길이 요구사항 충족
     category: '태국뉴스',
   };
 
@@ -110,75 +148,69 @@ describe('news-fetcher', () => {
 
   describe('fetchAndSaveNews', () => {
     it('뉴스 수집 및 저장에 성공해야 함', async () => {
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const mockGenerateContent = jest.fn().mockResolvedValue({
+      const { generateContentWithCaching } = await import('@/lib/utils/gemini-client');
+      
+      const mockResponse = {
         response: {
           text: jest.fn().mockReturnValue(JSON.stringify({
             news: [mockNewsInput],
           })),
         },
-      });
-
-      const mockModel = {
-        generateContent: mockGenerateContent,
       };
 
-      (GoogleGenerativeAI as jest.Mock).mockImplementation(() => ({
-        getGenerativeModel: jest.fn(() => mockModel),
-      }));
+      (generateContentWithCaching as jest.Mock).mockResolvedValue(mockResponse);
 
       const { insertNewsBatch } = await import('@/lib/db/news');
-      (insertNewsBatch as jest.Mock).mockResolvedValueOnce({ success: 1, failed: 0 });
+      (insertNewsBatch as jest.Mock).mockResolvedValueOnce({ 
+        success: 1, 
+        failed: 0,
+        savedNewsIds: ['test-news-id'],
+      });
 
-      const result = await fetchAndSaveNews('2025-01-15');
+      const result = await fetchAndSaveNews(mockToday);
 
       expect(result.success).toBe(1);
       expect(result.failed).toBe(0);
       expect(result.total).toBe(1);
+      expect(generateContentWithCaching).toHaveBeenCalled();
     });
 
     it('뉴스 수집 실패 시 에러를 throw해야 함', async () => {
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const mockGenerateContent = jest.fn().mockRejectedValue(new Error('API Error'));
+      const { generateContentWithCaching } = await import('@/lib/utils/gemini-client');
+      
+      (generateContentWithCaching as jest.Mock).mockRejectedValue(new Error('API Error'));
 
-      const mockModel = {
-        generateContent: mockGenerateContent,
-      };
-
-      (GoogleGenerativeAI as jest.Mock).mockImplementation(() => ({
-        getGenerativeModel: jest.fn(() => mockModel),
-      }));
-
-      await expect(fetchAndSaveNews('2025-01-15')).rejects.toThrow('API Error');
+      await expect(fetchAndSaveNews(mockToday)).rejects.toThrow('Failed to fetch news');
     });
 
     it('날짜가 지정되지 않으면 오늘 날짜를 사용해야 함', async () => {
-      const { GoogleGenerativeAI } = await import('@google/generative-ai');
-      const mockGenerateContent = jest.fn().mockResolvedValue({
+      const { generateContentWithCaching } = await import('@/lib/utils/gemini-client');
+      const { getTodayKST } = await import('@/lib/utils/date-helper');
+      
+      const mockResponse = {
         response: {
           text: jest.fn().mockReturnValue(JSON.stringify({
-            news: [],
+            news: [mockNewsInput],
           })),
         },
-      });
-
-      const mockModel = {
-        generateContent: mockGenerateContent,
       };
 
-      (GoogleGenerativeAI as jest.Mock).mockImplementation(() => ({
-        getGenerativeModel: jest.fn(() => mockModel),
-      }));
+      (generateContentWithCaching as jest.Mock).mockResolvedValue(mockResponse);
 
       const { insertNewsBatch } = await import('@/lib/db/news');
-      (insertNewsBatch as jest.Mock).mockResolvedValueOnce({ success: 0, failed: 0 });
+      (insertNewsBatch as jest.Mock).mockResolvedValueOnce({ 
+        success: 1, 
+        failed: 0,
+        savedNewsIds: ['test-news-id'],
+      });
 
-      await fetchAndSaveNews();
+      const result = await fetchAndSaveNews();
 
-      // 오늘 날짜가 사용되었는지 확인 (프롬프트에 날짜가 포함되어야 함)
-      expect(mockGenerateContent).toHaveBeenCalled();
-      const callArgs = mockGenerateContent.mock.calls[0][0];
-      expect(callArgs).toBeDefined();
+      // 오늘 날짜가 사용되었는지 확인
+      expect(generateContentWithCaching).toHaveBeenCalled();
+      expect(getTodayKST).toHaveBeenCalled();
+      expect(result.success).toBe(1);
+      expect(result.total).toBe(1);
     });
   });
 });
