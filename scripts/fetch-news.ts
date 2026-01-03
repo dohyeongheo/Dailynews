@@ -3,6 +3,9 @@
  * fetchAndSaveNews 함수를 호출하여 뉴스를 수집하고 저장합니다.
  */
 
+// .env.local 파일을 가장 먼저 로드 (다른 모듈 import 전에)
+import "./load-env";
+
 import { fetchAndSaveNews } from "../lib/news-fetcher";
 import { log } from "../lib/utils/logger";
 
@@ -42,6 +45,7 @@ async function main() {
         failed: result.failed,
         total: result.total,
         categoryCounts: result.categoryCounts,
+        imageGenerationResult: result.imageGenerationResult,
         executionTimeMs: executionTime,
         executionTimeSec: (executionTime / 1000).toFixed(2),
       });
@@ -53,6 +57,8 @@ async function main() {
       console.log(`📰 태국 뉴스: ${result.categoryCounts.태국뉴스}개`);
       console.log(`📰 한국 뉴스: ${result.categoryCounts.한국뉴스}개`);
       console.log(`📰 관련 뉴스: ${result.categoryCounts.관련뉴스}개`);
+      console.log(`🖼️  이미지 생성 성공: ${result.imageGenerationResult.success}개`);
+      console.log(`🖼️  이미지 생성 실패: ${result.imageGenerationResult.failed}개`);
       console.log(`⏱️  실행 시간: ${(executionTime / 1000).toFixed(2)}초`);
 
       // 실패가 있으면 exit code 1 반환
@@ -63,6 +69,7 @@ async function main() {
         failed: result.failed,
         total: result.total,
         categoryCounts: result.categoryCounts,
+        imageGenerationResult: result.imageGenerationResult,
         executionTimeMs: executionTime,
       });
 
@@ -74,6 +81,8 @@ async function main() {
       console.error(`📰 태국 뉴스: ${result.categoryCounts.태국뉴스}개`);
       console.error(`📰 한국 뉴스: ${result.categoryCounts.한국뉴스}개`);
       console.error(`📰 관련 뉴스: ${result.categoryCounts.관련뉴스}개`);
+      console.error(`🖼️  이미지 생성 성공: ${result.imageGenerationResult.success}개`);
+      console.error(`🖼️  이미지 생성 실패: ${result.imageGenerationResult.failed}개`);
 
       process.exit(1);
     }

@@ -165,3 +165,10 @@ export async function getRelatedNews(currentNewsId: string, category: NewsCatego
 export async function getNewsWithFailedTranslation(limit: number = 100): Promise<News[]> {
   return await supabaseNews.getNewsWithFailedTranslation(limit);
 }
+
+/**
+ * 이미지 생성 실패한 뉴스 조회
+ */
+export async function getNewsWithFailedImageGeneration(limit: number = 100): Promise<News[]> {
+  return await supabaseNews.getNewsWithFailedImageGeneration(limit);
+}

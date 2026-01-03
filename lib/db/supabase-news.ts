@@ -662,6 +662,56 @@ export async function getNewsWithFailedTranslation(limit: number = 100): Promise
 }
 
 /**
+ * 이미지 생성 실패한 뉴스 조회 (image_url이 null인 뉴스)
+ */
+export async function getNewsWithFailedImageGeneration(limit: number = 100): Promise<News[]> {
+  try {
+    log.debug("이미지 생성 실패한 뉴스 조회 시작", { limit });
+
+    const { data, error } = await supabaseServer
+      .from("news")
+      .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
+      .is("image_url", null)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      log.error("getNewsWithFailedImageGeneration Supabase 에러 발생", new Error(error.message), {
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+        limit,
+      });
+      return [];
+    }
+
+    if (!data) {
+      return [];
+    }
+
+    // 데이터 타입 변환
+    const newsItems: News[] = data.map((item: NewsRow) => ({
+      id: String(item.id || ""),
+      published_date: item.published_date || "",
+      source_country: item.source_country || "",
+      source_media: item.source_media || "",
+      title: item.title || "",
+      content: item.content || "",
+      category: item.category as NewsCategory,
+      news_category: item.news_category || null,
+      image_url: item.image_url || null,
+      created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
+    }));
+
+    log.info("이미지 생성 실패한 뉴스 조회 완료", { count: newsItems.length });
+    return newsItems;
+  } catch (error) {
+    log.error("getNewsWithFailedImageGeneration 예외 발생", error instanceof Error ? error : new Error(String(error)), { limit });
+    return [];
+  }
+}
+
+/**
  * 관련 뉴스 조회 (같은 카테고리, 현재 뉴스 제외)
  */
 export async function getRelatedNews(currentNewsId: string, category: NewsCategory, limit: number = 5): Promise<News[]> {

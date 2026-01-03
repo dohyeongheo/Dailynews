@@ -101,9 +101,6 @@ export async function generateContentWithCaching(
   taskType?: TaskType
 ): Promise<GenerateContentResult> {
   const env = getEnv();
-  const startTime = Date.now();
-  const modelName = model.model || "unknown";
-  const actualTaskType = taskType || "translation"; // 기본값
 
   let result: GenerateContentResult | null = null;
   let error: Error | null = null;
@@ -136,15 +133,6 @@ export async function generateContentWithCaching(
       // 임시로 일반 호출 사용 (SDK가 Context Caching을 지원하지 않는 경우)
       result = await model.generateContent(prompt);
     }
-
-    // 사용량 추적 (비동기)
-    trackGeminiUsage(modelName, actualTaskType, result, null, startTime, {
-      cacheKey: cacheKey ? cacheKey.substring(0, 50) + "..." : undefined,
-      promptLength: prompt.length,
-      useContextCaching: env.GEMINI_USE_CONTEXT_CACHING && !!cacheKey,
-    }).catch((trackError) => {
-      log.error("사용량 추적 실패 (비동기)", trackError instanceof Error ? trackError : new Error(String(trackError)));
-    });
 
     return result;
   } catch (err) {
