@@ -8,10 +8,8 @@ export interface News {
   source_media: string;
   title: string;
   content: string;
-  content_translated: string | null;
   category: NewsCategory;
   news_category: NewsTopicCategory | null;
-  original_link: string;
   image_url: string | null;
   created_at: string;
 }
@@ -22,23 +20,19 @@ export interface NewsInput {
   source_media: string;
   title: string;
   content: string;
-  content_translated?: string | null;
   category: NewsCategory;
   news_category?: NewsTopicCategory | null;
-  original_link?: string;
 }
 
 export interface GeminiNewsResponse {
   news: Array<{
     title: string;
     content: string;
-    content_translated?: string;
     source_country: string;
     source_media: string;
     category: NewsCategory;
     news_category?: NewsTopicCategory | null;
     published_date: string;
-    original_link?: string;
   }>;
 }
 

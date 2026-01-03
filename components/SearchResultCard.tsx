@@ -65,9 +65,9 @@ function SearchResultCard({ news, query, searchType }: SearchResultCardProps) {
           aria-label="뉴스 내용"
         >
           {(searchType === "content" || searchType === "all") && query ? (
-            <HighlightedText text={news.content_translated || news.content} query={query} />
+            <HighlightedText text={news.content} query={query} />
           ) : (
-            news.content_translated || news.content
+            news.content
           )}
         </p>
       </Link>

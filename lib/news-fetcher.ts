@@ -1,4 +1,4 @@
-import { insertNewsBatch, updateNewsImageUrl, getNewsById, getNewsWithFailedTranslation, updateNewsTranslation } from "./db/news";
+import { insertNewsBatch, updateNewsImageUrl, getNewsById, getNewsWithFailedTranslation } from "./db/news";
 import type { NewsInput, GeminiNewsResponse, NewsCategory, NewsTopicCategory } from "@/types/news";
 import { log } from "./utils/logger";
 import { getModelForTask, generateContentWithCaching, type TaskType } from "./utils/gemini-client";
@@ -377,7 +377,6 @@ function isTranslationFailed(original: string, translated: string | null): boole
 async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: NewsInput; translationFailed: boolean }> {
   let title = newsItem.title;
   let content = newsItem.content;
-  let contentTranslated = newsItem.content_translated;
   let translationFailed = false;
 
   const MAX_TRANSLATION_RETRIES = 3;
@@ -426,58 +425,51 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
 
   // 모든 카테고리: content가 한국어가 아니면 무조건 번역
   if (!isKorean(content)) {
-    // content_translated가 없거나, 있더라도 한국어가 아니면 번역
-    if (!contentTranslated || !isKorean(contentTranslated)) {
-      log.debug("내용 번역 중", {
+    log.debug("내용 번역 중", {
+      category: newsItem.category,
+      news_category: newsItem.news_category,
+      contentPreview: content.substring(0, 50),
+    });
+
+    let translatedContent = await translateToKorean(content);
+    let contentRetryCount = 0;
+
+    // 번역 결과가 원본과 같으면 재시도
+    while (isTranslationFailed(content, translatedContent) && contentRetryCount < MAX_TRANSLATION_RETRIES) {
+      contentRetryCount++;
+      log.warn("내용 번역 실패 감지, 재시도 중", {
         category: newsItem.category,
-        news_category: newsItem.news_category,
         contentPreview: content.substring(0, 50),
+        attempt: contentRetryCount,
+        maxRetries: MAX_TRANSLATION_RETRIES,
       });
 
-      let translatedContent = await translateToKorean(content);
-      let contentRetryCount = 0;
+      // 재시도 전 대기 (지수 백오프)
+      const delay = TRANSLATION_RETRY_DELAY * Math.pow(2, contentRetryCount - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
 
-      // 번역 결과가 원본과 같으면 재시도
-      while (isTranslationFailed(content, translatedContent) && contentRetryCount < MAX_TRANSLATION_RETRIES) {
-        contentRetryCount++;
-        log.warn("내용 번역 실패 감지, 재시도 중", {
+      translatedContent = await translateToKorean(content);
+    }
+
+    // 재시도 후에도 실패하면 실패로 표시
+    if (isTranslationFailed(content, translatedContent)) {
+      log.warn("내용 번역 최종 실패", {
+        category: newsItem.category,
+        contentPreview: content.substring(0, 50),
+        totalAttempts: contentRetryCount + 1,
+      });
+      translationFailed = true;
+    } else {
+      // 번역 성공 시 content에 직접 저장
+      content = translatedContent;
+      if (contentRetryCount > 0) {
+        log.info("내용 번역 재시도 성공", {
           category: newsItem.category,
           contentPreview: content.substring(0, 50),
-          attempt: contentRetryCount,
-          maxRetries: MAX_TRANSLATION_RETRIES,
+          attempts: contentRetryCount + 1,
         });
-
-        // 재시도 전 대기 (지수 백오프)
-        const delay = TRANSLATION_RETRY_DELAY * Math.pow(2, contentRetryCount - 1);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-
-        translatedContent = await translateToKorean(content);
-      }
-
-      // 재시도 후에도 실패하면 실패로 표시
-      if (isTranslationFailed(content, translatedContent)) {
-        log.warn("내용 번역 최종 실패", {
-          category: newsItem.category,
-          contentPreview: content.substring(0, 50),
-          totalAttempts: contentRetryCount + 1,
-        });
-        translationFailed = true;
-        // 실패한 경우 null로 설정하여 나중에 재처리 가능하도록 함
-        contentTranslated = null;
-      } else {
-        contentTranslated = translatedContent;
-        if (contentRetryCount > 0) {
-          log.info("내용 번역 재시도 성공", {
-            category: newsItem.category,
-            contentPreview: content.substring(0, 50),
-            attempts: contentRetryCount + 1,
-          });
-        }
       }
     }
-  } else {
-    // content가 이미 한국어인 경우 content_translated를 null로 유지
-    contentTranslated = null;
   }
 
   return {
@@ -485,7 +477,6 @@ async function translateNewsIfNeeded(newsItem: NewsInput): Promise<{ newsItem: N
       ...newsItem,
       title,
       content,
-      content_translated: contentTranslated,
     },
     translationFailed,
   };
@@ -526,13 +517,11 @@ ${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴�
     {
       "title": "뉴스 제목",
       "content": "뉴스 본문 내용",
-      "content_translated": "번역된 내용 (태국 뉴스인 경우)",
       "source_country": "태국" 또는 "한국",
       "source_media": "언론사 이름",
       "category": "태국뉴스" 또는 "관련뉴스" 또는 "한국뉴스",
       "news_category": "과학" 또는 "사회" 또는 "정치" 또는 "경제" 또는 "스포츠" 또는 "문화" 또는 "기술" 또는 "건강" 또는 "환경" 또는 "국제" 또는 "기타" (뉴스 내용을 분석하여 가장 적합한 주제 분류를 선택, 없으면 null),
-      "published_date": "${date}",
-      "original_link": "뉴스 원문 URL (실제 뉴스 기사 링크, 없으면 빈 문자열)"
+      "published_date": "${date}"
     }
   ]
 }
@@ -540,7 +529,6 @@ ${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴�
 중요 사항:
 - 반드시 ${date} 날짜의 최신 뉴스만 수집해주세요. 과거 날짜나 미래 날짜의 뉴스는 수집하지 마세요.
 - 각 뉴스의 본문 내용(content)은 상세하게 작성해주세요. 가능한 한 자세히 작성하되, 최소 300자 이상으로 작성해주세요. 뉴스의 핵심 내용, 배경 정보, 영향 등을 포함해주세요.
-- content_translated도 원문과 동일한 수준의 상세함을 유지하여 가능한 한 자세히 작성해주세요.
 - news_category는 뉴스의 제목과 내용을 분석하여 가장 적합한 주제 분류를 선택해주세요. 뉴스의 주요 주제가 명확하지 않은 경우 null로 설정할 수 있습니다.
 - published_date는 반드시 "${date}"로 설정해주세요.
 
@@ -763,24 +751,6 @@ ${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴�
         return false;
       }
 
-      // original_link 검증 (선택적 필드, URL 형식이거나 빈 문자열)
-      if (item.original_link !== undefined && item.original_link !== null && item.original_link !== "") {
-        if (typeof item.original_link !== "string") {
-          log.warn("뉴스 항목 original_link가 유효하지 않음", { index: index + 1, title: item.title });
-          // original_link가 유효하지 않으면 빈 문자열로 설정
-          item.original_link = "";
-        } else {
-          // URL 형식 검증 (간단한 검증)
-          try {
-            new URL(item.original_link);
-          } catch {
-            log.warn("뉴스 항목 original_link가 유효한 URL 형식이 아님", { index: index + 1, title: item.title, original_link: item.original_link });
-            // 유효하지 않은 URL이면 빈 문자열로 설정
-            item.original_link = "";
-          }
-        }
-      }
-
       // news_category 유효성 검증 (선택적 필드이지만 유효한 값이어야 함)
       if (item.news_category !== null && item.news_category !== undefined) {
         const validNewsCategories: NewsTopicCategory[] = ["과학", "사회", "정치", "경제", "스포츠", "문화", "기술", "건강", "환경", "국제", "기타"];
@@ -828,10 +798,8 @@ ${date}의 태국 주요 뉴스(한국어 번역), 한국의 태국 관련 뉴�
         source_media: item.source_media,
         title: item.title,
         content: item.content,
-        content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
         news_category: newsCategory,
-        original_link: item.original_link || "", // Gemini API에서 받은 original_link 사용, 없으면 빈 문자열
       };
     });
 
@@ -1067,20 +1035,14 @@ export async function retryFailedTranslations(limit: number = 50): Promise<{ suc
             // 번역 시도
             const result = await translateNewsIfNeeded(newsItem);
 
-            // 번역 성공 여부 확인
-            if (!result.translationFailed && result.newsItem.content_translated) {
-              // DB에 번역본 업데이트
-              const updated = await updateNewsTranslation(news.id, result.newsItem.content_translated);
-              if (updated) {
-                log.info("뉴스 번역 재처리 성공", {
-                  newsId: news.id,
-                  title: news.title.substring(0, 50),
-                });
-                return { success: true, newsId: news.id };
-              } else {
-                log.warn("뉴스 번역본 업데이트 실패", { newsId: news.id });
-                return { success: false, newsId: news.id };
-              }
+            // 번역 성공 여부 확인 (번역 결과는 이미 content에 저장됨)
+            if (!result.translationFailed && result.newsItem.content && result.newsItem.content !== news.content) {
+              // 번역 성공 - content가 변경되었으므로 이미 번역 완료된 상태
+              log.info("뉴스 번역 재처리 성공 (이미 content에 반영됨)", {
+                newsId: news.id,
+                title: news.title.substring(0, 50),
+              });
+              return { success: true, newsId: news.id };
             } else {
               log.warn("뉴스 번역 재처리 실패 (번역 결과가 원본과 동일)", {
                 newsId: news.id,

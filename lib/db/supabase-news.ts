@@ -5,25 +5,6 @@ import type { NewsRow } from "../types/supabase";
 import { calculateNewsSimilarity, similarityToPercent } from "../utils/text-similarity";
 
 /**
- * original_link로 중복 뉴스 확인
- */
-async function checkDuplicateNewsByLink(originalLink: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabaseServer.from("news").select("id").eq("original_link", originalLink).limit(1);
-
-    if (error) {
-      log.error("Error checking duplicate news by link", error instanceof Error ? error : new Error(String(error)));
-      return false; // 에러 발생 시 중복이 아닌 것으로 간주하고 진행
-    }
-
-    return (data && data.length > 0) || false;
-  } catch (error) {
-    log.error("Error checking duplicate news by link", error instanceof Error ? error : new Error(String(error)));
-    return false;
-  }
-}
-
-/**
  * 텍스트 유사도 기반으로 중복 뉴스 확인
  * 최근 7일간의 뉴스와 비교하여 유사도 85% 이상이면 중복으로 판단
  */
@@ -36,7 +17,7 @@ async function checkDuplicateNewsBySimilarity(news: NewsInput): Promise<{ isDupl
 
     const { data, error } = await supabaseServer
       .from("news")
-      .select("id, title, content, content_translated, published_date")
+      .select("id, title, content, published_date")
       .gte("published_date", sevenDaysAgoStr)
       .order("published_date", { ascending: false });
 
@@ -53,8 +34,8 @@ async function checkDuplicateNewsBySimilarity(news: NewsInput): Promise<{ isDupl
 
     // 각 기존 뉴스와 유사도 계산
     for (const existingNews of data) {
-      const existingContent = existingNews.content_translated || existingNews.content || "";
-      const newContent = news.content_translated || news.content || "";
+      const existingContent = existingNews.content || "";
+      const newContent = news.content || "";
 
       const similarity = calculateNewsSimilarity(
         existingNews.title || "",
@@ -87,27 +68,10 @@ async function checkDuplicateNewsBySimilarity(news: NewsInput): Promise<{ isDupl
 }
 
 /**
- * 중복 뉴스 확인 (original_link 또는 텍스트 유사도 기반)
+ * 중복 뉴스 확인 (텍스트 유사도 기반)
  */
 async function checkDuplicateNews(news: NewsInput): Promise<boolean> {
   try {
-    // original_link가 유효한 URL인 경우, original_link로 먼저 체크
-    if (news.original_link && news.original_link.trim() !== "") {
-      try {
-        // URL 형식 검증
-        new URL(news.original_link);
-        const isDuplicateByLink = await checkDuplicateNewsByLink(news.original_link);
-        if (isDuplicateByLink) {
-          log.info("중복 뉴스 감지 (original_link)", { originalLink: news.original_link });
-          return true;
-        }
-      } catch {
-        // 유효하지 않은 URL이면 무시하고 유사도 체크로 진행
-        log.debug("original_link가 유효한 URL 형식이 아님, 유사도 체크로 진행", { originalLink: news.original_link });
-      }
-    }
-
-    // original_link가 없거나 유효하지 않은 경우, 텍스트 유사도로 체크
     const similarityResult = await checkDuplicateNewsBySimilarity(news);
     return similarityResult.isDuplicate;
   } catch (error) {
@@ -121,10 +85,10 @@ async function checkDuplicateNews(news: NewsInput): Promise<boolean> {
  */
 export async function insertNews(news: NewsInput): Promise<{ success: boolean; error?: string; id?: string | null }> {
   try {
-    // 중복 체크 (original_link 또는 텍스트 유사도 기반)
+    // 중복 체크 (텍스트 유사도 기반)
     const isDuplicate = await checkDuplicateNews(news);
     if (isDuplicate) {
-      log.info("중복 뉴스 건너뜀", { originalLink: news.original_link });
+      log.info("중복 뉴스 건너뜀");
       return {
         success: false,
         error: "이미 존재하는 뉴스입니다.",
@@ -139,10 +103,8 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
         source_media: news.source_media,
         title: news.title,
         content: news.content,
-        content_translated: news.content_translated || null,
         category: news.category,
         news_category: news.news_category || null,
-        original_link: news.original_link,
       })
       .select("id")
       .single();
@@ -150,14 +112,14 @@ export async function insertNews(news: NewsInput): Promise<{ success: boolean; e
     if (error) {
       // 유니크 제약 조건 위반인 경우 중복으로 처리
       if (error.code === "23505" || error.message.includes("duplicate") || error.message.includes("unique")) {
-        log.info("중복 뉴스 건너뜀 (DB 제약 조건)", { originalLink: news.original_link });
+        log.info("중복 뉴스 건너뜀 (DB 제약 조건)");
         return {
           success: false,
           error: "이미 존재하는 뉴스입니다.",
         };
       }
 
-      log.error("Error inserting news", new Error(error.message), { errorCode: error.code, originalLink: news.original_link });
+      log.error("Error inserting news", new Error(error.message), { errorCode: error.code });
       return {
         success: false,
         error: error.message,
@@ -234,7 +196,7 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
 
     const { data, error } = await supabaseServer
       .from("news")
-      .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
+      .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
       .eq("category", category)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
@@ -265,10 +227,8 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: item.content_translated || null,
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
-      original_link: item.original_link || "",
       image_url: item.image_url || null,
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));
@@ -296,7 +256,7 @@ export async function getNewsByTopicCategory(
 
     const { data, error } = await supabaseServer
       .from("news")
-      .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
+      .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
       .eq("news_category", newsCategory)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
@@ -327,10 +287,8 @@ export async function getNewsByTopicCategory(
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: item.content_translated || null,
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
-      original_link: item.original_link || "",
       image_url: item.image_url || null,
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));
@@ -354,7 +312,7 @@ export async function getAllNews(limit: number = 30, offset: number = 0): Promis
 
     const { data, error } = await supabaseServer
       .from("news")
-      .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
+      .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -383,10 +341,8 @@ export async function getAllNews(limit: number = 30, offset: number = 0): Promis
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: item.content_translated || null,
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
-      original_link: item.original_link || "",
       image_url: item.image_url || null,
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));
@@ -411,7 +367,7 @@ export async function searchNews(query: string, searchType: "title" | "content" 
     case "title": {
       const { data, error } = await supabaseServer
         .from("news")
-        .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
+        .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
         .ilike("title", searchTerm)
         .order("created_at", { ascending: false })
         .limit(limit);
@@ -438,21 +394,19 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         source_media: item.source_media || "",
         title: item.title || "",
         content: item.content || "",
-        content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
         news_category: item.news_category || null,
-        original_link: item.original_link || "",
         image_url: item.image_url || null,
         created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
       }));
     }
 
     case "content": {
-      // content 또는 content_translated에서 검색
+      // content에서만 검색
       const { data, error } = await supabaseServer
         .from("news")
-        .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
-        .or(`content.ilike.${searchTerm},content_translated.ilike.${searchTerm}`)
+        .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
+        .ilike("content", searchTerm)
         .order("created_at", { ascending: false })
         .limit(limit);
 
@@ -478,10 +432,8 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         source_media: item.source_media || "",
         title: item.title || "",
         content: item.content || "",
-        content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
         news_category: item.news_category || null,
-        original_link: item.original_link || "",
         image_url: item.image_url || null,
         created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
       }));
@@ -489,11 +441,11 @@ export async function searchNews(query: string, searchType: "title" | "content" 
 
     case "all":
     default: {
-      // title, content, content_translated에서 검색
+      // title, content에서만 검색
       const { data, error } = await supabaseServer
         .from("news")
-        .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
-        .or(`title.ilike.${searchTerm},content.ilike.${searchTerm},content_translated.ilike.${searchTerm}`)
+        .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
+        .or(`title.ilike.${searchTerm},content.ilike.${searchTerm}`)
         .order("created_at", { ascending: false })
         .limit(limit);
 
@@ -519,10 +471,8 @@ export async function searchNews(query: string, searchType: "title" | "content" 
         source_media: item.source_media || "",
         title: item.title || "",
         content: item.content || "",
-        content_translated: item.content_translated || null,
         category: item.category as NewsCategory,
         news_category: item.news_category || null,
-        original_link: item.original_link || "",
         image_url: item.image_url || null,
         created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
       }));
@@ -555,7 +505,7 @@ export async function getNewsCount(category?: NewsCategory): Promise<number> {
  */
 export async function getNewsById(id: string): Promise<News | null> {
   try {
-    const { data, error } = await supabaseServer.from("news").select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at").eq("id", id).single();
+    const { data, error } = await supabaseServer.from("news").select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at").eq("id", id).single();
 
     if (error) {
       log.error("getNewsById Supabase 에러 발생", new Error(error.message), {
@@ -578,10 +528,8 @@ export async function getNewsById(id: string): Promise<News | null> {
       source_media: data.source_media || "",
       title: data.title || "",
       content: data.content || "",
-      content_translated: data.content_translated || null,
       category: data.category as NewsCategory,
       news_category: data.news_category || null,
-      original_link: data.original_link || "",
       image_url: data.image_url || null,
       created_at: data.created_at ? new Date(data.created_at).toISOString() : new Date().toISOString(),
     };
@@ -638,19 +586,16 @@ export async function updateNewsImageUrl(newsId: string, imageUrl: string): Prom
 
 /**
  * 번역 실패한 뉴스 조회
- * 조건: content_translated IS NULL 또는 content_translated = content
  * content가 한국어가 아닌 뉴스만 필터링
  */
 export async function getNewsWithFailedTranslation(limit: number = 100): Promise<News[]> {
   try {
     log.debug("번역 실패한 뉴스 조회 시작", { limit });
 
-    // content_translated가 null이거나 content와 같은 뉴스 조회
-    // 한국어 판단은 애플리케이션 레벨에서 처리
+    // 모든 뉴스 조회 (한국어 판단은 애플리케이션 레벨에서 처리)
     const { data, error } = await supabaseServer
       .from("news")
-      .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
-      .or("content_translated.is.null,content_translated.eq.content")
+      .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
       .order("created_at", { ascending: false })
       .limit(limit);
 
@@ -688,10 +633,8 @@ export async function getNewsWithFailedTranslation(limit: number = 100): Promise
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: item.content_translated || null,
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
-      original_link: item.original_link || "",
       image_url: item.image_url || null,
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));
@@ -705,43 +648,13 @@ export async function getNewsWithFailedTranslation(limit: number = 100): Promise
 }
 
 /**
- * 뉴스의 번역본 업데이트
- */
-export async function updateNewsTranslation(newsId: string, contentTranslated: string | null): Promise<boolean> {
-  try {
-    log.debug("뉴스 번역본 업데이트 시작", { newsId });
-
-    const { error } = await supabaseServer
-      .from("news")
-      .update({ content_translated: contentTranslated })
-      .eq("id", newsId);
-
-    if (error) {
-      log.error("updateNewsTranslation Supabase 에러 발생", new Error(error.message), {
-        details: error.details,
-        hint: error.hint,
-        code: error.code,
-        newsId,
-      });
-      return false;
-    }
-
-    log.info("뉴스 번역본 업데이트 완료", { newsId });
-    return true;
-  } catch (error) {
-    log.error("updateNewsTranslation 예외 발생", error instanceof Error ? error : new Error(String(error)), { newsId });
-    return false;
-  }
-}
-
-/**
  * 관련 뉴스 조회 (같은 카테고리, 현재 뉴스 제외)
  */
 export async function getRelatedNews(currentNewsId: string, category: NewsCategory, limit: number = 5): Promise<News[]> {
   try {
     const { data, error } = await supabaseServer
       .from("news")
-      .select("id, title, content, content_translated, published_date, category, news_category, source_country, source_media, original_link, image_url, created_at")
+      .select("id, title, content, published_date, category, news_category, source_country, source_media, image_url, created_at")
       .eq("category", category)
       .neq("id", currentNewsId)
       .order("created_at", { ascending: false })
@@ -768,10 +681,8 @@ export async function getRelatedNews(currentNewsId: string, category: NewsCatego
       source_media: item.source_media || "",
       title: item.title || "",
       content: item.content || "",
-      content_translated: item.content_translated || null,
       category: item.category as NewsCategory,
       news_category: item.news_category || null,
-      original_link: item.original_link || "",
       image_url: item.image_url || null,
       created_at: item.created_at ? new Date(item.created_at).toISOString() : new Date().toISOString(),
     }));
