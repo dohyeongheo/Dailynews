@@ -33,36 +33,48 @@ async function generateWithGemini(prompt: string): Promise<Buffer> {
     // 가능한 모델: gemini-2.5-flash-image, gemini-3-pro-image-preview 등
     const modelName = "gemini-2.5-flash-image"; // 또는 "gemini-3-pro-image-preview"
 
+    // 이미지 해상도 설정 (기본값: 768x768로 낮춰서 용량 절감)
+    // 환경 변수로 설정 가능하도록 하거나, 하드코딩된 값을 사용
+    const imageResolution = "768x768"; // 1024x1024 (기본), 768x768 (권장), 512x512 (최소)
+
     log.debug("Gemini Nano Banana Pro 이미지 생성 시작", {
       promptLength: prompt.length,
       modelName,
+      imageResolution,
     });
+
+    // 프롬프트에 해상도 요구사항 추가
+    const promptWithResolution = `${prompt}\n\nIMPORTANT REQUIREMENTS:
+1. The generated image must have a resolution of ${imageResolution} pixels (width x height).
+2. The generated image must not contain any text, letters, numbers, characters, or words in any language (Korean, English, or any other language). The image must be completely text-free and contain only visual illustrations without any textual elements.`;
 
     // REST API 직접 호출 (SDK가 지원하지 않는 경우)
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
+
+    const requestBody: any = {
+      contents: [
+        {
+          parts: [
+            {
+              text: promptWithResolution,
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 8192,
+      },
+    };
 
     const response = await fetch(`${apiUrl}?key=${GOOGLE_GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `${prompt}\n\nIMPORTANT: The generated image must not contain any text, letters, numbers, characters, or words in any language (Korean, English, or any other language). The image must be completely text-free and contain only visual illustrations without any textual elements.`,
-              },
-            ],
-          },
-        ],
-        generationConfig: {
-          temperature: 0.7,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 8192,
-        },
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
