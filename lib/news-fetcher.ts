@@ -915,7 +915,10 @@ async function generateImagesForNews(savedNewsIds: string[], maxTimeMs?: number)
             const imageUrl = await uploadNewsImage(newsId, imageBuffer);
 
             // 4. DB에 image_url 업데이트
-            await updateNewsImageUrl(newsId, imageUrl);
+            const updateSuccess = await updateNewsImageUrl(newsId, imageUrl);
+            if (!updateSuccess) {
+              throw new Error(`DB 업데이트 실패: image_url을 저장할 수 없습니다 (newsId: ${newsId})`);
+            }
 
             log.info("뉴스 이미지 생성 완료", {
               newsId,
@@ -925,8 +928,12 @@ async function generateImagesForNews(savedNewsIds: string[], maxTimeMs?: number)
 
             return { success: true, newsId, imageUrl };
           } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            const errorStack = error instanceof Error ? error.stack : undefined;
             log.error("뉴스 이미지 생성 실패", error instanceof Error ? error : new Error(String(error)), {
               newsId,
+              errorMessage,
+              errorStack,
             });
             throw error;
           }
@@ -939,6 +946,12 @@ async function generateImagesForNews(savedNewsIds: string[], maxTimeMs?: number)
           successCount++;
         } else {
           failCount++;
+          // 실패한 경우 상세 에러 로깅
+          const error = result.reason;
+          log.error("이미지 생성 배치 처리 실패", error instanceof Error ? error : new Error(String(error)), {
+            errorType: error instanceof Error ? error.constructor.name : typeof error,
+            errorMessage: error instanceof Error ? error.message : String(error),
+          });
         }
       }
 
@@ -966,7 +979,7 @@ async function generateImagesForNews(savedNewsIds: string[], maxTimeMs?: number)
 
     // 이미지 생성 성공률 메트릭 저장
     if (savedNewsIds.length > 0) {
-      const successRate = ((successCount / savedNewsIds.length) * 100) || 0;
+      const successRate = (successCount / savedNewsIds.length) * 100 || 0;
       await saveMetricSnapshot({
         metricType: "business",
         metricName: "image_generation_success_rate",

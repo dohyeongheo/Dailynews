@@ -563,15 +563,26 @@ export async function deleteNews(id: string): Promise<boolean> {
  */
 export async function updateNewsImageUrl(newsId: string, imageUrl: string): Promise<boolean> {
   try {
-    const { error } = await supabaseServer
+    const { data, error } = await supabaseServer
       .from("news")
       .update({ image_url: imageUrl })
-      .eq("id", newsId);
+      .eq("id", newsId)
+      .select("id");
 
     if (error) {
       log.error("updateNewsImageUrl Supabase 에러 발생", new Error(error.message), {
         newsId,
         errorCode: error.code,
+        imageUrl,
+      });
+      return false;
+    }
+
+    // 업데이트된 행이 없는 경우 (뉴스가 존재하지 않음)
+    if (!data || data.length === 0) {
+      log.error("updateNewsImageUrl 실패: 뉴스를 찾을 수 없음", new Error(`News not found: ${newsId}`), {
+        newsId,
+        imageUrl,
       });
       return false;
     }
@@ -579,7 +590,10 @@ export async function updateNewsImageUrl(newsId: string, imageUrl: string): Prom
     log.debug("뉴스 image_url 업데이트 완료", { newsId, imageUrl });
     return true;
   } catch (error) {
-    log.error("updateNewsImageUrl 예외 발생", error instanceof Error ? error : new Error(String(error)), { newsId });
+    log.error("updateNewsImageUrl 예외 발생", error instanceof Error ? error : new Error(String(error)), {
+      newsId,
+      imageUrl,
+    });
     return false;
   }
 }

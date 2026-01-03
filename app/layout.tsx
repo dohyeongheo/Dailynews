@@ -3,6 +3,7 @@ import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import dynamic from "next/dynamic";
 import { log } from "@/lib/utils/logger";
+import { Analytics } from "@vercel/analytics/react";
 
 // 동적 임포트로 성능 최적화
 const Header = dynamic(() => import("@/components/Header"), { ssr: true });
@@ -53,6 +54,7 @@ export default function RootLayout({
             </ErrorBoundary>
           </AnalyticsProvider>
         </Providers>
+        <Analytics />
       </body>
     </html>
   );

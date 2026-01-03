@@ -47,11 +47,7 @@ export async function getNewsByCategory(category: NewsCategory, limit: number = 
 /**
  * news_category(주제 카테고리)별로 뉴스 조회 (캐싱 적용)
  */
-export async function getNewsByTopicCategory(
-  newsCategory: string,
-  limit: number = 10,
-  offset: number = 0
-): Promise<News[]> {
+export async function getNewsByTopicCategory(newsCategory: string, limit: number = 10, offset: number = 0): Promise<News[]> {
   const cacheKey = `topic:${newsCategory}:${limit}:${offset}`;
 
   // 캐시에서 조회
@@ -169,4 +165,3 @@ export async function getRelatedNews(currentNewsId: string, category: NewsCatego
 export async function getNewsWithFailedTranslation(limit: number = 100): Promise<News[]> {
   return await supabaseNews.getNewsWithFailedTranslation(limit);
 }
-
