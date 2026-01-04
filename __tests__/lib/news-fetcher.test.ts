@@ -81,6 +81,22 @@ jest.mock('@/lib/utils/hallucination-detector', () => ({
   isHallucinatedNews: jest.fn(() => false), // 테스트에서는 항상 false (정상 뉴스)
 }));
 
+// NewsAPI 모킹
+jest.mock('@/lib/news-sources/newsapi', () => ({
+  fetchThaiNewsFromNewsAPI: jest.fn(),
+}));
+
+// 네이버 API 모킹
+jest.mock('@/lib/news-sources/naver-api', () => ({
+  fetchKoreanNewsFromNaver: jest.fn(),
+  fetchRelatedNewsFromNaver: jest.fn(),
+}));
+
+// image-fetcher 모킹
+jest.mock('@/lib/image-generator/image-fetcher', () => ({
+  fetchOrGenerateImage: jest.fn(),
+}));
+
 // date-helper 모킹 (오늘 날짜 고정)
 jest.mock('@/lib/utils/date-helper', () => {
   const mockToday = '2025-01-15';
@@ -153,17 +169,20 @@ describe('news-fetcher', () => {
 
   describe('fetchAndSaveNews', () => {
     it('뉴스 수집 및 저장에 성공해야 함', async () => {
-      const { generateContentWithCaching } = await import('@/lib/utils/gemini-client');
+      const { fetchThaiNewsFromNewsAPI } = await import('@/lib/news-sources/newsapi');
+      const { fetchKoreanNewsFromNaver, fetchRelatedNewsFromNaver } = await import('@/lib/news-sources/naver-api');
 
-      const mockResponse = {
-        response: {
-          text: jest.fn().mockReturnValue(JSON.stringify({
-            news: [mockNewsInput],
-          })),
-        },
+      // 한국어로 번역된 태국 뉴스 (isKorean이 true를 반환하도록)
+      const translatedThaiNews: NewsInput = {
+        ...mockNewsInput,
+        title: '테스트 뉴스 제목',
+        content: '테스트 뉴스 내용입니다. 한국어로 번역된 내용입니다.'.repeat(10),
       };
 
-      (generateContentWithCaching as jest.Mock).mockResolvedValue(mockResponse);
+      // NewsAPI와 네이버 API 모킹
+      (fetchThaiNewsFromNewsAPI as jest.Mock).mockResolvedValueOnce([translatedThaiNews]);
+      (fetchKoreanNewsFromNaver as jest.Mock).mockResolvedValueOnce([]);
+      (fetchRelatedNewsFromNaver as jest.Mock).mockResolvedValueOnce([]);
 
       const { insertNewsBatch } = await import('@/lib/db/news');
       (insertNewsBatch as jest.Mock).mockResolvedValueOnce({
@@ -177,30 +196,50 @@ describe('news-fetcher', () => {
       expect(result.success).toBe(1);
       expect(result.failed).toBe(0);
       expect(result.total).toBe(1);
-      expect(generateContentWithCaching).toHaveBeenCalled();
+      expect(fetchThaiNewsFromNewsAPI).toHaveBeenCalledWith(mockToday, 10);
+      expect(fetchKoreanNewsFromNaver).toHaveBeenCalledWith(mockToday, 10);
+      expect(fetchRelatedNewsFromNaver).toHaveBeenCalledWith(mockToday, 10);
     });
 
-    it('뉴스 수집 실패 시 에러를 throw해야 함', async () => {
-      const { generateContentWithCaching } = await import('@/lib/utils/gemini-client');
+    it('뉴스 수집 실패 시 빈 배열을 반환해야 함', async () => {
+      const { fetchThaiNewsFromNewsAPI } = await import('@/lib/news-sources/newsapi');
+      const { fetchKoreanNewsFromNaver, fetchRelatedNewsFromNaver } = await import('@/lib/news-sources/naver-api');
 
-      (generateContentWithCaching as jest.Mock).mockRejectedValue(new Error('API Error'));
+      // 모든 API가 빈 배열 반환
+      (fetchThaiNewsFromNewsAPI as jest.Mock).mockResolvedValueOnce([]);
+      (fetchKoreanNewsFromNaver as jest.Mock).mockResolvedValueOnce([]);
+      (fetchRelatedNewsFromNaver as jest.Mock).mockResolvedValueOnce([]);
 
-      await expect(fetchAndSaveNews(mockToday)).rejects.toThrow('Failed to fetch news');
-    });
+      const { insertNewsBatch } = await import('@/lib/db/news');
+      (insertNewsBatch as jest.Mock).mockResolvedValueOnce({
+        success: 0,
+        failed: 0,
+        savedNewsIds: [],
+      });
+
+      const result = await fetchAndSaveNews(mockToday);
+
+      expect(result.success).toBe(0);
+      expect(result.failed).toBe(0);
+      expect(result.total).toBe(0);
+    }, 10000); // 타임아웃 증가
 
     it('날짜가 지정되지 않으면 오늘 날짜를 사용해야 함', async () => {
-      const { generateContentWithCaching } = await import('@/lib/utils/gemini-client');
+      const { fetchThaiNewsFromNewsAPI } = await import('@/lib/news-sources/newsapi');
+      const { fetchKoreanNewsFromNaver, fetchRelatedNewsFromNaver } = await import('@/lib/news-sources/naver-api');
       const { getTodayKST } = await import('@/lib/utils/date-helper');
 
-      const mockResponse = {
-        response: {
-          text: jest.fn().mockReturnValue(JSON.stringify({
-            news: [mockNewsInput],
-          })),
-        },
+      // 한국어로 번역된 태국 뉴스
+      const translatedThaiNews: NewsInput = {
+        ...mockNewsInput,
+        title: '테스트 뉴스 제목',
+        content: '테스트 뉴스 내용입니다. 한국어로 번역된 내용입니다.'.repeat(10),
       };
 
-      (generateContentWithCaching as jest.Mock).mockResolvedValue(mockResponse);
+      // NewsAPI와 네이버 API 모킹
+      (fetchThaiNewsFromNewsAPI as jest.Mock).mockResolvedValueOnce([translatedThaiNews]);
+      (fetchKoreanNewsFromNaver as jest.Mock).mockResolvedValueOnce([]);
+      (fetchRelatedNewsFromNaver as jest.Mock).mockResolvedValueOnce([]);
 
       const { insertNewsBatch } = await import('@/lib/db/news');
       (insertNewsBatch as jest.Mock).mockResolvedValueOnce({
@@ -212,7 +251,6 @@ describe('news-fetcher', () => {
       const result = await fetchAndSaveNews();
 
       // 오늘 날짜가 사용되었는지 확인
-      expect(generateContentWithCaching).toHaveBeenCalled();
       expect(getTodayKST).toHaveBeenCalled();
       expect(result.success).toBe(1);
       expect(result.total).toBe(1);

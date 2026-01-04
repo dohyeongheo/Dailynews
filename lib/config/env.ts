@@ -19,6 +19,13 @@ const envSchema = z.object({
   // 선택적 환경 변수
   ADMIN_PASSWORD: z.string().optional(),
 
+  // NewsAPI
+  NEWSAPI_KEY: z.string().optional(),
+
+  // 네이버 API
+  NAVER_CLIENT_ID: z.string().optional(),
+  NAVER_SECRET: z.string().optional(),
+
   // AI 이미지 생성 API 설정
   IMAGE_GENERATION_API: z.enum(["gemini", "none"]).default("none"),
 
@@ -47,6 +54,9 @@ function validateEnv(): Env {
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+      NEWSAPI_KEY: process.env.NEWSAPI_KEY,
+      NAVER_CLIENT_ID: process.env.NAVER_CLIENT_ID,
+      NAVER_SECRET: process.env.NAVER_SECRET,
       IMAGE_GENERATION_API: (process.env.IMAGE_GENERATION_API as "gemini" | "none") || "none",
       GEMINI_USE_CONTEXT_CACHING: process.env.GEMINI_USE_CONTEXT_CACHING === "true" || process.env.GEMINI_USE_CONTEXT_CACHING === undefined,
       GEMINI_NEWS_COLLECTION_MODEL: (process.env.GEMINI_NEWS_COLLECTION_MODEL as "flash" | "pro") || "pro",

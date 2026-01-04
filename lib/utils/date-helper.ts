@@ -83,3 +83,37 @@ export function isFutureDate(date: string): boolean {
   return date > todayKST;
 }
 
+/**
+ * RFC 822 형식의 날짜 문자열을 YYYY-MM-DD 형식으로 변환합니다.
+ * 예: "Mon, 26 Sep 2016 07:50:00 +0900" → "2016-09-26"
+ * @param rfc822Date RFC 822 형식의 날짜 문자열
+ * @returns YYYY-MM-DD 형식의 날짜 문자열, 파싱 실패 시 null
+ */
+export function parseRFC822Date(rfc822Date: string): string | null {
+  if (!rfc822Date || typeof rfc822Date !== "string") {
+    return null;
+  }
+
+  try {
+    // RFC 822 형식: "Mon, 26 Sep 2016 07:50:00 +0900"
+    // Date 객체가 RFC 822 형식을 파싱할 수 있으므로 직접 사용
+    const dateObj = new Date(rfc822Date);
+
+    if (isNaN(dateObj.getTime())) {
+      return null;
+    }
+
+    // YYYY-MM-DD 형식으로 변환 (KST 기준)
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+
+    return formatter.format(dateObj);
+  } catch (error) {
+    return null;
+  }
+}
+

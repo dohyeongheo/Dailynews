@@ -22,6 +22,10 @@ export interface NewsInput {
   content: string;
   category: NewsCategory;
   news_category?: NewsTopicCategory | null;
+  // NewsAPI 및 네이버 API 통합을 위한 추가 필드
+  source_api?: 'newsapi' | 'naver' | 'gemini'; // 소스 API 식별
+  original_url?: string;  // 원문 URL (번역/이미지용)
+  url_to_image?: string;  // NewsAPI 이미지 URL
 }
 
 export interface GeminiNewsResponse {

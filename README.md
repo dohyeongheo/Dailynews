@@ -243,6 +243,7 @@ ADMIN_PASSWORD=your_secure_password_here
 ## 문서
 
 ### 필수 문서
+
 - [개발 환경 가이드](docs/DEVELOPMENT.md) - Docker 및 Dev Container 사용 방법
 - [MCP 서버 설정 가이드](docs/MCP_SETUP.md) - MCP 서버(Supabase, Docker) 설정 방법
 - [배포 가이드](DEPLOYMENT.md) - Supabase 및 Vercel 배포 가이드
@@ -250,12 +251,14 @@ ADMIN_PASSWORD=your_secure_password_here
 - [아키텍처 문서](docs/ARCHITECTURE.md) - 시스템 아키텍처 및 데이터 흐름
 
 ### 기능 가이드
+
 - [관리자 페이지 자동화](docs/ADMIN_PAGE_AUTOMATION.md) - 관리자 페이지 자동 접속 및 콘솔 에러 확인 기능
 - [웹 분석 기능 사용 가이드](docs/ANALYTICS_USAGE.md) - 웹 분석 기능 사용 방법 및 이벤트 추적 가이드
 - [Sentry AI 에이전트 설정](docs/SENTRY_AI_AGENT_SETUP.md) - Sentry AI 에이전트 통합 설정 가이드
 - [AI 에이전트 Browser MCP 가이드](docs/AI_AGENT_BROWSER_MCP_GUIDE.md) - Browser MCP 툴 사용 방법
 
 ### 기술 문서
+
 - [프로젝트 로직 상세 분석](docs/PROJECT_LOGIC_DETAILED_ANALYSIS.md) - 시스템 로직 및 데이터 흐름 상세 분석
 - [할루시네이션 필터링 분석](docs/HALLUCINATION_FILTERING_ANALYSIS.md) - AI 할루시네이션 필터링 로직 분석
 - [웹 분석 구현 계획](docs/WEB_ANALYTICS_IMPLEMENTATION_PLAN.md) - 웹 분석 기능 구현 계획 및 설계 문서

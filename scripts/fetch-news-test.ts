@@ -1,9 +1,11 @@
 /**
  * GitHub Actions 테스트용 뉴스 수집 스크립트
- * 태국 뉴스만 5개 수집하고 이미지 생성까지 테스트합니다.
- * fetch-news.ts와 동일한 로직을 사용하되, 태국 뉴스만 5개로 제한합니다.
- * 뉴스 수집, 번역, 이미지 생성 로직은 fetch-news-daily와 동일하게 작동합니다.
+ * NewsAPI와 네이버 API를 사용하여 뉴스를 수집하고 테스트합니다.
+ * fetch-news.ts와 동일한 로직을 사용합니다.
  */
+
+// .env.local 파일을 가장 먼저 로드 (다른 모듈 import 전에)
+import "./load-env";
 
 import { fetchAndSaveNews } from "../lib/news-fetcher";
 import { log } from "../lib/utils/logger";
@@ -23,20 +25,23 @@ async function main() {
       log.error("필수 환경 변수가 설정되지 않음", undefined, { missingVars });
       console.error("❌ 필수 환경 변수가 설정되지 않았습니다:");
       missingVars.forEach((varName) => console.error(`   - ${varName}`));
-      console.error("\nGitHub Secrets에 다음 변수들을 설정하세요:");
+      console.error("\n.env.local 파일에 다음 변수들을 설정하세요:");
       console.error("   - GOOGLE_GEMINI_API_KEY");
       console.error("   - NEXT_PUBLIC_SUPABASE_URL");
       console.error("   - NEXT_PUBLIC_SUPABASE_ANON_KEY");
       console.error("   - SUPABASE_SERVICE_ROLE_KEY");
+      console.error("   - NEWSAPI_KEY (선택적)");
+      console.error("   - NAVER_CLIENT_ID (선택적)");
+      console.error("   - NAVER_SECRET (선택적)");
       process.exit(1);
     }
 
     const startTime = Date.now();
-    log.info("뉴스 수집 테스트 스크립트 시작 (태국 뉴스 5개 제한)");
+    log.info("뉴스 수집 테스트 스크립트 시작");
 
     // fetch-news.ts와 동일한 fetchAndSaveNews 함수 사용
-    // 태국 뉴스만 5개로 제한 (뉴스 수집, 번역, 이미지 생성 로직은 동일)
-    const result = await fetchAndSaveNews(undefined, undefined, 5, "태국뉴스");
+    // NewsAPI와 네이버 API를 사용하여 뉴스 수집
+    const result = await fetchAndSaveNews();
 
     const executionTime = Date.now() - startTime;
 
@@ -53,7 +58,12 @@ async function main() {
       // 사용자에게 보여줄 메시지는 console.log 유지 (GitHub Actions 로그 출력용)
       console.log(`✅ 성공: ${result.success}개`);
       console.log(`❌ 실패: ${result.failed}개`);
-      console.log(`📊 전체: ${result.total}개 (태국 뉴스 5개 제한)`);
+      console.log(`📊 전체: ${result.total}개`);
+      console.log(`📰 태국 뉴스: ${result.categoryCounts.태국뉴스}개`);
+      console.log(`📰 한국 뉴스: ${result.categoryCounts.한국뉴스}개`);
+      console.log(`📰 관련 뉴스: ${result.categoryCounts.관련뉴스}개`);
+      console.log(`🖼️  이미지 생성 성공: ${result.imageGenerationResult.success}개`);
+      console.log(`🖼️  이미지 생성 실패: ${result.imageGenerationResult.failed}개`);
       console.log(`⏱️  실행 시간: ${(executionTime / 1000).toFixed(2)}초`);
 
       // 실패가 있으면 exit code 1 반환
@@ -71,6 +81,11 @@ async function main() {
       console.error(`성공: ${result.success}개`);
       console.error(`실패: ${result.failed}개`);
       console.error(`전체: ${result.total}개`);
+      console.error(`📰 태국 뉴스: ${result.categoryCounts.태국뉴스}개`);
+      console.error(`📰 한국 뉴스: ${result.categoryCounts.한국뉴스}개`);
+      console.error(`📰 관련 뉴스: ${result.categoryCounts.관련뉴스}개`);
+      console.error(`🖼️  이미지 생성 성공: ${result.imageGenerationResult.success}개`);
+      console.error(`🖼️  이미지 생성 실패: ${result.imageGenerationResult.failed}개`);
 
       process.exit(1);
     }
